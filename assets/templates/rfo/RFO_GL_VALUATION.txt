@@ -1,0 +1,19 @@
+ರವರಿಗೆ,
+{{TREE_OFFICER_TO_ADDRESS}}
+
+ವಿಷಯ: {{GOVERNMENT_AGENCY_KANNADA}} ವ್ಯಾಪ್ತಿಯ ರಸ್ತೆ ಬದಿಯಲ್ಲಿರುವ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಕೋರಿ ಸಲ್ಲಿಸಿದ ಅರ್ಜಿಗೆ ಅನುಮತಿಯನ್ನು ನೀಡುವ ಬಗ್ಗೆ.
+ಉಲ್ಲೇಖ:
+{{VALUATION_REFERENCES}}
+[CENTER]
+--------
+[/CENTER]
+[JUSTIFY]
+ವಿಷಯ ಹಾಗು ಉಲ್ಲೇಖಿತ ಪತ್ರಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ {{GOVERNMENT_AGENCY_KANNADA}} ವ್ಯಾಪ್ತಿಯಲ್ಲಿ {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು {{ADDITIONAL_TREE_LOCATION}} ಸರ್ಕಾರಿ ಜಾಗದಲ್ಲಿರುವ ಮರ/ಮರಗಳನ್ನು {{STRUCTURE_TYPE_KANNADA}}ಯ {{PURPOSE_KANNADA}} {{WORK_NAME_TEXT}} {{WHY_REMOVING_KANNADA}} ಅಪಾಯಕಾರಿಯಾಗಿರುವ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಮನವಿಯನ್ನು ಸಲ್ಲಿಸಿದ ಮೇರೆಗೆ ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, {{SECTION}} ಶಾಖೆ ರವರು ಸಿಬ್ಬಂದಿಗಳೊಂದಿಗೆ ಸ್ಥಳ ಪರಿಶೀಲಿಸಿ ಪಂಚರ ಸಮಕ್ಷಮ ಮಹಜರು ಕ್ರಮ ಜರುಗಿಸಿ, ತೆರವು ಸಂಬಂಧ ಅಳತೆ ಪಟ್ಟಿ ತಯ್ಯಾರಿಸಿ ಈ ಕಛೇರಿಗೆ ವರದಿಯನ್ನು ಸಲ್ಲಿಸಿರುತ್ತಾರೆ.
+
+ಅದರಂತೆ ಪರಿಶೀಲಿಸಲಾಗಿ ಸದರಿ ಸ್ಥಳದಲ್ಲಿ {{RECOMMENDED_SPECIES_SUMMARY}} ಮರ/ಮರಗಳು ಇದ್ದು, ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರ/ಮರಗಳು ಇದ್ದು, {{TREE_STATUS_SUMMARY}} ಮರ/ಮರಗಳಿಂದ {{UNIQUE_RECOMMENDATION_REASONS}} ಕಂಡುಬರುತ್ತದೆ. ಆದ್ದರಿಂದ ಅಪಾಯಕಾರಿಯಾಗಿರುವ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳಿಗೆ ಈ ಕೆಳಕಂಡಂತೆ ತೆರವುಗೊಳಿಸಲು {{GOVERNMENT_AGENCY_KANNADA}}ಗೆ ಮೌಲ್ಯವನ್ನು ನಿಗಧಿಪಡಿಸಿ ಅನುಮತಿಯನ್ನು ನೀಡಬಹುದೆಂಬ ಅಭಿಪ್ರಾಯದೊಂದಿಗೆ ಶಿಫಾರಸ್ಸು ಮಾಡುತ್ತ ತಮ್ಮ ಅವಗಾಹನೆಗೆ ಸಲ್ಲಿಸಿದೆ.
+[/JUSTIFY]
+
+[RIGHT]
+ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ
+{{RANGE_NAME}}, {{RANGE_LOCATION}}
+[/RIGHT]

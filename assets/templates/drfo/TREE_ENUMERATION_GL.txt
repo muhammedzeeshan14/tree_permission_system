@@ -1,0 +1,28 @@
+[CENTER]
+[BOLD]
+ಅಂದಾಜು ಅಳತೆ ಪಟ್ಟಿ
+[/BOLD]
+
+{{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ರವರ ಅರ್ಜಿಯಂತೆ {{GOVERNMENT_AGENCY_PREFIX}}{{TREE_LOCATION}} {{LAND_TYPE_KANNADA}}ದಲ್ಲಿರುವ ಮರ/ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅಂದಾಜು ಅಳತೆ ಪಟ್ಟಿ
+[/CENTER]
+
+{{GL_TREE_ENUMERATION_TABLE}}
+
+[SMALL]
+[BOLD]
+Abstract:
+[/BOLD]
+
+ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರಗಳಿಂದ
+ಒಟ್ಟು {{TOTAL_TIMBER_VOLUME}} ಘ.ಮೀ ನಾಟದಿಂದ ರೂ. {{TOTAL_TIMBER_VALUE}}
+ಒಟ್ಟು {{TOTAL_FIREWOOD}} ಟನ್ ಸೌದೆಯಿಂದ ರೂ. {{TOTAL_FIREWOOD_VALUE}}
+ಒಟ್ಟು {{TOTAL_POLE_COUNT}} ಸಂಖ್ಯೆ ಪೋಲ್ ಗಳಿಂದ ರೂ. {{TOTAL_POLE_VALUE}}
+[BOLD]
+ಒಟ್ಟಾರೆ ಮೌಲ್ಯ ರೂ. {{GRAND_TOTAL_VALUE}}
+[/BOLD]
+[/SMALL]
+
+[RIGHT]
+ಉಪವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರ
+{{SECTION}} ಶಾಖೆ, {{RANGE_NAME}} ವಲಯ
+[/RIGHT]

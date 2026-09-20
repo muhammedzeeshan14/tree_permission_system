@@ -1,0 +1,29 @@
+ರವರಿಗೆ,
+{{TREE_OFFICER_TO_ADDRESS}}
+
+ಮಾನ್ಯರೆ,
+ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ {{TREE_LOCATION_SUBJECT_PHRASE}} ಖಾಸಗಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿ ನೀಡುವ ಬಗ್ಗೆ.
+ಉಲ್ಲೇಖ:
+1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ರವರ ಮನವಿ ದಿನಾಂಕ: {{APPLICATION_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{RECEIVED_DATE}}).
+2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, {{SECTION}} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: {{DRFO_REPORT_DATE}}.
+3. {{REVENUE_AUTHORITY}} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: {{REVENUE_LETTER_NUMBER}}, ದಿನಾಂಕ: {{REVENUE_LETTER_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{REVENUE_RECEIVED_DATE}}).
+[CENTER]
+--------
+[/CENTER]
+[JUSTIFY]
+ವಿಷಯ ಹಾಗೂ ಉಲ್ಲೇಖಿತ ಪತ್ರಗಳಿಗೆ ಸಂಬಂಧಿಸಿದಂತೆ {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು ಈ ಕಛೇರಿಗೆ ಮನವಿಯನ್ನು ಸಲ್ಲಿಸಿ ತಮ್ಮ {{TREE_LOCATION_BODY_PHRASE}} ಖಾಸಗಿ ಜಾಗದಲ್ಲಿ ಬೆಳೆದಿರುವ {{TOTAL_RECOMMENDED_TREES}} ಮರ/ಮರಗಳನ್ನು {{WHY_REMOVING_KANNADA}} ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿಯನ್ನು ಕೋರಿದ ಮೇರೆಗೆ ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, {{SECTION}} ಶಾಖೆ ರವರು ಸ್ಥಳ ಪರಿಶೀಲಿಸಿ ಸ್ಥಳದಲ್ಲಿರುವ ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಮರಗಳ ಅಳತೆ ಮಾಡಿ ಪಟ್ಟಿ ತಯಾರಿಸಿ ಸ್ಥಳ ಮಹಜರ್‌ನೊಂದಿಗೆ ವರದಿ ಸಲ್ಲಿಸಿರುತ್ತಾರೆ.
+
+ಸದರಿ ಸ್ಥಳವು {{REVENUE_OPINION_REMARKS}} ವ್ಯಾಪ್ತಿಗೆ ಬರುವುದರಿಂದ ಕರ್ನಾಟಕ ವೃಕ್ಷ ಸಂರಕ್ಷಣಾ ಕಾಯ್ದೆ 1976 ರ ಸೆಕ್ಷನ್ 8(4) ರಂತೆ ಭೂಮಾಲೀಕರಿಗೆ ಮರಗಳನ್ನು ಕಡಿಯಲು ಅನುಮತಿ ನೀಡುವ ಸಲುವಾಗಿ ಕಂದಾಯ ಅಭಿಪ್ರಾಯವನ್ನು ಪಡೆಯಲಾಗಿ {{REVENUE_AUTHORITY}} ರವರು ಅರ್ಜಿದಾರರು {{REVENUE_REPLY_DETAILS}} ಎಂದು ಅಭಿಪ್ರಾಯವನ್ನು ನೀಡಿರುತ್ತಾರೆ. [IF_ONLINE_APPLICATION_NUMBER]ಅರ್ಜಿದಾರರು ಇ-ಕಟರಾವಣೇ ತಂತ್ರಾಂಶದಲ್ಲಿ ಅರ್ಜಿಯನ್ನು ಸಲ್ಲಿಸಿದ್ದು ಅದರ ಸಂಖ್ಯೆ {{ONLINE_APPLICATION_NUMBER}} ಆಗಿರುತ್ತದೆ. [/IF_ONLINE_APPLICATION_NUMBER]ಆದ್ದರಿಂದ ಅರ್ಜಿದಾರರಿಗೆ ತಮ್ಮ ಸ್ವತ್ತಿನಲ್ಲಿ ಬೆಳೆದಿರುವ ಒಟ್ಟು {{TOTAL_APPROVED_TREES}} ಸಂಖ್ಯೆ ಮರಗಳ ಕತರವಣೆಗೆ ಅನುಮತಿಯನ್ನು ನೀಡಬಹುದೆಂಬ ಅಭಿಪ್ರಾಯದೊಂದಿಗೆ ಪೂರ್ಣ ಕಡತವನ್ನು ಮುಂದಿನ ಕ್ರಮಕ್ಕಾಗಿ ತಮ್ಮ ಅವಗಾಹನೆಗೆ ಸಲ್ಲಿಸಿದೆ.
+[/JUSTIFY]
+[CENTER]
+ವಂದನೆಗಳೊಂದಿಗೆ,
+[/CENTER]
+[RIGHT]
+ತಮ್ಮ ನಂಬುಗೆಯ,
+[BOLD]
+
+
+ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ
+[/BOLD]
+{{RANGE_NAME}}, {{RANGE_LOCATION}}
+[/RIGHT]

@@ -1,0 +1,35 @@
+[RIGHT]
+{{OFFICE_NUMBER}}
+[/RIGHT]
+ರವರಿಗೆ,
+ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಗಳು,
+{{RANGE_NAME}} ವಲಯ, {{RANGE_LOCATION}}.
+
+ಮಾನ್ಯರೆ,
+ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಖಾಸಗಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿಯನ್ನು ಕೋರಿ ಸಲ್ಲಿಸಿದ ಅರ್ಜಿಗೆ ವರದಿಯನ್ನು ಸಲ್ಲಿಸುವ ಬಗ್ಗೆ.
+ಉಲ್ಲೇಖ:
+1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಅರ್ಜಿ ದಿನಾಂಕ: {{APPLICATION_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ {{RECEIVED_DATE}}).
+{{FORWARDED_REFERENCE}}
+[CENTER]
+---
+[/CENTER]
+[JUSTIFY]
+ಈ ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು ತಮ್ಮ {{ADDITIONAL_TREE_LOCATION}} ಖಾಸಗಿ ಜಾಗದಲ್ಲಿರುವ ಮರ/ಮರಗಳನ್ನು {{STRUCTURE_TYPE_KANNADA}}ಯ {{PURPOSE_KANNADA}} {{WORK_NAME_TEXT}} {{WHY_REMOVING_KANNADA}} ಕಾರಣ ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿಯನ್ನು ಉಲ್ಲೇಖಿತ ಪತ್ರದಲ್ಲಿ ಕೋರಿದ ಮೇರೆಗೆ ಸ್ಥಳ ಪರಿಶೀಲಿಸಿ ವರದಿಯನ್ನು ಸಲ್ಲಿಸಲು ತಾವು ಆದೇಶವನ್ನು ಮಾಡಿರುತ್ತೀರಿ.
+
+ಅದರಂತೆ ಅರ್ಜಿದಾರರ ಸ್ಥಳಕ್ಕೆ ಹೋಗಿ ಪರಿಶೀಲಿಸಿ ನೋಡಲಾಗಿ ಸದರಿ ಜಾಗವು {{URBAN_RURAL_KANNADA}} ಖಾಸಗಿ ಜಾಗವಾಗಿರುತ್ತದೆ. ಸದರಿ ಸ್ಥಳದಲ್ಲಿ {{RECOMMENDED_SPECIES_SUMMARY}} ಮರ/ಮರಗಳು ಇದ್ದು, ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರ/ಮರಗಳು ಇರುತ್ತವೆ. ಪರಿಶೀಲಿಸಲಾಗಿ {{TREE_STATUS_SUMMARY}} ಮರ/ಮರಗಳಿಂದ {{UNIQUE_RECOMMENDATION_REASONS}} ಕಂಡುಬರುತ್ತದೆ.
+
+ಆದ್ದರಿಂದ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿಯನ್ನು ನೀಡುವ ಸಂಬಂಧ ಪಂಚರ ಸಮಕ್ಷಮ ಮಹಜರು ಕ್ರಮವನ್ನು ಜರುಗಿಸಿ, ಮರಗಳ ಎಣಿಕೆ ಪಟ್ಟಿಯೊಂದಿಗೆ {{REVENUE_OPINION_OFFICE}} ರವರಿಂದ ಕಂದಾಯ ಅಭಿಪ್ರಾಯವನ್ನು ಪಡೆದು ಅನುಮತಿಯನ್ನು ನೀಡಬಹುದೆಂಬ ಅಭಿಪ್ರಾಯದೊಂದಿಗೆ ಈ ವರದಿಯನ್ನು ತಮ್ಮ ಅವಗಾಹನೆಗೆ ಗೌರವಪೂರಕವಾಗಿ ಸಲ್ಲಿಸಿದೆ.
+[/JUSTIFY]
+[CENTER]
+ವಂದನೆಗಳೊಂದಿಗೆ,
+[/CENTER]
+[RIGHT]
+ತಮ್ಮ ನಂಬುಗೆಯೊಂದಿಗೆ,
+
+
+
+ಉಪವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರ
+{{SECTION}} ಶಾಖೆ, {{RANGE_NAME}} ವಲಯ
+[/RIGHT]
+ದಿನಾಂಕ: {{LETTER_DATE}}
+ಸ್ಥಳ: {{RANGE_LOCATION}}

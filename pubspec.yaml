@@ -1,0 +1,67 @@
+name: tree_permission_system
+description: "Tree Permission Management System"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  uuid: ^4.5.1
+  sqflite: ^2.4.2
+  sqflite_common_ffi: ^2.3.4
+  path: ^1.9.1
+  path_provider: ^2.1.5
+  intl: ^0.20.2
+  shared_preferences: ^2.5.3
+  pdf: ^3.13.0
+  printing: ^5.14.2
+  image_picker: ^1.1.2
+  file_picker: ^10.3.2
+  open_filex: ^4.7.0
+  # Stage 1: multi-device (Supabase + offline-first)
+  supabase_flutter: ^2.9.1
+  connectivity_plus: ^6.1.4
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/NotoSansKannada-Regular.ttf
+    - assets/fonts/NotoSansKannada-Bold.ttf
+    - assets/templates/drfo/DRFO_DEFERRED_NON_RTC.txt
+    - assets/templates/drfo/DRFO_DEFERRED_RTC.txt
+    - assets/templates/drfo/DRFO_RECOMMENDED.txt
+    - assets/templates/drfo/DRFO_RECOMMENDED_GL.txt
+    - assets/templates/drfo/DRFO_RECOMMENDED_PL.txt
+    - assets/templates/drfo/DRFO_BRANCH_PERMISSION_PL.txt
+    - assets/templates/drfo/TREE_ENUMERATION_GL.txt
+    - assets/templates/drfo/DRFO_RECOMMENDED_RTC.txt
+    - assets/templates/drfo/DRFO_NOT_RECOMMENDED.txt
+    - assets/templates/drfo/MAHAZAR.txt
+    - assets/templates/drfo/PRIVATE_LAND_MAHAZAR.txt
+    - assets/templates/rfo/RFO_APPROVED_RTC.txt
+    - assets/templates/rfo/RFO_APPROVED_PL.txt
+    - assets/templates/rfo/RFO_GL_VALUATION.txt
+    - assets/templates/rfo/RFO_GL_DOCUMENT_REQUEST.txt
+    - assets/templates/rfo/RFO_GL_DO.txt
+    - assets/templates/rfo/RFO_GL_TAGGU_BELE_PATTI.txt
+    - assets/templates/rfo/RFO_APPROVED_PL_APPLICANT.txt
+    - assets/templates/rfo/RFO_BRANCH_PERMISSION_PL.txt
+    - assets/templates/rfo/RFO_REJECTED_PL.txt
+    - assets/templates/rfo/RFO_DEFERRED_RTC.txt
+    - assets/templates/rfo/RFO_DEFERRED_NON_RTC.txt
+    - assets/templates/rfo/RFO_NOT_RECOMMENDED_NON_RTC.txt
+    - assets/templates/rfo/RFO_REVENUE_OPINION_REQUEST_PL.txt

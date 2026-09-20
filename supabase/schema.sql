@@ -1,0 +1,496 @@
+-- ============================================================
+-- TPMS Supabase schema (Stage 1)
+-- Source of truth for multi-device sync. Local sqflite stays
+-- as offline cache with the same table names.
+-- Run this in Supabase Dashboard > SQL Editor.
+-- ============================================================
+
+-- ---------- helpers ----------
+create extension if not exists "uuid-ossp";
+
+-- Every synced table gets updated_at for last-write-wins.
+-- Users link to Supabase Auth via auth_id.
+
+-- ---------- users ----------
+create table if not exists public.users (
+  id bigint generated always as identity primary key,
+  auth_id uuid unique,
+  email text,
+  name text,
+  username text unique not null,
+  password text not null default '',
+  role text not null default '',
+  "sectionId" integer,
+  "beatId" integer,
+  "isActive" integer not null default 1,
+  "updatedAt" timestamptz not null default now()
+);
+
+-- ---------- masters ----------
+create table if not exists public.section_master (
+  id bigint generated always as identity primary key,
+  "sectionName" text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.beat_master (
+  id bigint generated always as identity primary key,
+  "sectionId" integer,
+  "beatName" text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.master_data (
+  id bigint generated always as identity primary key,
+  "masterType" text,
+  value text,
+  code text,
+  "parentCode" text,
+  "displayOrder" integer,
+  remarks text,
+  "isActive" integer,
+  "speciesGroup" text,
+  "scientificName" text,
+  "kannadaName" text,
+  "ratePerCubicMeter" double precision,
+  "lengthFrom" double precision,
+  "lengthUpto" double precision,
+  "girthFrom" double precision,
+  "girthUpto" double precision,
+  "ratePerPole" double precision,
+  category text,
+  "ratePerTon" double precision,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.pole_rate_master (
+  id bigint generated always as identity primary key,
+  "speciesId" integer not null,
+  "lengthFrom" double precision,
+  "lengthUpto" double precision,
+  "girthFrom" double precision,
+  "girthUpto" double precision,
+  rate double precision,
+  category text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_type_master (
+  id bigint generated always as identity primary key,
+  "applicationType" text,
+  "kannadaName" text,
+  "shortCode" text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.permission_type_master (
+  id bigint generated always as identity primary key,
+  "permissionType" text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_type_permission_mapping (
+  id bigint generated always as identity primary key,
+  "applicationTypeId" integer,
+  "permissionTypeId" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.forwarded_source_master (
+  id bigint generated always as identity primary key,
+  "sourceName" text,
+  "shortCode" text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.revenue_opinion_master (
+  id bigint generated always as identity primary key,
+  "revenueOpinion" text,
+  code text,
+  "officeName" text,
+  "officeAddress" text,
+  remarks text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.inspection_defer_reason_master (
+  id bigint generated always as identity primary key,
+  reason text,
+  "displayOrder" integer,
+  "isActive" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.tree_officer_master (
+  id bigint primary key,
+  code text not null unique,
+  name text not null,
+  "requiresFellingPermission" integer
+);
+
+create table if not exists public.officer_directory (
+  id bigint generated always as identity primary key,
+  name text not null,
+  designation text not null,
+  "postingAddress" text not null,
+  role text not null unique check (role in ('RFO','ACF','DCF')),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.office_configuration (
+  id bigint generated always as identity primary key,
+  "rangeName" text,
+  "rangeLocation" text,
+  "rangeCode" text,
+  "officePrefix" text,
+  "financialYear" text,
+  "rangeOfficeAddress" text,
+  "rangeEmail" text,
+  "rfoOfficeLogoPath" text,
+  division text,
+  "subDivision" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.rfo_letter_configuration (
+  id bigint generated always as identity primary key,
+  "applicationTypeCode" text not null unique,
+  "letterNumber" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+-- ---------- applications + workflow ----------
+create table if not exists public.applications (
+  id bigint generated always as identity primary key,
+  "officeNumber" text,
+  "applicationType" text,
+  "verifiedApplicationType" text,
+  "permissionTypeId" integer,
+  "permissionType" text,
+  "applicantLetterNumber" text not null default '',
+  "applicationDate" text,
+  "receivedDate" text,
+  "applicantName" text,
+  "applicantAddress" text,
+  "treeLocationSame" integer default 1,
+  "treeLocationAddress" text,
+  mobile text,
+  "applicationSource" text,
+  "forwardedDate" text,
+  "drfoAssignmentDate" text,
+  "sectionId" integer,
+  "beatId" integer,
+  "purposeId" integer,
+  purpose text,
+  "whyRemovingId" integer,
+  "governmentAgencyId" integer,
+  "urbanRuralId" integer,
+  "structureTypeId" integer,
+  "workName" text,
+  gps text,
+  "inspectionStarted" integer,
+  "inspectionDecision" text,
+  "overallRemarkId" integer,
+  "overallRemarks" text,
+  "bfoVerificationDate" text,
+  "drfoInspectionDate" text,
+  "drfoOverallRemarks" text,
+  "rfoInspectionStarted" integer,
+  "rfoInspectionDate" text,
+  "rfoOverallRemarks" text,
+  "returnReason" text,
+  "returnRemarks" text,
+  "returnedBy" text,
+  "returnedDate" text,
+  status text,
+  "inspectionMode" text,
+  "treeCountSiteDetails" text,
+  "createdDate" text,
+  "rfoApprovalDate" text,
+  "createdBy" integer,
+  "assignedBFO" integer,
+  "assignedDRFO" integer,
+  "lastTreeNumber" integer default 0,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.trees (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  "treeNumber" text,
+  "baseTreeNumber" integer,
+  "stemType" text,
+  "stemLetter" text,
+  "stemSequence" integer,
+  "isLastStem" integer default 1,
+  "speciesId" integer,
+  "recommendationTypeId" integer,
+  "treeStatusId" integer,
+  gbh double precision,
+  height double precision,
+  "notFitForTimber" integer default 0,
+  "numberOfBranches" integer,
+  "numberOfTwigs" integer,
+  firewood double precision,
+  "recommendationReasonIds" text,
+  remarks text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_history (
+  id bigint generated always as identity primary key,
+  "officeNumber" text,
+  action text,
+  remarks text,
+  "actionBy" text,
+  "actionDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_tree_count_site (
+  id bigint generated always as identity primary key,
+  "applicationId" integer not null,
+  "siteDetails" text,
+  "displayOrder" integer not null,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_tree_count (
+  id bigint generated always as identity primary key,
+  "siteId" integer not null,
+  "speciesId" integer not null,
+  "treeCount" integer not null,
+  "displayOrder" integer not null,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_mahazar (
+  id bigint generated always as identity primary key,
+  "applicationId" integer not null,
+  "mahazarDate" text,
+  "startTime" text,
+  "startTimeManual" text,
+  "endTime" text,
+  "endTimeManual" text,
+  "northLocationId" integer,
+  "eastLocationId" integer,
+  "southLocationId" integer,
+  "westLocationId" integer,
+  "northBoundary" text,
+  "eastBoundary" text,
+  "southBoundary" text,
+  "westBoundary" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.inspection_photos (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  "treeId" integer,
+  "photoPath" text,
+  caption text,
+  "createdDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.inspection_documents (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  "documentName" text,
+  "filePath" text,
+  remarks text,
+  "createdDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.inspection_deferred_reasons (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  "reasonId" integer,
+  "reasonName" text,
+  "displayOrder" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_verifications (
+  "applicationId" bigint primary key,
+  "applicationTypeCorrect" integer,
+  "governmentAgencyCorrect" integer,
+  "urbanRuralCorrect" integer,
+  "structureTypeCorrect" integer,
+  "workNameCorrect" integer,
+  "overallRemarkCorrect" integer,
+  "gpsCorrect" integer,
+  "photosCorrect" integer,
+  "documentsCorrect" integer,
+  "applicationTypeReason" text,
+  "governmentAgencyReason" text,
+  "urbanRuralReason" text,
+  "structureTypeReason" text,
+  "workNameReason" text,
+  "overallRemarkReason" text,
+  "gpsReason" text,
+  "photosReason" text,
+  "documentsReason" text,
+  "whyRemovingCorrect" integer,
+  "purposeCorrect" integer,
+  "whyRemovingReason" text,
+  "purposeReason" text,
+  "applicationTypeStatus" text,
+  "governmentAgencyStatus" text,
+  "urbanRuralStatus" text,
+  "whyRemovingStatus" text,
+  "purposeStatus" text,
+  "structureTypeStatus" text,
+  "workNameStatus" text,
+  "overallRemarkStatus" text,
+  "gpsStatus" text,
+  "photosStatus" text,
+  "documentsStatus" text,
+  "verifiedBy" text,
+  "verifiedDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_forward_references (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  "sourceId" integer,
+  "referenceNumber" text,
+  "referenceDate" text,
+  "displayOrder" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.tree_verifications (
+  "treeId" bigint primary key,
+  verification text,
+  "verificationReason" text,
+  "verifiedBy" text,
+  "verifiedDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.rfo_item_approvals (
+  id bigint generated always as identity primary key,
+  "applicationId" integer not null,
+  "itemKey" text not null,
+  "itemId" integer not null default 0,
+  decision text,
+  reason text,
+  "approvedBy" text,
+  "approvedDate" text,
+  unique ("applicationId", "itemKey", "itemId"),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.rfo_deferred_letter_recipients (
+  id bigint generated always as identity primary key,
+  "applicationId" integer not null,
+  "recipientKey" text not null,
+  "sourceId" integer,
+  "recipientText" text not null,
+  "isPrimary" integer not null default 0,
+  "displayOrder" integer not null default 0,
+  unique ("applicationId", "recipientKey"),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_revenue_opinion (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  "revenueOpinionId" integer,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.tree_count_verification (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  verification text,
+  reason text,
+  "verifiedBy" text,
+  "verifiedDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.revenue_opinion_verification (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  verification text,
+  reason text,
+  "verifiedBy" text,
+  "verifiedDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.mahazar_verification (
+  id bigint generated always as identity primary key,
+  "applicationId" integer,
+  verification text,
+  reason text,
+  "verifiedBy" text,
+  "verifiedDate" text,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.revenue_reply_cycles (
+  id bigint generated always as identity primary key,
+  "applicationId" integer not null,
+  cycle integer not null,
+  "requestedAt" text not null,
+  "requestAuthority" text not null,
+  "requestLetterPath" text not null default '',
+  "printedAt" text not null default '',
+  stage text not null default 'printing',
+  answers text not null default '{}',
+  decisions text not null default '{}',
+  "nextAuthorityId" integer,
+  "finalLetterPath" text not null default '',
+  revision integer not null default 0,
+  unique ("applicationId", cycle),
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.application_tree_officer (
+  "applicationId" bigint primary key,
+  "treeOfficerId" integer not null,
+  "updatedAt" timestamptz not null default now()
+);
+
+create table if not exists public.government_approvals (
+  "applicationId" bigint primary key,
+  "permissionType" text not null default '',
+  "khataGiven" integer,
+  "treeOfficerId" integer,
+  stage text not null default 'draft',
+  "requestDate" text not null default '',
+  "requestLetterPath" text not null default '',
+  answers text not null default '{}',
+  "approvedFields" text not null default '[]',
+  "finalPaths" text not null default '[]',
+  "finalDate" text not null default '',
+  revision integer not null default 0,
+  "updatedAt" timestamptz not null default now()
+);
+
+-- ---------- storage ----------
+-- Create via Dashboard > Storage: tpms-documents (private), tpms-photos (private).
+-- Stage 2 wires photo/document upload to these buckets.
+
+-- ---------- row-level security (Stage 2) ----------
+-- Keep RLS OFF for Stage 1 local testing. Before production, enable RLS
+-- and add policies tied to auth.uid() -> public.users.auth_id and role.

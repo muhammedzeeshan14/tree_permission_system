@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TPMS + Supabase (Windows)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://drgttmvxxhltlkeyoizy.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyZ3R0bXZ4eGhsdGxrZXlvaXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5MjA4MDYsImV4cCI6MjEwNTQ5NjgwNn0._Df-PDA9UDSa9krQ7kLFG617NJWDhI05a1aAMgY8HAo"
+      ]
+    },
+    {
+      "name": "TPMS local-only (Windows)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    }
+  ]
+}
