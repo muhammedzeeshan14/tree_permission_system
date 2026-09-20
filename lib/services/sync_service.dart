@@ -109,7 +109,11 @@ class SyncService {
     int pulled = 0;
     final errors = <String>[];
     try {
-      pushed = await _pushQueue(client);
+      final result = await _pushQueue(client);
+      pushed = result.pushed;
+      if (result.firstError != null) {
+        errors.add('push: ${result.firstError}');
+      }
     } catch (e) {
       errors.add('push: $e');
     }
@@ -129,10 +133,11 @@ class SyncService {
     return msg;
   }
 
-  Future<int> _pushQueue(SupabaseClient client) async {
+  Future<_PushResult> _pushQueue(SupabaseClient client) async {
     final db = await DatabaseHelper.instance.database;
     final queue = await db.query('sync_queue', orderBy: 'id ASC', limit: 200);
     int ok = 0;
+    String? firstError;
     for (final entry in queue) {
       final qid = entry['id'] as int;
       final table = entry['tableName']?.toString() ?? '';
@@ -162,11 +167,12 @@ class SyncService {
         await db.delete('sync_queue', where: 'id=?', whereArgs: [qid]);
         ok++;
       } catch (e) {
+        firstError ??= '$table#$localId: $e';
         debugPrint('push $table#$localId failed: $e');
         // Keep entry queued for next run.
       }
     }
-    return ok;
+    return _PushResult(ok, firstError);
   }
 
   Future<int> _pullSince(SupabaseClient client, DateTime? since) async {
@@ -289,4 +295,13 @@ class SyncService {
       await db.execute('ALTER TABLE $table ADD COLUMN updatedAt TEXT');
     }
   }
+}
+
+/// Stage 2: push outcome including the first per-row error so the
+/// Sync button snackbar can show the real failure reason.
+class _PushResult {
+  final int pushed;
+  final String? firstError;
+
+  const _PushResult(this.pushed, this.firstError);
 }

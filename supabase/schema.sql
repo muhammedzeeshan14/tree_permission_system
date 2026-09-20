@@ -492,5 +492,9 @@ create table if not exists public.government_approvals (
 -- Stage 2 wires photo/document upload to these buckets.
 
 -- ---------- row-level security (Stage 2) ----------
--- Keep RLS OFF for Stage 1 local testing. Before production, enable RLS
--- and add policies tied to auth.uid() -> public.users.auth_id and role.
+-- Stage 2 (testing): RLS stays OFF and the app roles get direct grants.
+-- Without these GRANTs PostgREST returns 42501 permission-denied and
+-- push silently queues forever. Stage 3 enables RLS + role policies.
+grant all on all tables in schema public to anon, authenticated;
+alter default privileges in schema public
+  grant all on tables to anon, authenticated;
