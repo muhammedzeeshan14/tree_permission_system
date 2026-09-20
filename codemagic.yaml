@@ -1,14 +1,12 @@
 workflows:
   tpms-android-apk:
     name: TPMS Android APK (Supabase)
-    instance_type: mac_mini_m2
+    instance_type: linux_x2
     max_build_duration: 60
     environment:
       flutter: stable
       vars:
         SUPABASE_URL: https://drgttmvxxhltlkeyoizy.supabase.co
-      groups:
-        - tpms_keys
     scripts:
       - name: Flutter pub get
         script: flutter pub get
@@ -22,4 +20,4 @@ workflows:
     publishing:
       email:
         recipients:
-          - zeeshan@example.com
+          - muhammedzeeshan14@gmail.com
