@@ -564,11 +564,12 @@ await add("Section","Section-2","S2","",2);
   await add("Beat","Beat-1","B1","",1);
 await add("Beat","Beat-2","B2","",2);
 
-  // PURPOSE
+  // PURPOSE (parentCode = Why Removing code for mapping)
 
-  await add("Purpose","House Construction","","",1);
-  await add("Purpose","Agriculture","","",2);
-  await add("Purpose","Road Widening","","",3);
+  await add("Purpose","House Construction","HOUSE","CONVINIENT",1);
+  await add("Purpose","Agriculture","AGRI","FINANCE",2);
+  await add("Purpose","Road Widening","ROADW","WORKS",3);
+  await add("Purpose","Safety","SAFETY","DANGER",4);
 
   // GOVERNMENT AGENCY
 

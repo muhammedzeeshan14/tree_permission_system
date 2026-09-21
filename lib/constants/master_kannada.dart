@@ -47,6 +47,7 @@ class MasterKannada {
     'Purpose|House Construction': 'ಮನೆ ನಿರ್ಮಾಣ',
     'Purpose|Agriculture': 'ಕೃಷಿ',
     'Purpose|Road Widening': 'ರಸ್ತೆ ಅಗಲೀಕರಣ',
+    'Purpose|Safety': 'ಸುರಕ್ಷತೆ',
     // Problem
     'Problem|Dangerous': 'ಅಪಾಯಕಾರಿ',
     'Problem|Dead': 'ಸತ್ತ',

@@ -298,6 +298,12 @@ void filterPurposeList() {
     return purposeParentCode == parentCode;
   }).toList();
 
+  // Fallback: custom purposes without a mapped parent still show,
+  // so save is never blocked by an empty purpose list.
+  if (purposeList.isEmpty) {
+    purposeList = allPurposeList.toList();
+  }
+
   final selectedPurposeStillValid =
       purposeList.any(
     (item) => item["id"] == purposeId,

@@ -494,9 +494,43 @@ create table if not exists public.government_approvals (
 -- Stage 2 wires photo/document upload to these buckets.
 
 -- ---------- row-level security (Stage 2) ----------
--- Stage 2 (testing): RLS stays OFF and the app roles get direct grants.
--- Without these GRANTs PostgREST returns 42501 permission-denied and
--- push silently queues forever. Stage 3 enables RLS + role policies.
+-- Stage 2 (testing): RLS stays ON with fully-open policies for the app
+-- roles. Supabase enables RLS on new tables and rejects anon writes
+-- (42501) without a policy, so these are required. Stage 3 replaces
+-- them with role-based policies tied to auth.uid().
 grant all on all tables in schema public to anon, authenticated;
 alter default privileges in schema public
   grant all on tables to anon, authenticated;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'users','section_master','beat_master','master_data',
+    'pole_rate_master','application_type_master',
+    'permission_type_master','application_type_permission_mapping',
+    'forwarded_source_master','revenue_opinion_master',
+    'inspection_defer_reason_master','tree_officer_master',
+    'officer_directory','office_configuration',
+    'rfo_letter_configuration','applications','trees',
+    'application_history','application_tree_count_site',
+    'application_tree_count','application_mahazar','inspection_photos',
+    'inspection_documents','inspection_deferred_reasons',
+    'application_verifications','application_forward_references',
+    'tree_verifications','rfo_item_approvals',
+    'rfo_deferred_letter_recipients','application_revenue_opinion',
+    'tree_count_verification','revenue_opinion_verification',
+    'mahazar_verification','revenue_reply_cycles',
+    'application_tree_officer','government_approvals']
+  loop
+    execute format(
+      'alter table public.%I enable row level security', t);
+    execute format(
+      'drop policy if exists tpms_open_all on public.%I', t);
+    execute format(
+      'create policy tpms_open_all on public.%I '
+      'for all to anon, authenticated using (true) with check (true)',
+      t);
+  end loop;
+end $$;

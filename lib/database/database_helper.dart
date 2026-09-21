@@ -2220,6 +2220,40 @@ Future<void> _applyV42Defaults(DatabaseExecutor db) async {
       });
     }
   }
+  // Purpose ↔ Why Removing mapping: parentCode = reason code.
+  const purposeParents = {
+    'House Construction': 'CONVINIENT',
+    'Agriculture': 'FINANCE',
+    'Road Widening': 'WORKS',
+  };
+  for (final mapEntry in purposeParents.entries) {
+    await db.update(
+      'master_data',
+      {'parentCode': mapEntry.value},
+      where: 'masterType=? AND value=?',
+      whereArgs: ['Purpose', mapEntry.key],
+    );
+  }
+  final safety = await db.query(
+    'master_data',
+    columns: ['id'],
+    where: 'masterType=? AND value=?',
+    whereArgs: ['Purpose', 'Safety'],
+    limit: 1,
+  );
+  if (safety.isEmpty) {
+    await db.insert('master_data', {
+      'masterType': 'Purpose',
+      'value': 'Safety',
+      'code': 'SAFETY',
+      'parentCode': 'DANGER',
+      'displayOrder': 4,
+      'remarks': '',
+      'kannadaName': 'ಸುರಕ್ಷತೆ',
+      'isActive': 1,
+    });
+  }
+
   for (final mapEntry in MasterKannada.names.entries) {
     final parts = mapEntry.key.split('|');
     if (parts.length != 2) continue;
