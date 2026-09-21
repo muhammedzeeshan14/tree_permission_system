@@ -5,6 +5,8 @@ import '../database/database_helper.dart';
 import '../models/application_model.dart';
 import '../models/application_reference_model.dart';
 import '../constants/workflow_status.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 import '../services/sync_service.dart';
 
 class ApplicationRepository {
@@ -21,13 +23,7 @@ class ApplicationRepository {
   Future<int> insertApplication(
     ApplicationModel application) async {
 
-  final db = await _db;
-
-  final id = await db.insert(
-
-    "applications",
-
-    {
+  final row = <String, Object?>{
 
       // BASIC
 
@@ -180,16 +176,30 @@ class ApplicationRepository {
 
 "updatedAt": DateTime.now().toIso8601String(),
 
-    },
+    };
 
-  );
+  final int id;
+
+  if (OnlineMode.enabled) {
+    id = await OnlineDatabase.insert(
+      "applications",
+      row,
+    );
+  } else {
+    final db = await _db;
+
+    id = await db.insert(
+      "applications",
+      row,
+    );
+
+    await SyncService.instance.markDirty(
+      tableName: 'applications',
+      localId: id,
+    );
+  }
 
   application.id = id;
-
-  await SyncService.instance.markDirty(
-    tableName: 'applications',
-    localId: id,
-  );
 
   // ======================================================
 // SAVE FORWARDING REFERENCES
@@ -201,18 +211,29 @@ final references =
 for (int i = 0; i < references.length; i++) {
   final reference = references[i];
 
-  await db.insert(
-    "application_forward_references",
-    {
-      "applicationId": id,
-      "sourceId": reference.sourceId,
-      "referenceNumber":
-          reference.referenceNumber,
-      "referenceDate":
-          reference.referenceDate,
-      "displayOrder": i + 1,
-    },
-  );
+  final refRow = <String, Object?>{
+    "applicationId": id,
+    "sourceId": reference.sourceId,
+    "referenceNumber":
+        reference.referenceNumber,
+    "referenceDate":
+        reference.referenceDate,
+    "displayOrder": i + 1,
+  };
+
+  if (OnlineMode.enabled) {
+    await OnlineDatabase.insert(
+      "application_forward_references",
+      refRow,
+    );
+  } else {
+    final db = await _db;
+
+    await db.insert(
+      "application_forward_references",
+      refRow,
+    );
+  }
 }
 return id;
 
@@ -228,13 +249,7 @@ return id;
 
   ) async {
 
-    final db = await _db;
-
-    final rows = await db.update(
-
-      "applications",
-
-      {
+    final row = <String, Object?>{
   "applicationType": application.applicationType,
 
   "verifiedApplicationType":
@@ -349,7 +364,24 @@ return id;
     application.inspectionMode,
 
 "updatedAt": DateTime.now().toIso8601String(),
-},
+};
+
+    if (OnlineMode.enabled) {
+      await OnlineDatabase.update(
+        "applications",
+        application.id!,
+        row,
+      );
+      return 1;
+    }
+
+    final db = await _db;
+
+    final rows = await db.update(
+
+      "applications",
+
+      row,
 
       where: "id=?",
 
@@ -374,6 +406,14 @@ whereArgs: [
 
   // Stage 2 helper: queue sync + stamp workflow transitions.
   Future<void> touchForSync(int applicationId) async {
+    if (OnlineMode.enabled) {
+      await OnlineDatabase.update(
+        'applications',
+        applicationId,
+        {'updatedAt': DateTime.now().toIso8601String()},
+      );
+      return;
+    }
     final db = await _db;
     await db.update(
       'applications',
@@ -395,6 +435,32 @@ Future<void> replaceForwardingReferences(
   int applicationId,
   List<ApplicationReferenceModel> references,
 ) async {
+
+  if (OnlineMode.enabled) {
+    await OnlineDatabase.delete(
+      "application_forward_references",
+      column: "applicationId",
+      value: applicationId,
+    );
+
+    for (int i = 0; i < references.length; i++) {
+      final reference = references[i];
+
+      await OnlineDatabase.insert(
+        "application_forward_references",
+        {
+          "applicationId": applicationId,
+          "sourceId": reference.sourceId,
+          "referenceNumber":
+              reference.referenceNumber,
+          "referenceDate":
+              reference.referenceDate,
+          "displayOrder": i + 1,
+        },
+      );
+    }
+    return;
+  }
 
   final db = await _db;
 
@@ -429,6 +495,32 @@ Future<void> replaceForwardingReferences(
 
 Future<List<ApplicationReferenceModel>>
     _getForwardingReferences(int applicationId) async {
+
+  if (OnlineMode.enabled) {
+    final rows = await OnlineDatabase.select(
+      'application_forward_references',
+      equals: {'applicationId': applicationId},
+      orderBy: 'displayOrder',
+    );
+    final sources = await OnlineDatabase.select(
+      'forwarded_source_master',
+    );
+    final names = <int, String>{
+      for (final s in sources)
+        (s['id'] as num).toInt(): (s['sourceName']?.toString() ?? ''),
+    };
+    return rows.map((row) {
+      final sourceId = (row['sourceId'] as num?)?.toInt() ?? 0;
+      return ApplicationReferenceModel(
+        sourceId: sourceId,
+        forwardedBy: names[sourceId] ?? '',
+        referenceNumber:
+            row['referenceNumber']?.toString() ?? '',
+        referenceDate:
+            row['referenceDate']?.toString() ?? '',
+      );
+    }).toList();
+  }
 
   final db = await _db;
 
@@ -472,6 +564,15 @@ Future<List<ApplicationReferenceModel>>
 // ======================================
 
 Future<ApplicationModel?> getByOfficeNumber(String officeNumber) async {
+  if (OnlineMode.enabled) {
+    final rows = await OnlineDatabase.select(
+      'applications',
+      equals: {'officeNumber': officeNumber},
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return await _enrichOnline(rows.first);
+  }
   final rows=await (await _db).rawQuery('''SELECT applications.*, section_master.sectionName,
     beat_master.beatName, bfo.name AS assignedBFOName, drfo.name AS assignedDRFOName
     FROM applications LEFT JOIN section_master ON applications.sectionId=section_master.id
@@ -488,6 +589,16 @@ Future<ApplicationModel?> getByOfficeNumber(String officeNumber) async {
 Future<ApplicationModel?> getById(
   int id,
 ) async {
+
+  if (OnlineMode.enabled) {
+    final result = await OnlineDatabase.select(
+      'applications',
+      equals: {'id': id},
+      limit: 1,
+    );
+    if (result.isEmpty) return null;
+    return await _enrichOnline(result.first);
+  }
 
   final db = await _db;
 
@@ -517,6 +628,70 @@ application.forwardingReferences =
 return application;
 
 }
+    // ======================================
+  // ONLINE ENRICHMENT (joins done client-side)
+  // ======================================
+
+  Future<ApplicationModel> _enrichOnline(
+    Map<String, dynamic> row,
+  ) async {
+    final enriched = Map<String, dynamic>.from(row);
+    final sectionId = (row['sectionId'] as num?)?.toInt();
+    final beatId = (row['beatId'] as num?)?.toInt();
+    final bfoId = (row['assignedBFO'] as num?)?.toInt();
+    final drfoId = (row['assignedDRFO'] as num?)?.toInt();
+    if (sectionId != null) {
+      final sections = await OnlineDatabase.select(
+        'section_master',
+        equals: {'id': sectionId},
+        limit: 1,
+      );
+      if (sections.isNotEmpty) {
+        enriched['sectionName'] =
+            sections.first['sectionName']?.toString() ?? '';
+      }
+    }
+    if (beatId != null) {
+      final beats = await OnlineDatabase.select(
+        'beat_master',
+        equals: {'id': beatId},
+        limit: 1,
+      );
+      if (beats.isNotEmpty) {
+        enriched['beatName'] =
+            beats.first['beatName']?.toString() ?? '';
+      }
+    }
+    if (bfoId != null) {
+      final users = await OnlineDatabase.select(
+        'users',
+        equals: {'id': bfoId},
+        limit: 1,
+      );
+      if (users.isNotEmpty) {
+        enriched['assignedBFOName'] =
+            users.first['name']?.toString() ?? '';
+      }
+    }
+    if (drfoId != null) {
+      final users = await OnlineDatabase.select(
+        'users',
+        equals: {'id': drfoId},
+        limit: 1,
+      );
+      if (users.isNotEmpty) {
+        enriched['assignedDRFOName'] =
+            users.first['name']?.toString() ?? '';
+      }
+    }
+    final application = _mapApplication(enriched);
+    if (application.id != null) {
+      application.forwardingReferences =
+          await _getForwardingReferences(application.id!);
+    }
+    return application;
+  }
+
     // ======================================
   // APPLICATION MAPPER
   // ======================================
@@ -697,6 +872,52 @@ rfoOverallRemarks:
 
 Future<List<ApplicationModel>>
     getApplications() async {
+
+  if (OnlineMode.enabled) {
+    final result = await OnlineDatabase.select(
+      'applications',
+      orderBy: 'createdDate',
+      descending: true,
+    );
+    final sections = await OnlineDatabase.select('section_master');
+    final beats = await OnlineDatabase.select('beat_master');
+    final users = await OnlineDatabase.select('users');
+    final sectionNames = <int, String>{
+      for (final s in sections)
+        (s['id'] as num).toInt(): (s['sectionName']?.toString() ?? ''),
+    };
+    final beatNames = <int, String>{
+      for (final b in beats)
+        (b['id'] as num).toInt(): (b['beatName']?.toString() ?? ''),
+    };
+    final userNames = <int, String>{
+      for (final u in users)
+        (u['id'] as num).toInt(): (u['name']?.toString() ?? ''),
+    };
+    final applications = <ApplicationModel>[];
+    for (final row in result) {
+      final enriched = Map<String, dynamic>.from(row);
+      final sectionId = (row['sectionId'] as num?)?.toInt();
+      final beatId = (row['beatId'] as num?)?.toInt();
+      final bfoId = (row['assignedBFO'] as num?)?.toInt();
+      final drfoId = (row['assignedDRFO'] as num?)?.toInt();
+      enriched['sectionName'] =
+          sectionId == null ? '' : (sectionNames[sectionId] ?? '');
+      enriched['beatName'] =
+          beatId == null ? '' : (beatNames[beatId] ?? '');
+      enriched['assignedBFOName'] =
+          bfoId == null ? '' : (userNames[bfoId] ?? '');
+      enriched['assignedDRFOName'] =
+          drfoId == null ? '' : (userNames[drfoId] ?? '');
+      final application = _mapApplication(enriched);
+      if (application.id != null) {
+        application.forwardingReferences =
+            await _getForwardingReferences(application.id!);
+      }
+      applications.add(application);
+    }
+    return applications;
+  }
 
   final db = await _db;
 
@@ -945,6 +1166,25 @@ Future<List<ApplicationModel>>
   Future<Map<String, int>>
       getDashboardCounts() async {
 
+  if (OnlineMode.enabled) {
+    final rows = await OnlineDatabase.select('applications');
+    int count(String status) =>
+        rows.where((r) => (r['status']?.toString() ?? '') == status).length;
+    return {
+      "Total": rows.length,
+      "Draft": count("Draft"),
+      "Pending DRFO Assignment": count("Pending DRFO Assignment"),
+      "Pending BFO Inspection": count("Pending BFO Inspection"),
+      "Pending DRFO Verification":
+          count("Pending DRFO Verification"),
+      "Pending RFO Approval":
+          count(WorkflowStatus.pendingRFOApproval),
+      "Completed": count(WorkflowStatus.completed),
+      "Approved": count(WorkflowStatus.approved),
+      "Rejected": count("Rejected"),
+    };
+  }
+
     final db = await _db;
 
     Future<int> count(
@@ -1039,6 +1279,19 @@ Future<List<ApplicationModel>>
 
   }) async {
 
+    if (OnlineMode.enabled) {
+      await OnlineDatabase.update(
+        "applications",
+        applicationId,
+        {
+          "status": status,
+          "inspectionMode": inspectionMode,
+          "assignedBFO": assignedBFO,
+        },
+      );
+      return;
+    }
+
     final db = await _db;
 
     await db.update(
@@ -1071,6 +1324,15 @@ Future<List<ApplicationModel>>
   Future<int> getLastTreeNumber(
   int applicationId,
 ) async {
+  if (OnlineMode.enabled) {
+    final result = await OnlineDatabase.select(
+      'applications',
+      equals: {'id': applicationId},
+      limit: 1,
+    );
+    if (result.isEmpty) return 0;
+    return (result.first['lastTreeNumber'] as num?)?.toInt() ?? 0;
+  }
   final db = await _db;
 
   final result = await db.query(
@@ -1090,6 +1352,15 @@ Future<void> updateLastTreeNumber(
     int applicationId,
     int number,
 ) async {
+
+  if (OnlineMode.enabled) {
+    await OnlineDatabase.update(
+      'applications',
+      applicationId,
+      {'lastTreeNumber': number},
+    );
+    return;
+  }
 
   final db = await _db;
 

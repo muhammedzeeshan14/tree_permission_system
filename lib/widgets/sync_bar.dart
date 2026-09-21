@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/connectivity_service.dart';
+import '../services/online_mode.dart';
 import '../services/supabase_service.dart';
 import '../services/sync_service.dart';
 
@@ -62,6 +63,36 @@ class _SyncBarState extends State<SyncBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Stage 3: completely-online mode — data is live, no queue.
+    if (OnlineMode.enabled) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border(
+              top: BorderSide(
+                color: Theme.of(context).dividerColor,
+              ),
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.cloud_done_outlined, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Online — data saves live to cloud',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final ready = SupabaseService.isReady;
     final status = !ready
         ? 'local-only'

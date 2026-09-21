@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class UserRepository {
 
@@ -124,6 +127,26 @@ Future<Map<String, dynamic>?> login({
   required String password,
 
 }) async {
+
+  // Stage 3: live cloud login when online.
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        'users',
+        equals: {
+          'username': username,
+          'password': password,
+        },
+        limit: 5,
+      );
+      for (final row in rows) {
+        if ((row['isActive'] ?? 1) == 1) return row;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('online login failed, falling back to local: $e');
+    }
+  }
 
   final db = await _db;
 

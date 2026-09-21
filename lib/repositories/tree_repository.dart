@@ -3,6 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import '../models/tree_model.dart';
 import 'master_repository.dart';
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 import '../services/sync_service.dart';
 
 class TreeRepository {
@@ -33,6 +35,12 @@ class TreeRepository {
 
   // Insert Tree
   Future<int> insertTree(TreeModel tree) async {
+    if (OnlineMode.enabled) {
+      return await OnlineDatabase.insert(
+        'trees',
+        SyncService.withSyncStamp(tree.toMap()),
+      );
+    }
     final db = await _db;
     final map = SyncService.withSyncStamp(tree.toMap());
     final id = await db.insert(
@@ -49,6 +57,14 @@ class TreeRepository {
 
   // Update Tree
   Future<int> updateTree(TreeModel tree) async {
+    if (OnlineMode.enabled && tree.id != null) {
+      await OnlineDatabase.update(
+        'trees',
+        tree.id!,
+        SyncService.withSyncStamp(tree.toMap()),
+      );
+      return 1;
+    }
     final db = await _db;
 
     final result = await db.update(
@@ -68,6 +84,14 @@ class TreeRepository {
 
   // Delete Tree
   Future<int> deleteTree(int id) async {
+    if (OnlineMode.enabled) {
+      await OnlineDatabase.delete(
+        'trees',
+        column: 'id',
+        value: id,
+      );
+      return 1;
+    }
     final db = await _db;
 
     final result = await db.delete(
@@ -86,6 +110,17 @@ class TreeRepository {
   // Get Trees of one Application
   Future<List<TreeModel>> getTrees(
       int applicationId) async {
+    if (OnlineMode.enabled) {
+      final result = await OnlineDatabase.select(
+        'trees',
+        equals: {'applicationId': applicationId},
+        orderBy: 'baseTreeNumber',
+      );
+      result.sort((a, b) =>
+          ((a['stemSequence'] as num?)?.toInt() ?? 0).compareTo(
+              (b['stemSequence'] as num?)?.toInt() ?? 0));
+      return result.map((e) => TreeModel.fromMap(e)).toList();
+    }
     final db = await _db;
 
     final result = await db.query(
@@ -103,6 +138,13 @@ class TreeRepository {
   // Total Trees (Every Stem Counts)
   Future<int> getTreeCount(
       int applicationId) async {
+    if (OnlineMode.enabled) {
+      final rows = await OnlineDatabase.select(
+        'trees',
+        equals: {'applicationId': applicationId},
+      );
+      return rows.length;
+    }
     final db = await _db;
 
     final result = Sqflite.firstIntValue(
@@ -122,6 +164,17 @@ class TreeRepository {
   // Get Last Tree
   Future<TreeModel?> getLastTree(
       int applicationId) async {
+    if (OnlineMode.enabled) {
+      final result = await OnlineDatabase.select(
+        'trees',
+        equals: {'applicationId': applicationId},
+        orderBy: 'id',
+        descending: true,
+        limit: 1,
+      );
+      if (result.isEmpty) return null;
+      return TreeModel.fromMap(result.first);
+    }
     final db = await _db;
 
     final result = await db.query(
@@ -146,6 +199,21 @@ Future<int> totalTrees(
 Future<bool> areAllTreesNotRecommended(
   int applicationId,
 ) async {
+  if (OnlineMode.enabled) {
+    final trees = await getTrees(applicationId);
+    if (trees.isEmpty) return false;
+    final masters = await MasterRepository().getMasters(
+      'Recommendation Type',
+    );
+    final codes = <int, String>{
+      for (final m in masters)
+        (m['id'] as num).toInt():
+            (m['code']?.toString() ?? '').trim().toUpperCase(),
+    };
+    return trees.every(
+      (t) => codes[t.recommendationTypeId] == 'NR',
+    );
+  }
   final db = await _db;
 
   final result = await db.rawQuery(
