@@ -259,6 +259,10 @@ Widget build(BuildContext context) {
 
         controller: tabController,
 
+        isScrollable: true,
+
+        tabAlignment: TabAlignment.start,
+
         tabs: const [
 
   Tab(text: "Assignment"),

@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../constants/master_kannada.dart';
 
 class MasterRepository {
 
@@ -547,6 +548,7 @@ Future<void> loadDefaultMasters() async {
       "parentCode": parentCode,
       "displayOrder": order,
       "remarks": "",
+      "kannadaName": MasterKannada.forEntry(type, value),
       "isActive": 1,
     },
   );
@@ -567,6 +569,44 @@ await add("Beat","Beat-2","B2","",2);
   await add("Purpose","House Construction","","",1);
   await add("Purpose","Agriculture","","",2);
   await add("Purpose","Road Widening","","",3);
+
+  // GOVERNMENT AGENCY
+
+  await add("Government Agency","Forest Department","FOREST","",1);
+  await add("Government Agency","Revenue Department","REVENUE","",2);
+  await add("Government Agency","Public Works Department","PWD","",3);
+
+  // URBAN RURAL
+
+  await add("Urban Rural","Urban","URBAN","",1);
+  await add("Urban Rural","Rural","RURAL","",2);
+  await add("Urban Rural","Semi-Urban","SEMI","",3);
+
+  // STRUCTURE TYPE
+
+  await add("Structure Type","Building","BUILDING","",1);
+  await add("Structure Type","Road","ROAD","",2);
+  await add("Structure Type","Layout","LAYOUT","",3);
+
+  // TREE STATUS
+
+  await add("Tree Status","Healthy","HEALTHY","",1);
+  await add("Tree Status","Dead","DEAD","",2);
+  await add("Tree Status","Dangerous","DANGEROUS","",3);
+  await add("Tree Status","Diseased","DISEASED","",4);
+
+  // INSPECTING OFFICER OVERALL REMARK
+
+  await add("Inspecting Officer Overall Remark","Recommended","RECOMMENDED","",1);
+  await add("Inspecting Officer Overall Remark","Not Recommended","NOT_RECOMMENDED","",2);
+  await add("Inspecting Officer Overall Remark","Need Re-inspection","REINSPECT","",3);
+
+  // MAHAZAR LOCATION
+
+  await add("Mahazar Location","East","EAST","",1);
+  await add("Mahazar Location","West","WEST","",2);
+  await add("Mahazar Location","North","NORTH","",3);
+  await add("Mahazar Location","South","SOUTH","",4);
 
   // SPECIES
 

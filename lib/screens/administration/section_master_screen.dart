@@ -43,6 +43,12 @@ Future<void> showSectionDialog({
 
   );
 
+  final kannadaController = TextEditingController(
+
+    text: item?["kannadaName"] ?? "",
+
+  );
+
   final displayOrderController = TextEditingController(
 
     text: item?["displayOrder"]?.toString() ?? "1",
@@ -91,7 +97,23 @@ Future<void> showSectionDialog({
 
                     decoration: const InputDecoration(
 
-                      labelText: "Section Name",
+                      labelText: "Section Name (English)",
+
+                    ),
+
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  TextField(
+
+                    controller: kannadaController,
+
+                    decoration: const InputDecoration(
+
+                      labelText: "Section Name (Kannada)",
+
+                      hintText: "ವಿಭಾಗದ ಹೆಸರು",
 
                     ),
 
@@ -165,6 +187,8 @@ Future<void> showSectionDialog({
 
         sectionName: sectionController.text,
 
+        kannadaName: kannadaController.text.trim(),
+
         displayOrder:
             int.tryParse(displayOrderController.text) ?? 1,
 
@@ -179,6 +203,8 @@ Future<void> showSectionDialog({
         id: item["id"],
 
         sectionName: sectionController.text,
+
+        kannadaName: kannadaController.text.trim(),
 
         displayOrder:
             int.tryParse(displayOrderController.text) ?? 1,
@@ -240,6 +266,82 @@ Future<void> showSectionDialog({
 
     return ListTile(
 
+      onTap: () {
+
+        showSectionDialog(
+
+          item: item,
+
+        );
+
+      },
+
+      onLongPress: () async {
+
+        final confirm = await showDialog<bool>(
+
+          context: context,
+
+          builder: (_) => AlertDialog(
+
+            title: const Text("Delete Section"),
+
+            content: Text(
+              'Delete "${item["sectionName"]}" ?',
+            ),
+
+            actions: [
+
+              TextButton(
+
+                onPressed: () {
+
+                  Navigator.pop(context, false);
+
+                },
+
+                child: const Text("Cancel"),
+
+              ),
+
+              ElevatedButton(
+
+                onPressed: () {
+
+                  Navigator.pop(context, true);
+
+                },
+
+                child: const Text("Delete"),
+
+              ),
+
+            ],
+
+          ),
+
+        );
+
+        if (confirm == true) {
+          try {
+            await SectionRepository().delete(item["id"]);
+
+            loadSections();
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    "Cannot delete: $e",
+                  ),
+                ),
+              );
+            }
+          }
+        }
+
+      },
+
       leading: CircleAvatar(
 
         child: Text("${index + 1}"),
@@ -249,8 +351,24 @@ Future<void> showSectionDialog({
       title: Text(item["sectionName"] ?? ""),
 
       subtitle: Text(
+        (item["kannadaName"]?.toString() ?? "").isNotEmpty
+            ? "${item["kannadaName"]} • Display Order : ${item["displayOrder"]}"
+            : "Display Order : ${item["displayOrder"]}",
+      ),
 
-        "Display Order : ${item["displayOrder"]}",
+      trailing: Icon(
+
+        item["isActive"] == 1
+
+            ? Icons.check_circle
+
+            : Icons.cancel,
+
+        color: item["isActive"] == 1
+
+            ? Colors.green
+
+            : Colors.red,
 
       ),
 

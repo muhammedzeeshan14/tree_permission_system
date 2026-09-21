@@ -24,6 +24,8 @@ class SectionRepository {
 
     required bool isActive,
 
+    String kannadaName = "",
+
   }) async {
 
     final db = await DatabaseHelper.instance.database;
@@ -35,6 +37,8 @@ class SectionRepository {
       {
 
         "sectionName": sectionName,
+
+        "kannadaName": kannadaName,
 
         "displayOrder": displayOrder,
 
@@ -56,6 +60,8 @@ class SectionRepository {
 
     required bool isActive,
 
+    String kannadaName = "",
+
   }) async {
 
     final db = await DatabaseHelper.instance.database;
@@ -67,6 +73,8 @@ class SectionRepository {
       {
 
         "sectionName": sectionName,
+
+        "kannadaName": kannadaName,
 
         "displayOrder": displayOrder,
 

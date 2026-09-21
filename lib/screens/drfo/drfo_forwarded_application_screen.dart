@@ -8,6 +8,8 @@ import 'package:open_filex/open_filex.dart';
 
 import '../../models/application_model.dart';
 import '../../services/drfo_document_service.dart';
+import '../../services/inspection_attachment_pdf_service.dart';
+import 'package:printing/printing.dart';
 
 class DRFOForwardedApplicationScreen extends StatefulWidget {
   final ApplicationModel application;
@@ -38,6 +40,9 @@ class _DRFOForwardedApplicationScreenState
   String? documentError;
   RevenueReply? revenueReply;
   bool printing = false;
+  int photoCount = 0;
+  int uploadCount = 0;
+  bool buildingAttachments = false;
 
   @override
   void initState() {
@@ -76,6 +81,20 @@ final files = widget.rfoApprovedOnly
       setState(() {
         generatedDocuments = files;
         loadingDocuments = false;
+      });
+
+      final photos =
+          await InspectionAttachmentPdfService.photoCount(
+        widget.application.id!,
+      );
+      final uploads =
+          await InspectionAttachmentPdfService.documentCount(
+        widget.application.id!,
+      );
+      if (!mounted) return;
+      setState(() {
+        photoCount = photos;
+        uploadCount = uploads;
       });
     } catch (e) {
       if (!mounted) return;
@@ -177,6 +196,101 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
   } finally { if (mounted) setState(() => printing = false); }
 }
+
+  Future<void> _openAttachmentPdf(bool photos) async {
+    if (buildingAttachments) return;
+    setState(() => buildingAttachments = true);
+    try {
+      final file = photos
+          ? await InspectionAttachmentPdfService.buildPhotoPdf(
+              applicationId: widget.application.id!,
+              officeNumber: widget.application.officeNumber,
+            )
+          : await InspectionAttachmentPdfService.buildDocumentsPdf(
+              applicationId: widget.application.id!,
+              officeNumber: widget.application.officeNumber,
+            );
+      await OpenFilex.open(file.path);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => buildingAttachments = false);
+    }
+  }
+
+  Future<void> _printAttachmentPdf(bool photos) async {
+    if (buildingAttachments) return;
+    setState(() => buildingAttachments = true);
+    try {
+      final file = photos
+          ? await InspectionAttachmentPdfService.buildPhotoPdf(
+              applicationId: widget.application.id!,
+              officeNumber: widget.application.officeNumber,
+            )
+          : await InspectionAttachmentPdfService.buildDocumentsPdf(
+              applicationId: widget.application.id!,
+              officeNumber: widget.application.officeNumber,
+            );
+      await Printing.layoutPdf(
+        onLayout: (_) async => file.readAsBytes(),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => buildingAttachments = false);
+    }
+  }
+
+  Widget _attachmentTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required int count,
+    required bool photos,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.red, size: 32),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(subtitle),
+        trailing: count <= 0
+            ? const Text('None')
+            : Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.visibility),
+                    label: const Text('VIEW'),
+                    onPressed: buildingAttachments
+                        ? null
+                        : () => _openAttachmentPdf(photos),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.print),
+                    label: const Text('PRINT'),
+                    onPressed: buildingAttachments
+                        ? null
+                        : () => _printAttachmentPdf(photos),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -341,8 +455,10 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
                               ),
                             ),
 
-trailing: Row(
-  mainAxisSize: MainAxisSize.min,
+trailing: Wrap(
+  spacing: 8,
+  runSpacing: 8,
+  alignment: WrapAlignment.end,
   children: [
     OutlinedButton.icon(
       icon: const Icon(
@@ -355,7 +471,6 @@ trailing: Row(
         _openDocument(file);
       },
     ),
-    const SizedBox(width: 8),
     ElevatedButton.icon(
       icon: const Icon(
         Icons.print,
@@ -373,6 +488,44 @@ trailing: Row(
                         );
                       },
                     ),
+
+                  const SizedBox(height: 16),
+
+                  const Text(
+                    'Inspection Photos & Uploads',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  if (buildingAttachments)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(12),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+
+                  _attachmentTile(
+                    icon: Icons.photo_library,
+                    title: 'Inspection Photos (PDF)',
+                    subtitle:
+                        '$photoCount photo(s) • up to 4 per A4 page',
+                    count: photoCount,
+                    photos: true,
+                  ),
+
+                  _attachmentTile(
+                    icon: Icons.upload_file,
+                    title: 'Uploaded Documents (PDF)',
+                    subtitle:
+                        '$uploadCount document(s) • 1 A4 page each',
+                    count: uploadCount,
+                    photos: false,
+                  ),
                 ],
               ),
             ),

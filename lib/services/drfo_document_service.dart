@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 
 import '../models/application_model.dart';
+import '../database/database_helper.dart';
 import '../repositories/mahazar_repository.dart';
 import '../repositories/tree_repository.dart';
 import '../repositories/tree_count_detail_repository.dart';
@@ -244,6 +245,61 @@ class DrfoDocumentService {
     } catch (_) {
       return value;
     }
+  }
+
+  // ==========================================================
+  // PRINT NAMES: English in app, Kannada in letters.
+  // Falls back to the saved English name when Kannada is blank.
+  // ==========================================================
+
+  Future<String> _printSectionName(
+    ApplicationModel application,
+  ) async {
+    try {
+      final id = application.sectionId;
+      if (id != null) {
+        final db = await DatabaseHelper.instance.database;
+        final rows = await db.query(
+          'section_master',
+          where: 'id=?',
+          whereArgs: [id],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final kannada =
+              rows.first['kannadaName']?.toString().trim() ?? '';
+          if (kannada.isNotEmpty) return _safeText(kannada);
+        }
+      }
+    } catch (_) {
+      // Fall through to English name.
+    }
+    return _safeText(application.section);
+  }
+
+  Future<String> _printBeatName(
+    ApplicationModel application,
+  ) async {
+    try {
+      final id = application.beatId;
+      if (id != null) {
+        final db = await DatabaseHelper.instance.database;
+        final rows = await db.query(
+          'beat_master',
+          where: 'id=?',
+          whereArgs: [id],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final kannada =
+              rows.first['kannadaName']?.toString().trim() ?? '';
+          if (kannada.isNotEmpty) return _safeText(kannada);
+        }
+      }
+    } catch (_) {
+      // Fall through to English name.
+    }
+    return _safeText(application.beat);
   }
 
   // ==========================================================
@@ -1332,7 +1388,9 @@ class DrfoDocumentService {
       revenueOpinionOffice.isNotEmpty ? revenueOpinionOffice : 'ಕಂದಾಯ ಇಲಾಖೆ',
     );
 
-    template = _replace(template, '{{SECTION}}', section);
+    template = _replace(template, '{{SECTION}}', await _printSectionName(application));
+
+    template = _replace(template, '{{BEAT}}', await _printBeatName(application));
 
     template = _replace(template, '{{RANGE_NAME}}', rangeName);
 
@@ -1735,10 +1793,12 @@ class DrfoDocumentService {
     template = _replace(template, '{{DRFO_REMARKS}}', remarks);
 
     // ----------------------------------------------------------
-    // SECTION
+    // SECTION (Kannada in print)
     // ----------------------------------------------------------
 
-    template = _replace(template, '{{SECTION}}', section);
+    template = _replace(template, '{{SECTION}}', await _printSectionName(application));
+
+    template = _replace(template, '{{BEAT}}', await _printBeatName(application));
 
     // ----------------------------------------------------------
     // RANGE NAME
@@ -4392,7 +4452,8 @@ class DrfoDocumentService {
       '{{RECEIVED_DATE}}': _date(application.receivedDate),
       '{{DRFO_REPORT_DATE}}': _date(application.drfoInspectionDate),
       '{{TREE_LOCATION}}': _location(application),
-      '{{SECTION}}': application.section,
+      '{{SECTION}}': await _printSectionName(application),
+      '{{BEAT}}': await _printBeatName(application),
       '{{APPLICATION_TYPE}}': application.applicationType,
       '{{RANGE_NAME}}': range, '{{RANGE_LOCATION}}': location,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
@@ -4478,7 +4539,8 @@ class DrfoDocumentService {
       '{{APPLICANT_NAME}}': application.applicantName,
       '{{APPLICANT_ADDRESS}}': application.applicantAddress,
       '{{TREE_LOCATION}}': _location(application),
-      '{{SECTION}}': application.section,
+      '{{SECTION}}': await _printSectionName(application),
+      '{{BEAT}}': await _printBeatName(application),
       '{{RANGE_NAME}}': range, '{{RANGE_LOCATION}}': location,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
       '{{TREE_DETAILS}}': details,
@@ -4574,7 +4636,8 @@ class DrfoDocumentService {
         '{{APPLICANT_NAME}}': application.applicantName,
         '{{APPLICANT_ADDRESS}}': application.applicantAddress,
         '{{TREE_LOCATION}}': _location(application),
-        '{{SECTION}}': application.section,
+        '{{SECTION}}': await _printSectionName(application),
+        '{{BEAT}}': await _printBeatName(application),
         '{{RANGE_NAME}}': range,
         '{{RANGE_LOCATION}}': location,
         '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
@@ -5675,7 +5738,13 @@ class DrfoDocumentService {
     template = _replace(
       template,
       "{{SECTION}}",
-      _safeText(application.section),
+      await _printSectionName(application),
+    );
+
+    template = _replace(
+      template,
+      "{{BEAT}}",
+      await _printBeatName(application),
     );
 
     template = _replace(
@@ -5884,7 +5953,9 @@ class DrfoDocumentService {
       moneyFormat.format(grandTotal),
     );
 
-    master = _replace(master, '{{SECTION}}', _safeText(application.section));
+    master = _replace(master, '{{SECTION}}', await _printSectionName(application));
+
+    master = _replace(master, '{{BEAT}}', await _printBeatName(application));
 
     master = _replace(master, '{{RANGE_NAME}}', _safeText(rangeName));
 

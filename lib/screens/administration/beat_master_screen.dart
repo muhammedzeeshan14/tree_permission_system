@@ -62,6 +62,12 @@ Future<void> showBeatDialog({
 
   );
 
+  final beatKannadaController = TextEditingController(
+
+    text: item?["kannadaName"] ?? "",
+
+  );
+
   final displayOrderController = TextEditingController(
 
     text: item?["displayOrder"]?.toString() ?? "1",
@@ -151,7 +157,23 @@ Future<void> showBeatDialog({
 
                       decoration: const InputDecoration(
 
-                        labelText: "Beat Name",
+                        labelText: "Beat Name (English)",
+
+                      ),
+
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    TextField(
+
+                      controller: beatKannadaController,
+
+                      decoration: const InputDecoration(
+
+                        labelText: "Beat Name (Kannada)",
+
+                        hintText: "ಬೀಟ್ ಹೆಸರು",
 
                       ),
 
@@ -247,6 +269,9 @@ Future<void> showBeatDialog({
 
                       beatName: beatController.text,
 
+                      kannadaName:
+                          beatKannadaController.text.trim(),
+
                       displayOrder:
 
                           int.tryParse(
@@ -268,6 +293,9 @@ Future<void> showBeatDialog({
                       sectionId: selectedSectionId!,
 
                       beatName: beatController.text,
+
+                      kannadaName:
+                          beatKannadaController.text.trim(),
 
                       displayOrder:
 
@@ -410,7 +438,12 @@ Future<void> showBeatDialog({
 
   subtitle: Text(
 
-    item["sectionName"] ?? "",
+    [
+      if ((item["kannadaName"]?.toString() ?? "")
+          .isNotEmpty)
+        item["kannadaName"].toString(),
+      item["sectionName"] ?? "",
+    ].where((s) => s.isNotEmpty).join(" • "),
 
   ),
 

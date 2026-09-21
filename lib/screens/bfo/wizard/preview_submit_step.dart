@@ -14,6 +14,7 @@ import '../../../repositories/tree_repository.dart';
 import '../../../services/bfo_inspection_service.dart';
 import '../../../services/drfo_document_service.dart';
 import '../../../repositories/mahazar_repository.dart';
+import '../../../widgets/responsive_actions.dart';
 
 class PreviewSubmitStep extends StatefulWidget {
 
@@ -603,36 +604,26 @@ Widget build(BuildContext context) {
 
 const SizedBox(height: 30),
 
-Row(
+ResponsiveActions(
 
   children: [
 
-    Expanded(
+    ElevatedButton(
 
-      child: ElevatedButton(
+      onPressed: widget.onBack,
 
-        onPressed: widget.onBack,
-
-        child: const Text(
-          "BACK",
-        ),
-
+      child: const Text(
+        "BACK",
       ),
 
     ),
 
-    const SizedBox(width: 15),
+    ElevatedButton(
 
-    Expanded(
+      onPressed: saveDraft,
 
-      child: ElevatedButton(
-
-        onPressed: saveDraft,
-
-        child: const Text(
-          "SAVE DRAFT",
-        ),
-
+      child: const Text(
+        "SAVE DRAFT",
       ),
 
     ),
@@ -645,8 +636,14 @@ const SizedBox(height: 15),
 
 SizedBox(
   width: double.infinity,
-  height: 55,
   child: ElevatedButton(
+    style: ElevatedButton.styleFrom(
+      minimumSize: const Size.fromHeight(55),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 12,
+      ),
+    ),
     onPressed:
         submitting || submitted
             ? null
@@ -665,6 +662,7 @@ SizedBox(
                 : widget.isDRFOSelfInspection
                     ? "SUBMIT FOR DRFO VERIFICATION"
                     : "SUBMIT TO DRFO",
+            textAlign: TextAlign.center,
           ),
   ),
 ),
@@ -700,40 +698,34 @@ if (generatedMahazar != null) ...[
 
           const SizedBox(height: 12),
 
-          Row(
+          ResponsiveActions(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(
-                    Icons.visibility,
-                  ),
-                  label: const Text(
-                    "VIEW MAHAZAR",
-                  ),
-                  onPressed: () async {
-                    await OpenFilex.open(
-                      generatedMahazar!.path,
-                    );
-                  },
+              OutlinedButton.icon(
+                icon: const Icon(
+                  Icons.visibility,
                 ),
+                label: const Text(
+                  "VIEW MAHAZAR",
+                ),
+                onPressed: () async {
+                  await OpenFilex.open(
+                    generatedMahazar!.path,
+                  );
+                },
               ),
 
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(
-                    Icons.print,
-                  ),
-                  label: const Text(
-                    "PRINT MAHAZAR",
-                  ),
-                  onPressed: () async {
-                    await documentService.openPdf(
-                      generatedMahazar!,
-                    );
-                  },
+              OutlinedButton.icon(
+                icon: const Icon(
+                  Icons.print,
                 ),
+                label: const Text(
+                  "PRINT MAHAZAR",
+                ),
+                onPressed: () async {
+                  await documentService.openPdf(
+                    generatedMahazar!,
+                  );
+                },
               ),
             ],
           ),

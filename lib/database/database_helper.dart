@@ -2,6 +2,7 @@ import '../repositories/revenue_reply_repository.dart';
 import '../repositories/tree_officer_repository.dart';
 import '../repositories/officer_repository.dart';
 import '../repositories/government_approval_repository.dart';
+import '../constants/master_kannada.dart';
 import 'dart:io';
 
 import 'package:path/path.dart';
@@ -37,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 41,
+    version: 42,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -221,6 +222,8 @@ id INTEGER PRIMARY KEY AUTOINCREMENT,
 
 sectionName TEXT,
 
+kannadaName TEXT,
+
 displayOrder INTEGER,
 
 isActive INTEGER
@@ -236,6 +239,8 @@ id INTEGER PRIMARY KEY AUTOINCREMENT,
 sectionId INTEGER,
 
 beatName TEXT,
+
+kannadaName TEXT,
 
 displayOrder INTEGER,
 
@@ -2040,6 +2045,15 @@ if (oldVersion < 41) {
   await _ensureSyncColumn(db, 'users', 'authId', 'TEXT');
 }
 
+// ============================================================
+// VERSION 42
+// KANNADA NAMES + DEFAULT ENTRIES FOR EMPTY MASTERS
+// ============================================================
+
+if (oldVersion < 42) {
+  await _applyV42Defaults(db);
+}
+
 }
 
 Future<void> _ensureFreshSyncColumns(DatabaseExecutor db) async {
@@ -2086,6 +2100,137 @@ Future<void> _ensureFreshSyncColumns(DatabaseExecutor db) async {
   }
   await _ensureSyncColumn(db, 'users', 'email', 'TEXT');
   await _ensureSyncColumn(db, 'users', 'authId', 'TEXT');
+  await _ensureSyncColumn(db, 'section_master', 'kannadaName', 'TEXT');
+  await _ensureSyncColumn(db, 'beat_master', 'kannadaName', 'TEXT');
+}
+
+/// Default master entries with Kannada names, used by v42 upgrade.
+/// Each entry: masterType, value, code, parentCode, displayOrder.
+static const _v42MasterDefaults = [
+  ['Government Agency', 'Forest Department', 'FOREST', '', 1],
+  ['Government Agency', 'Revenue Department', 'REVENUE', '', 2],
+  ['Government Agency', 'Public Works Department', 'PWD', '', 3],
+  ['Urban Rural', 'Urban', 'URBAN', '', 1],
+  ['Urban Rural', 'Rural', 'RURAL', '', 2],
+  ['Urban Rural', 'Semi-Urban', 'SEMI', '', 3],
+  ['Structure Type', 'Building', 'BUILDING', '', 1],
+  ['Structure Type', 'Road', 'ROAD', '', 2],
+  ['Structure Type', 'Layout', 'LAYOUT', '', 3],
+  ['Tree Status', 'Healthy', 'HEALTHY', '', 1],
+  ['Tree Status', 'Dead', 'DEAD', '', 2],
+  ['Tree Status', 'Dangerous', 'DANGEROUS', '', 3],
+  ['Tree Status', 'Diseased', 'DISEASED', '', 4],
+  [
+    'Inspecting Officer Overall Remark',
+    'Recommended',
+    'RECOMMENDED',
+    '',
+    1
+  ],
+  [
+    'Inspecting Officer Overall Remark',
+    'Not Recommended',
+    'NOT_RECOMMENDED',
+    '',
+    2
+  ],
+  [
+    'Inspecting Officer Overall Remark',
+    'Need Re-inspection',
+    'REINSPECT',
+    '',
+    3
+  ],
+  ['Mahazar Location', 'East', 'EAST', '', 1],
+  ['Mahazar Location', 'West', 'WEST', '', 2],
+  ['Mahazar Location', 'North', 'NORTH', '', 3],
+  ['Mahazar Location', 'South', 'SOUTH', '', 4],
+];
+
+Future<void> _applyV42Defaults(DatabaseExecutor db) async {
+  await _ensureSyncColumn(db, 'section_master', 'kannadaName', 'TEXT');
+  await _ensureSyncColumn(db, 'beat_master', 'kannadaName', 'TEXT');
+
+  // Sections: backfill Kannada, ensure a third default section.
+  final sections = await db.query('section_master');
+  for (final section in sections) {
+    final kannada = section['kannadaName']?.toString() ?? '';
+    if (kannada.isEmpty) {
+      final name = section['sectionName']?.toString() ?? '';
+      await db.update(
+        'section_master',
+        {'kannadaName': MasterKannada.forEntry('Section', name)},
+        where: 'id=?',
+        whereArgs: [section['id']],
+      );
+    }
+  }
+  if (sections.length < 3) {
+    final existing = await db.query(
+      'section_master',
+      where: 'sectionName=?',
+      whereArgs: ['Mysuru South'],
+      limit: 1,
+    );
+    if (existing.isEmpty) {
+      await db.insert('section_master', {
+        'sectionName': 'Mysuru South',
+        'kannadaName': 'ಮೈಸೂರು ದಕ್ಷಿಣ',
+        'displayOrder': sections.length + 1,
+        'isActive': 1,
+      });
+    }
+  }
+
+  // Beats: backfill Kannada.
+  final beats = await db.query('beat_master');
+  for (final beat in beats) {
+    final kannada = beat['kannadaName']?.toString() ?? '';
+    if (kannada.isEmpty) {
+      final name = beat['beatName']?.toString() ?? '';
+      await db.update(
+        'beat_master',
+        {'kannadaName': MasterKannada.forEntry('Beat', name)},
+        where: 'id=?',
+        whereArgs: [beat['id']],
+      );
+    }
+  }
+
+  // master_data: insert missing default types, backfill Kannada.
+  for (final entry in _v42MasterDefaults) {
+    final existing = await db.query(
+      'master_data',
+      columns: ['id'],
+      where: 'masterType=? AND value=?',
+      whereArgs: [entry[0], entry[1]],
+      limit: 1,
+    );
+    if (existing.isEmpty) {
+      await db.insert('master_data', {
+        'masterType': entry[0],
+        'value': entry[1],
+        'code': entry[2],
+        'parentCode': entry[3],
+        'displayOrder': entry[4],
+        'remarks': '',
+        'kannadaName':
+            MasterKannada.forEntry(entry[0] as String, entry[1] as String),
+        'isActive': 1,
+      });
+    }
+  }
+  for (final mapEntry in MasterKannada.names.entries) {
+    final parts = mapEntry.key.split('|');
+    if (parts.length != 2) continue;
+    await db.update(
+      'master_data',
+      {'kannadaName': mapEntry.value},
+      where:
+          'masterType=? AND value=? AND (kannadaName IS NULL OR kannadaName=?)',
+      whereArgs: [parts[0], parts[1], ''],
+    );
+  }
 }
 
 Future<void> _createSyncQueueTable(DatabaseExecutor db) async {
@@ -2285,6 +2430,7 @@ Future<void> seedDevelopmentData(Database db) async {
     "section_master",
     {
       "sectionName": "Mysuru Urban",
+      "kannadaName": "ಮೈಸೂರು ನಗರ",
       "displayOrder": 1,
       "isActive": 1,
     },
@@ -2294,7 +2440,18 @@ Future<void> seedDevelopmentData(Database db) async {
     "section_master",
     {
       "sectionName": "Mysuru Rural",
+      "kannadaName": "ಮೈಸೂರು ಗ್ರಾಮಾಂತರ",
       "displayOrder": 2,
+      "isActive": 1,
+    },
+  );
+
+  await db.insert(
+    "section_master",
+    {
+      "sectionName": "Mysuru South",
+      "kannadaName": "ಮೈಸೂರು ದಕ್ಷಿಣ",
+      "displayOrder": 3,
       "isActive": 1,
     },
   );
@@ -2308,6 +2465,7 @@ Future<void> seedDevelopmentData(Database db) async {
     {
       "sectionId": 1,
       "beatName": "Nazarbad",
+      "kannadaName": "ನಜರಬಾದ್",
       "displayOrder": 1,
       "isActive": 1,
     },
@@ -2315,6 +2473,7 @@ Future<void> seedDevelopmentData(Database db) async {
     {
       "sectionId": 1,
       "beatName": "Siddarthanagar",
+      "kannadaName": "ಸಿದ್ಧಾರ್ಥನಗರ",
       "displayOrder": 2,
       "isActive": 1,
     },
@@ -2322,6 +2481,7 @@ Future<void> seedDevelopmentData(Database db) async {
     {
       "sectionId": 2,
       "beatName": "Chamundi",
+      "kannadaName": "ಚಾಮುಂಡಿ",
       "displayOrder": 1,
       "isActive": 1,
     },
@@ -2329,6 +2489,7 @@ Future<void> seedDevelopmentData(Database db) async {
     {
       "sectionId": 2,
       "beatName": "Yelwala",
+      "kannadaName": "ಯಳವಳ",
       "displayOrder": 2,
       "isActive": 1,
     },

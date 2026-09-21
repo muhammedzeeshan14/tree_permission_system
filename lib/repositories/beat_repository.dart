@@ -40,6 +40,8 @@ required int displayOrder,
 
     required bool isActive,
 
+    String kannadaName = "",
+
   }) async {
 
     final db = await DatabaseHelper.instance.database;
@@ -53,6 +55,8 @@ required int displayOrder,
         "sectionId": sectionId,
 
         "beatName": beatName,
+
+        "kannadaName": kannadaName,
 
 "displayOrder": displayOrder,
 
@@ -76,6 +80,8 @@ required int displayOrder,
 
   required bool isActive,
 
+  String kannadaName = "",
+
 }) async {
 
     final db = await DatabaseHelper.instance.database;
@@ -89,6 +95,8 @@ required int displayOrder,
   "sectionId": sectionId,
 
   "beatName": beatName,
+
+  "kannadaName": kannadaName,
 
   "displayOrder": displayOrder,
 
