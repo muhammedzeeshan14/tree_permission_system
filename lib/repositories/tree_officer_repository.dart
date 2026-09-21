@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 enum PrivateLandOutcome { onlinePermission, applicantLetter, treeOfficerLetter }
 
@@ -43,7 +46,22 @@ class TreeOfficerRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getAll() async => (await _db).query('tree_officer_master', orderBy:'id');
+  Future<List<Map<String, dynamic>>> getAll() async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'tree_officer_master',
+          orderBy: 'id',
+        );
+        rows.sort((a, b) => ((a['id'] as num?)?.toInt() ?? 0)
+            .compareTo((b['id'] as num?)?.toInt() ?? 0));
+        return rows;
+      } catch (e) {
+        debugPrint('online getAll tree_officer_master failed, falling back to local: $e');
+      }
+    }
+    return (await _db).query('tree_officer_master', orderBy:'id');
+  }
 
   Future<void> saveAll(List<Map<String, dynamic>> rows) async {
     if (rows.length != 3 || rows.map((r)=>r['id']).toSet().length != 3 ||
@@ -54,6 +72,20 @@ class TreeOfficerRepository {
     }
     final names = rows.map((r)=>r['name'].toString().trim().toUpperCase()).toSet();
     if (names.length != 3) throw ArgumentError('Officer names must be different.');
+    if (OnlineMode.enabled) {
+      try {
+        for (final row in rows) {
+          await OnlineDatabase.update('tree_officer_master', (row['id'] as num).toInt(), {
+            'name':row['name'].toString().trim(),
+            'requiresFellingPermission':row['requiresFellingPermission'],
+          });
+        }
+        return;
+      } catch (e) {
+        if (e is ArgumentError || e is StateError) rethrow;
+        debugPrint('online saveAll tree_officer_master failed, falling back to local: $e');
+      }
+    }
     await (await _db).transaction((txn) async {
       for (final row in rows) {
         await txn.update('tree_officer_master', {
@@ -65,11 +97,52 @@ class TreeOfficerRepository {
   }
 
   Future<int?> getSelection(int applicationId) async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'application_tree_officer',
+          equals: {'applicationId': applicationId},
+          limit: 1,
+        );
+        if (rows.isEmpty) return null;
+        return (rows.first['treeOfficerId'] as num?)?.toInt();
+      } catch (e) {
+        debugPrint('online getSelection application_tree_officer failed, falling back to local: $e');
+      }
+    }
     final rows = await (await _db).query('application_tree_officer', where:'applicationId=?', whereArgs:[applicationId]);
     return rows.isEmpty ? null : rows.first['treeOfficerId'] as int;
   }
 
   Future<void> saveSelection(int applicationId, int officerId) async {
+    if (OnlineMode.enabled) {
+      try {
+        final applications = await OnlineDatabase.select(
+          'applications',
+          equals: {'id': applicationId},
+          limit: 1,
+        );
+        if (applications.isEmpty || !{'PL','SPL'}.contains(applications.first['applicationType']?.toString().trim().toUpperCase())) {
+          throw StateError('Tree officer selection is available for private-land applications only.');
+        }
+        if ((await OnlineDatabase.select('tree_officer_master', equals: {'id': officerId}, limit: 1)).isEmpty) {
+          throw ArgumentError('Select a valid tree officer.');
+        }
+        await OnlineDatabase.delete(
+          'application_tree_officer',
+          column: 'applicationId',
+          value: applicationId,
+        );
+        await OnlineDatabase.insert(
+          'application_tree_officer',
+          {'applicationId': applicationId, 'treeOfficerId': officerId},
+        );
+        return;
+      } catch (e) {
+        if (e is ArgumentError || e is StateError) rethrow;
+        debugPrint('online saveSelection application_tree_officer failed, falling back to local: $e');
+      }
+    }
     final db=await _db;
     await db.transaction((txn) async {
       final applications=await txn.query('applications', columns:['applicationType'], where:'id=?', whereArgs:[applicationId]);

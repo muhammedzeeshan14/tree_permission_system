@@ -1,8 +1,21 @@
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class SectionRepository {
 
   Future<List<Map<String, dynamic>>> getAll() async {
+
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.select(
+          "section_master",
+          orderBy: "displayOrder",
+        );
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
 
     final db = await DatabaseHelper.instance.database;
 
@@ -27,6 +40,23 @@ class SectionRepository {
     String kannadaName = "",
 
   }) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+          "section_master",
+          {
+            "sectionName": sectionName,
+            "kannadaName": kannadaName,
+            "displayOrder": displayOrder,
+            "isActive": isActive ? 1 : 0,
+          },
+        );
+        return;
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
 
     final db = await DatabaseHelper.instance.database;
 
@@ -64,6 +94,24 @@ class SectionRepository {
 
   }) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.update(
+          "section_master",
+          id,
+          {
+            "sectionName": sectionName,
+            "kannadaName": kannadaName,
+            "displayOrder": displayOrder,
+            "isActive": isActive ? 1 : 0,
+          },
+        );
+        return;
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
+
     final db = await DatabaseHelper.instance.database;
 
     await db.update(
@@ -92,6 +140,19 @@ class SectionRepository {
 
   Future<void> delete(int id) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          "section_master",
+          column: "id",
+          value: id,
+        );
+        return;
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
+
     final db = await DatabaseHelper.instance.database;
 
     await db.delete(
@@ -106,6 +167,18 @@ class SectionRepository {
 
   }
     Future<List<Map<String, dynamic>>> getActive() async {
+
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.select(
+          "section_master",
+          equals: {"isActive": 1},
+          orderBy: "displayOrder",
+        );
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
 
     final db = await DatabaseHelper.instance.database;
 

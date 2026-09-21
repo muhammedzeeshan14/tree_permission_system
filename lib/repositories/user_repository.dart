@@ -19,6 +19,40 @@ class UserRepository {
 
   Future<List<Map<String, dynamic>>> getAll() async {
 
+    if (OnlineMode.enabled) {
+      try {
+        final users = await OnlineDatabase.select(
+          'users',
+          orderBy: 'name',
+        );
+        final sections = await OnlineDatabase.select('section_master');
+        final beats = await OnlineDatabase.select('beat_master');
+        final sectionById = <int, Map<String, dynamic>>{
+          for (final s in sections)
+            if ((s['id'] as num?) != null)
+              (s['id'] as num).toInt(): s,
+        };
+        final beatById = <int, Map<String, dynamic>>{
+          for (final b in beats)
+            if ((b['id'] as num?) != null)
+              (b['id'] as num).toInt(): b,
+        };
+        final joined = [
+          for (final u in users)
+            {
+              ...u,
+              'sectionName': sectionById[(u['sectionId'] as num?)?.toInt()]?['sectionName'],
+              'beatName': beatById[(u['beatId'] as num?)?.toInt()]?['beatName'],
+            },
+        ];
+        joined.sort((a, b) => (a['name']?.toString() ?? '')
+            .compareTo(b['name']?.toString() ?? ''));
+        return joined;
+      } catch (e) {
+        debugPrint('online getAll users failed, falling back to local: $e');
+      }
+    }
+
     final db = await _db;
 
     return await db.rawQuery("""
@@ -57,6 +91,21 @@ ORDER BY users.name
 
   ) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'users',
+          equals: {'role': role, 'isActive': 1},
+          orderBy: 'name',
+        );
+        rows.sort((a, b) => (a['name']?.toString() ?? '')
+            .compareTo(b['name']?.toString() ?? ''));
+        return rows;
+      } catch (e) {
+        debugPrint('online getUsersByRole failed, falling back to local: $e');
+      }
+    }
+
     final db = await _db;
 
     return await db.query(
@@ -86,6 +135,22 @@ ORDER BY users.name
     int beatId,
 
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'users',
+          equals: {'role': 'BFO', 'beatId': beatId, 'isActive': 1},
+          limit: 1,
+        );
+        if (rows.isEmpty) {
+          return null;
+        }
+        return rows.first;
+      } catch (e) {
+        debugPrint('online getBFOByBeat failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 
@@ -204,6 +269,34 @@ Future<Map<String, dynamic>?> login({
 
   }) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+          "users",
+          {
+
+            "name": name,
+
+            "username": username,
+
+            "password": password,
+
+            "role": role,
+
+            "sectionId": sectionId,
+
+            "beatId": beatId,
+
+            "isActive": isActive ? 1 : 0,
+
+          },
+        );
+        return;
+      } catch (e) {
+        debugPrint('online insert users failed, falling back to local: $e');
+      }
+    }
+
     final db = await _db;
 
     await db.insert(
@@ -256,6 +349,35 @@ Future<Map<String, dynamic>?> login({
 
   }) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.update(
+          "users",
+          id,
+          {
+
+            "name": name,
+
+            "username": username,
+
+            "password": password,
+
+            "role": role,
+
+            "sectionId": sectionId,
+
+            "beatId": beatId,
+
+            "isActive": isActive ? 1 : 0,
+
+          },
+        );
+        return;
+      } catch (e) {
+        debugPrint('online update users failed, falling back to local: $e');
+      }
+    }
+
     final db = await _db;
 
     await db.update(
@@ -301,6 +423,19 @@ Future<Map<String, dynamic>?> login({
     int id,
 
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          "users",
+          column: "id",
+          value: id,
+        );
+        return;
+      } catch (e) {
+        debugPrint('online delete users failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 

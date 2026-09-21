@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/revenue_opinion_model.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class RevenueOpinionRepository {
   final DatabaseHelper dbHelper =
@@ -11,6 +14,23 @@ class RevenueOpinionRepository {
       await dbHelper.database;
 
   Future<List<RevenueOpinionModel>> getAll() async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "revenue_opinion_master",
+          orderBy: "displayOrder",
+        );
+        rows.sort((a, b) => ((a['displayOrder'] as num?)?.toInt() ?? 0)
+            .compareTo((b['displayOrder'] as num?)?.toInt() ?? 0));
+        return rows
+            .map(
+              (e) => RevenueOpinionModel.fromMap(e),
+            )
+            .toList();
+      } catch (e) {
+        debugPrint('online getAll revenue_opinion_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     final result = await db.query(
@@ -27,6 +47,24 @@ class RevenueOpinionRepository {
 
   Future<List<RevenueOpinionModel>>
       getActive() async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "revenue_opinion_master",
+          equals: {"isActive": 1},
+          orderBy: "displayOrder",
+        );
+        rows.sort((a, b) => ((a['displayOrder'] as num?)?.toInt() ?? 0)
+            .compareTo((b['displayOrder'] as num?)?.toInt() ?? 0));
+        return rows
+            .map(
+              (e) => RevenueOpinionModel.fromMap(e),
+            )
+            .toList();
+      } catch (e) {
+        debugPrint('online getActive revenue_opinion_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     final result = await db.query(
@@ -44,6 +82,17 @@ class RevenueOpinionRepository {
 
   Future<void> insert(
       RevenueOpinionModel item) async {
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+          "revenue_opinion_master",
+          item.toMap(),
+        );
+        return;
+      } catch (e) {
+        debugPrint('online insert revenue_opinion_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     await db.insert(
@@ -54,6 +103,18 @@ class RevenueOpinionRepository {
 
   Future<void> update(
       RevenueOpinionModel item) async {
+    if (OnlineMode.enabled && item.id != null) {
+      try {
+        await OnlineDatabase.update(
+          "revenue_opinion_master",
+          item.id!,
+          item.toMap(),
+        );
+        return;
+      } catch (e) {
+        debugPrint('online update revenue_opinion_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     await db.update(
@@ -65,6 +126,18 @@ class RevenueOpinionRepository {
   }
 
   Future<void> delete(int id) async {
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          "revenue_opinion_master",
+          column: "id",
+          value: id,
+        );
+        return;
+      } catch (e) {
+        debugPrint('online delete revenue_opinion_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     await db.delete(
@@ -204,6 +277,24 @@ Future<void> loadDefaultRevenueOpinions() async {
 }
 
 Future<RevenueOpinionModel?> getById(int id) async {
+
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        "revenue_opinion_master",
+        equals: {"id": id},
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        return null;
+      }
+      return RevenueOpinionModel.fromMap(
+        rows.first,
+      );
+    } catch (e) {
+      debugPrint('online getById revenue_opinion_master failed, falling back to local: $e');
+    }
+  }
 
   final db = await _db;
 

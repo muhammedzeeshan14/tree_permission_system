@@ -2,6 +2,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../constants/master_kannada.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class MasterRepository {
 
@@ -12,6 +14,18 @@ class MasterRepository {
 
   Future<List<Map<String, dynamic>>> getMasters(
       String masterType) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.select(
+          "master_data",
+          equals: {"masterType": masterType},
+          orderBy: "displayOrder",
+        );
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
 
     final db = await _db;
 
@@ -33,6 +47,19 @@ class MasterRepository {
   int? id,
 ) async {
   if (id == null) return null;
+
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        "master_data",
+        equals: {"id": id},
+        limit: 1,
+      );
+      if (rows.isNotEmpty) return rows.first;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
 
   final db = await _db;
 
@@ -65,6 +92,27 @@ String parentCode = "",
 String kannadaName = "",
 
   }) async {
+
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.insert(
+        "master_data",
+        {
+          "masterType": masterType,
+          "value": value,
+          "code": code,
+          "parentCode": parentCode,
+          "displayOrder": displayOrder,
+          "remarks": remarks,
+          "kannadaName": kannadaName,
+          "isActive": isActive ? 1 : 0,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
 
     final db = await _db;
 
@@ -114,6 +162,27 @@ String kannadaName = "",
 
   }) async {
 
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.update(
+        "master_data",
+        id,
+        {
+          "value": value,
+          "code": code,
+          "parentCode": parentCode,
+          "displayOrder": displayOrder,
+          "remarks": remarks,
+          "kannadaName": kannadaName,
+          "isActive": isActive ? 1 : 0,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
+
     final db = await _db;
 
     await db.update(
@@ -148,6 +217,19 @@ String kannadaName = "",
 
   Future<void> delete(int id) async {
 
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.delete(
+        "master_data",
+        column: "id",
+        value: id,
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
+
     final db = await _db;
 
     await db.delete(
@@ -176,6 +258,17 @@ Future<List<Map<String, dynamic>>> getSpecies() async {
 // ======================================================
 
 Future<List<Map<String, dynamic>>> getPoleSpecies() async {
+  if (OnlineMode.enabled) {
+    try {
+      return await OnlineDatabase.select(
+        "master_data",
+        equals: {"masterType": "Species", "speciesGroup": "POLE"},
+        orderBy: "displayOrder",
+      );
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   return await db.query(
@@ -193,6 +286,28 @@ Future<void> insertPoleSpecies({
   required int displayOrder,
   required bool isActive,
 }) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.insert(
+        "master_data",
+        {
+          "masterType": "Species",
+          "value": species,
+          "code": species.toUpperCase(),
+          "parentCode": "",
+          "displayOrder": displayOrder,
+          "remarks": "",
+          "isActive": isActive ? 1 : 0,
+          "speciesGroup": "POLE",
+          "scientificName": scientificName,
+          "kannadaName": kannadaName,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.insert(
@@ -220,6 +335,27 @@ Future<void> updatePoleSpecies({
   required int displayOrder,
   required bool isActive,
 }) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.update(
+        "master_data",
+        id,
+        {
+          "value": species,
+          "code": species.toUpperCase(),
+          "displayOrder": displayOrder,
+          "remarks": "",
+          "isActive": isActive ? 1 : 0,
+          "speciesGroup": "POLE",
+          "scientificName": scientificName,
+          "kannadaName": kannadaName,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.update(
@@ -240,6 +376,18 @@ Future<void> updatePoleSpecies({
 }
 
 Future<void> deletePoleSpecies(int id) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.delete(
+        "master_data",
+        column: "id",
+        value: id,
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.delete(
@@ -253,9 +401,37 @@ Future<void> deletePoleSpecies(int id) async {
 // POLE RATE MASTER
 // ======================================================
 
+int _comparePoleRates(
+  Map<String, dynamic> a,
+  Map<String, dynamic> b,
+) {
+  num numOf(Map<String, dynamic> m, String key) =>
+      (m[key] as num?) ?? 0;
+  var result = numOf(a, 'lengthFrom')
+      .compareTo(numOf(b, 'lengthFrom'));
+  if (result != 0) return result;
+  result = numOf(a, 'girthFrom')
+      .compareTo(numOf(b, 'girthFrom'));
+  if (result != 0) return result;
+  return numOf(a, 'displayOrder')
+      .compareTo(numOf(b, 'displayOrder'));
+}
+
 Future<List<Map<String, dynamic>>> getPoleRates(
   int speciesId,
 ) async {
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        "pole_rate_master",
+        equals: {"speciesId": speciesId, "isActive": 1},
+      );
+      rows.sort(_comparePoleRates);
+      return rows;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   return await db.query(
@@ -269,6 +445,18 @@ Future<List<Map<String, dynamic>>> getPoleRates(
 Future<List<Map<String, dynamic>>> getAllPoleRates(
   int speciesId,
 ) async {
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        "pole_rate_master",
+        equals: {"speciesId": speciesId},
+      );
+      rows.sort(_comparePoleRates);
+      return rows;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   return await db.query(
@@ -290,6 +478,27 @@ Future<void> insertPoleRate({
   required int displayOrder,
   required bool isActive,
 }) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.insert(
+        "pole_rate_master",
+        {
+          "speciesId": speciesId,
+          "lengthFrom": lengthFrom,
+          "lengthUpto": lengthUpto,
+          "girthFrom": girthFrom,
+          "girthUpto": girthUpto,
+          "rate": rate,
+          "category": category,
+          "displayOrder": displayOrder,
+          "isActive": isActive ? 1 : 0,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.insert(
@@ -320,6 +529,28 @@ Future<void> updatePoleRate({
   required int displayOrder,
   required bool isActive,
 }) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.update(
+        "pole_rate_master",
+        id,
+        {
+          "speciesId": speciesId,
+          "lengthFrom": lengthFrom,
+          "lengthUpto": lengthUpto,
+          "girthFrom": girthFrom,
+          "girthUpto": girthUpto,
+          "rate": rate,
+          "category": category,
+          "displayOrder": displayOrder,
+          "isActive": isActive ? 1 : 0,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.update(
@@ -341,6 +572,18 @@ Future<void> updatePoleRate({
 }
 
 Future<void> deletePoleRate(int id) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.delete(
+        "pole_rate_master",
+        column: "id",
+        value: id,
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.delete(
@@ -353,6 +596,17 @@ Future<void> deletePoleRate(int id) async {
 Future<List<Map<String, dynamic>>> getSpeciesByGroup(
   String group,
 ) async {
+  if (OnlineMode.enabled) {
+    try {
+      return await OnlineDatabase.select(
+        "master_data",
+        equals: {"masterType": "Species", "speciesGroup": group},
+        orderBy: "displayOrder",
+      );
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   return await db.query(
@@ -382,6 +636,36 @@ Future<void> insertSpecies({
   required int displayOrder,
   required bool isActive,
 }) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.insert(
+        "master_data",
+        {
+          "masterType": "Species",
+          "value": species,
+          "code": species.toUpperCase(),
+          "parentCode": "",
+          "displayOrder": displayOrder,
+          "remarks": "",
+          "isActive": isActive ? 1 : 0,
+          "speciesGroup": speciesGroup,
+          "scientificName": scientificName,
+          "kannadaName": kannadaName,
+          "ratePerCubicMeter": ratePerCubicMeter,
+          "lengthFrom": lengthFrom,
+          "lengthUpto": lengthUpto,
+          "girthFrom": girthFrom,
+          "girthUpto": girthUpto,
+          "ratePerPole": ratePerPole,
+          "category": category,
+          "ratePerTon": ratePerTon,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.insert(
@@ -429,6 +713,35 @@ Future<void> updateSpecies({
   required int displayOrder,
   required bool isActive,
 }) async {
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.update(
+        "master_data",
+        id,
+        {
+          "value": species,
+          "code": species.toUpperCase(),
+          "displayOrder": displayOrder,
+          "remarks": "",
+          "isActive": isActive ? 1 : 0,
+          "speciesGroup": speciesGroup,
+          "scientificName": scientificName,
+          "kannadaName": kannadaName,
+          "ratePerCubicMeter": ratePerCubicMeter,
+          "lengthFrom": lengthFrom,
+          "lengthUpto": lengthUpto,
+          "girthFrom": girthFrom,
+          "girthUpto": girthUpto,
+          "ratePerPole": ratePerPole,
+          "category": category,
+          "ratePerTon": ratePerTon,
+        },
+      );
+      return;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   await db.update(
@@ -462,6 +775,24 @@ Future<void> updateSpecies({
 
 Future<double?> getFirewoodRate() async {
 
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        "master_data",
+        equals: {
+          "masterType": "Species",
+          "speciesGroup": "FIREWOOD",
+          "isActive": 1,
+        },
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      return (rows.first["ratePerTon"] as num?)?.toDouble();
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
+
   final db = await _db;
 
   final result = await db.query(
@@ -485,6 +816,22 @@ Future<double?> getFirewoodRate() async {
 Future<List<Map<String, dynamic>>> getRecommendationReasons(
   String recommendationCode,
 ) async {
+  if (OnlineMode.enabled) {
+    try {
+      final rows = await OnlineDatabase.select(
+        "master_data",
+        equals: {
+          "masterType": "Recommendation Reason",
+          "parentCode": recommendationCode,
+          "isActive": 1,
+        },
+        orderBy: "displayOrder",
+      );
+      return rows;
+    } catch (_) {
+      // Fall through to local.
+    }
+  }
   final db = await _db;
 
   return await db.query(

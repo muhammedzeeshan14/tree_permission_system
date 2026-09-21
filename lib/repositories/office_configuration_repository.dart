@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class OfficeConfigurationRepository {
 
@@ -11,6 +14,21 @@ class OfficeConfigurationRepository {
       await dbHelper.database;
 
   Future<Map<String, dynamic>?> getConfiguration() async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final result = await OnlineDatabase.select(
+          "office_configuration",
+          limit: 1,
+        );
+        if (result.isEmpty) {
+          return null;
+        }
+        return result.first;
+      } catch (e) {
+        debugPrint('online getConfiguration office_configuration failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 
@@ -46,6 +64,39 @@ required String division,
     required String subDivision,
 
   }) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final existing = await OnlineDatabase.select("office_configuration");
+        final row = {
+          "rangeName": rangeName,
+          "rangeLocation": rangeLocation,
+          "rangeCode": rangeCode,
+          "officePrefix": officePrefix,
+          "financialYear": financialYear,
+          "rangeOfficeAddress": rangeOfficeAddress,
+          "rangeEmail": rangeEmail,
+          "rfoOfficeLogoPath": rfoOfficeLogoPath,
+          "division": division,
+          "subDivision": subDivision,
+        };
+        if (existing.isEmpty) {
+          await OnlineDatabase.insert(
+            "office_configuration",
+            row,
+          );
+        } else {
+          await OnlineDatabase.update(
+            "office_configuration",
+            (existing.first["id"] as num).toInt(),
+            row,
+          );
+        }
+        return;
+      } catch (e) {
+        debugPrint('online saveConfiguration office_configuration failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 
