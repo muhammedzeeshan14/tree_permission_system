@@ -142,7 +142,10 @@ Future<Map<String, dynamic>?> login({
       for (final row in rows) {
         if ((row['isActive'] ?? 1) == 1) return row;
       }
-      return null;
+      debugPrint(
+        'online login: no cloud match for $username, '
+        'falling back to local users',
+      );
     } catch (e) {
       debugPrint('online login failed, falling back to local: $e');
     }
