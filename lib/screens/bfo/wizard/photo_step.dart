@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../models/application_model.dart';
 import '../../../models/photo_model.dart';
 import '../../../repositories/photo_repository.dart';
+import '../../../services/cloud_file_service.dart';
 import '../../../services/photo_service.dart';
 import 'dart:io';
 
@@ -55,6 +56,23 @@ class _PhotoStepState
     photos = await repository.getPhotos(
       widget.application.id!,
     );
+
+    // Cloud: download photos taken on other devices.
+    for (final photo in photos) {
+      if (photo.photoPath.isEmpty) continue;
+      try {
+        await CloudFileService.ensureLocal(
+          bucket: CloudFileService.photosBucket,
+          key: CloudFileService.photoKey(
+            widget.application.officeNumber,
+            photo.photoPath,
+          ),
+          localPath: photo.photoPath,
+        );
+      } catch (_) {
+        // Offline; show whatever is available locally.
+      }
+    }
 
     if (mounted) {
 
@@ -162,6 +180,12 @@ class _PhotoStepState
 
   );
 
+  // Cloud: photo travels to other devices.
+  CloudFileService.uploadPhoto(
+    widget.application.officeNumber,
+    file,
+  );
+
   await loadPhotos();
 
 },
@@ -222,6 +246,12 @@ class _PhotoStepState
 
     ),
 
+  );
+
+  // Cloud: photo travels to other devices.
+  CloudFileService.uploadPhoto(
+    widget.application.officeNumber,
+    file,
   );
 
   await loadPhotos();
@@ -442,6 +472,14 @@ class _PhotoStepState
         );
 
         if (result != true) return;
+
+        CloudFileService.deleteKey(
+          CloudFileService.photosBucket,
+          CloudFileService.photoKey(
+            widget.application.officeNumber,
+            photo.photoPath,
+          ),
+        );
 
         await repository.deletePhoto(
           photo.id!,

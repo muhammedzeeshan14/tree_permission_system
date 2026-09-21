@@ -34,6 +34,7 @@ import '../repositories/application_verification_repository.dart';
 import '../repositories/tree_verification_repository.dart';
 import '../repositories/mahazar_verification_repository.dart';
 import '../repositories/rfo_deferred_letter_recipient_repository.dart';
+import 'cloud_file_service.dart';
 
 class _RtcTreeTableRow {
   final int serialNumber;
@@ -3679,6 +3680,9 @@ class DrfoDocumentService {
     await file.writeAsBytes(bytes);
     await File(file.path + '.officer-addresses').writeAsString(await OfficerRepository().fingerprint());
 
+    // Cloud: generated PDFs travel to other devices.
+    CloudFileService.uploadGenerated(officeNumber, file);
+
     return file;
   }
 
@@ -3690,7 +3694,6 @@ class DrfoDocumentService {
     final base = await getApplicationDocumentsDirectory();
 
     final safeOfficeNumber = _safeFileName(officeNumber);
-
     final folder = Directory(
       '${base.path}/TPMS/Generated Documents/'
       '$safeOfficeNumber',
@@ -3715,6 +3718,18 @@ class DrfoDocumentService {
       // Only old DRFO letters and enumeration lists are removed.
       if (isPdf && !isMahazar) {
         await entity.delete();
+      }
+    }
+
+    // Cloud: keep remote listing in sync, then re-upload survivors.
+    await CloudFileService.deletePrefix(
+      CloudFileService.docsBucket,
+      'generated/$officeNumber',
+    );
+    await for (final entity in folder.list()) {
+      if (entity is File &&
+          entity.path.toLowerCase().endsWith('.pdf')) {
+        CloudFileService.uploadGenerated(officeNumber, entity);
       }
     }
   }
@@ -3744,6 +3759,18 @@ class DrfoDocumentService {
         await entity.delete();
       }
     }
+
+    // Cloud: keep remote listing in sync, then re-upload survivors.
+    await CloudFileService.deletePrefix(
+      CloudFileService.docsBucket,
+      'generated/$officeNumber',
+    );
+    await for (final entity in folder.list()) {
+      if (entity is File &&
+          entity.path.toLowerCase().endsWith('.pdf')) {
+        CloudFileService.uploadGenerated(officeNumber, entity);
+      }
+    }
   }
 
   // ==========================================================
@@ -3760,9 +3787,26 @@ class DrfoDocumentService {
       '$safeOfficeNumber',
     );
 
-    // No generated documents yet
     if (!await folder.exists()) {
-      return [];
+      await folder.create(recursive: true);
+    }
+
+    // Cloud: download PDFs generated on other devices.
+    final remoteKeys = await CloudFileService.listKeys(
+      CloudFileService.docsBucket,
+      'generated/$officeNumber',
+    );
+    for (final key in remoteKeys) {
+      final name = key.split('/').last;
+      try {
+        await CloudFileService.ensureLocal(
+          bucket: CloudFileService.docsBucket,
+          key: key,
+          localPath: '${folder.path}/$name',
+        );
+      } catch (_) {
+        // Offline or missing remotely; local list still works.
+      }
     }
 
     final List<File> files = [];

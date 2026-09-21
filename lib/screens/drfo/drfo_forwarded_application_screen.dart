@@ -86,10 +86,12 @@ final files = widget.rfoApprovedOnly
       final photos =
           await InspectionAttachmentPdfService.photoCount(
         widget.application.id!,
+        officeNumber: widget.application.officeNumber,
       );
       final uploads =
           await InspectionAttachmentPdfService.documentCount(
         widget.application.id!,
+        officeNumber: widget.application.officeNumber,
       );
       if (!mounted) return;
       setState(() {

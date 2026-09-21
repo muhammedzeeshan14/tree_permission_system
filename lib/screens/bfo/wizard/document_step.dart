@@ -4,8 +4,10 @@ import '../../../models/application_model.dart';
 import '../../../models/document_model.dart';
 import '../../../repositories/document_repository.dart';
 import '../../../repositories/master_repository.dart';
+import '../../../services/cloud_file_service.dart';
 import '../../../services/document_service.dart';
 import 'package:open_filex/open_filex.dart';
+import 'dart:io';
 
 class DocumentStep extends StatefulWidget {
 
@@ -57,6 +59,23 @@ String selectedDocumentName = "";
       await repository.getDocuments(
     widget.application.id!,
   );
+
+  // Cloud: download documents uploaded on other devices.
+  for (final doc in documentList) {
+    if (doc.filePath.isEmpty) continue;
+    try {
+      await CloudFileService.ensureLocal(
+        bucket: CloudFileService.docsBucket,
+        key: CloudFileService.uploadKey(
+          widget.application.officeNumber,
+          doc.filePath,
+        ),
+        localPath: doc.filePath,
+      );
+    } catch (_) {
+      // Offline; show whatever is available locally.
+    }
+  }
 
   documentTypeList =
       await MasterRepository().getMasters(
@@ -314,6 +333,13 @@ Card(
     ),
   );
 
+  // Cloud: document travels to other devices.
+  final savedFile = File(selectedDocumentPath);
+  CloudFileService.uploadDocument(
+    widget.application.officeNumber,
+    savedFile,
+  );
+
   selectedDocumentName = "";
   selectedDocumentPath = "";
   documentTypeId = null;
@@ -546,6 +572,14 @@ Expanded(
         if (result != true) return;
 
         if (doc.id != null) {
+
+          CloudFileService.deleteKey(
+            CloudFileService.docsBucket,
+            CloudFileService.uploadKey(
+              widget.application.officeNumber,
+              doc.filePath,
+            ),
+          );
 
           await repository.deleteDocument(
             doc.id!,

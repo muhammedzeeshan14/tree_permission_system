@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 
 import '../repositories/document_repository.dart';
 import '../repositories/inspection_photo_repository.dart';
+import '../models/document_model.dart';
+import 'cloud_file_service.dart';
 
 /// Items 5-6: printable PDFs for inspection photos and uploaded
 /// documents, generated for the DRFO alongside letters and lists.
@@ -77,6 +79,16 @@ class InspectionAttachmentPdfService {
     for (final row in rows) {
       final path = row['photoPath']?.toString() ?? '';
       if (path.isEmpty) continue;
+      try {
+        // Cloud: fetch photos taken on other devices.
+        await CloudFileService.ensureLocal(
+          bucket: CloudFileService.photosBucket,
+          key: CloudFileService.photoKey(officeNumber, path),
+          localPath: path,
+        );
+      } catch (_) {
+        continue;
+      }
       if (!await File(path).exists()) continue;
       if (!_isImage(path)) continue;
       entries.add({
@@ -165,8 +177,23 @@ class InspectionAttachmentPdfService {
   }) async {
     final docs =
         await DocumentRepository().getDocuments(applicationId);
-    final existing =
-        docs.where((d) => File(d.filePath).existsSync()).toList();
+    final usable = <DocumentModel>[];
+    for (final doc in docs) {
+      if (doc.filePath.isEmpty) continue;
+      try {
+        // Cloud: fetch documents uploaded on other devices.
+        await CloudFileService.ensureLocal(
+          bucket: CloudFileService.docsBucket,
+          key: CloudFileService.uploadKey(
+              officeNumber, doc.filePath),
+          localPath: doc.filePath,
+        );
+      } catch (_) {
+        continue;
+      }
+      if (File(doc.filePath).existsSync()) usable.add(doc);
+    }
+    final existing = usable;
     if (existing.isEmpty) {
       throw StateError('No uploaded documents found.');
     }
@@ -251,22 +278,52 @@ class InspectionAttachmentPdfService {
     return file;
   }
 
-  static Future<int> photoCount(int applicationId) async {
+  static Future<int> photoCount(
+    int applicationId, {
+    String officeNumber = '',
+  }) async {
     final rows =
         await InspectionPhotoRepository().getPhotos(applicationId);
     var count = 0;
     for (final row in rows) {
       final path = row['photoPath']?.toString() ?? '';
+      if (path.isEmpty) continue;
+      if (officeNumber.isNotEmpty) {
+        try {
+          await CloudFileService.ensureLocal(
+            bucket: CloudFileService.photosBucket,
+            key: CloudFileService.photoKey(officeNumber, path),
+            localPath: path,
+          );
+        } catch (_) {
+          // Offline; count local only.
+        }
+      }
       if (path.isNotEmpty && await File(path).exists()) count++;
     }
     return count;
   }
 
-  static Future<int> documentCount(int applicationId) async {
+  static Future<int> documentCount(
+    int applicationId, {
+    String officeNumber = '',
+  }) async {
     final docs =
         await DocumentRepository().getDocuments(applicationId);
     var count = 0;
     for (final doc in docs) {
+      if (officeNumber.isNotEmpty && doc.filePath.isNotEmpty) {
+        try {
+          await CloudFileService.ensureLocal(
+            bucket: CloudFileService.docsBucket,
+            key: CloudFileService.uploadKey(
+                officeNumber, doc.filePath),
+            localPath: doc.filePath,
+          );
+        } catch (_) {
+          // Offline; count local only.
+        }
+      }
       if (await File(doc.filePath).exists()) count++;
     }
     return count;
