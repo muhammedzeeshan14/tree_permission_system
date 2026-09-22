@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../database/database_helper.dart';
 import '../../../models/application_model.dart';
 import '../../../models/tree_model.dart';
 import '../../../repositories/application_repository.dart';
