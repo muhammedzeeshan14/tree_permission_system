@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../../../database/database_helper.dart';
 import '../../../models/application_model.dart';
 import '../../../models/tree_model.dart';
 import '../../../repositories/application_repository.dart';
+import '../../../repositories/master_repository.dart';
 import '../../../repositories/tree_repository.dart';
 import '../../../widgets/application_header_card.dart';
 import '../../../widgets/tpms_app_bar.dart';
@@ -39,13 +39,6 @@ class _AddEditTreeScreenState
   final ApplicationRepository
       _applicationRepository =
       ApplicationRepository();
-
-  //----------------------------------------------------------
-  // Database
-  //----------------------------------------------------------
-
-  final DatabaseHelper _dbHelper =
-      DatabaseHelper.instance;
 
   //----------------------------------------------------------
   // Form
@@ -187,15 +180,12 @@ String selectedRecommendationCode = "";
   //----------------------------------------------------------
 
   Future<void> _loadSpecies() async {
-  final Database db =
-      await _dbHelper.database;
+  // Online-aware: species added on any device appear here.
+  final allSpecies = await MasterRepository().getMasters("Species");
 
-  final allSpecies = await db.query(
-    "master_data",
-    where: "masterType = ? AND isActive = 1",
-    whereArgs: const ["Species"],
-    orderBy: "displayOrder ASC",
-  );
+  final activeSpecies = allSpecies.where((species) {
+    return species["isActive"] == 1;
+  }).toList();
 
   final applicationType =
       (application?.applicationType ?? "")
@@ -209,12 +199,15 @@ String selectedRecommendationCode = "";
       applicationType == "SANDAL PRIVATE";
 
   final allowedSpecies =
-      allSpecies.where((species) {
-    final group = species["speciesGroup"]
+      activeSpecies.where((species) {
+    var group = species["speciesGroup"]
             ?.toString()
             .trim()
             .toUpperCase() ??
         "";
+
+    // Legacy/seed species without a group behave as timber.
+    if (group.isEmpty) group = "TIMBER";
 
     if (sandalApplication) {
       return group == "SANDAL";
@@ -279,36 +272,18 @@ String selectedRecommendationCode = "";
 
 Future<void> _loadRecommendationTypes() async {
 
-  final Database db = await _dbHelper.database;
-
-  recommendationTypeList = await db.query(
-
-    "master_data",
-
-    where: "masterType=? AND isActive=1",
-
-    whereArgs: const [
-
-      "Recommendation Type",
-
-    ],
-
-    orderBy: "displayOrder",
-
+  final all = await MasterRepository().getMasters(
+    "Recommendation Type",
   );
+
+  recommendationTypeList = all
+      .where((item) => item["isActive"] == 1)
+      .toList();
 
 }
 
 Future<void> _loadTreeStatuses() async {
-  final Database db =
-      await _dbHelper.database;
-
-  final allStatuses = await db.query(
-    "master_data",
-    where: "masterType = ?",
-    whereArgs: const ["Tree Status"],
-    orderBy: "displayOrder",
-  );
+  final allStatuses = await MasterRepository().getMasters("Tree Status");
 
   final existingStatusId =
       widget.tree.treeStatusId;
@@ -333,26 +308,9 @@ Future<void> _loadRecommendationReasons() async {
 
   }
 
-  final Database db = await _dbHelper.database;
-
-  recommendationReasonList = await db.query(
-
-    "master_data",
-
-    where:
-
-        "masterType=? AND parentCode=? AND isActive=1",
-
-    whereArgs: [
-
-      "Recommendation Reason",
-
-      selectedRecommendationCode,
-
-    ],
-
-    orderBy: "displayOrder",
-
+  recommendationReasonList =
+      await MasterRepository().getRecommendationReasons(
+    selectedRecommendationCode,
   );
 
 }
@@ -371,17 +329,9 @@ Future<void> _onRecommendationTypeChanged(
 
   final newCode = item["code"].toString();
 
-  final Database db = await _dbHelper.database;
-
-  final reasons = await db.query(
-    "master_data",
-    where:
-        "masterType=? AND parentCode=? AND isActive=1",
-    whereArgs: [
-      "Recommendation Reason",
-      newCode,
-    ],
-    orderBy: "displayOrder",
+  final reasons =
+      await MasterRepository().getRecommendationReasons(
+    newCode,
   );
 
   if (!mounted) return;
