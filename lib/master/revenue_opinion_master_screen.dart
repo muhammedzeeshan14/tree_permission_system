@@ -114,6 +114,11 @@ class _RevenueOpinionMasterScreenState
                     item.officeAddress,
                   ),
 
+                  if (item.kannadaName.trim().isNotEmpty)
+                    Text(
+                      "ಕನ್ನಡ: ${item.kannadaName}",
+                    ),
+
                   Text(
                     "Display Order : ${item.displayOrder}",
                   ),
@@ -270,6 +275,21 @@ Future<void> openEditor([
     text: item?.officeAddress ?? "",
   );
 
+  final kannadaNameController =
+      TextEditingController(
+    text: item?.kannadaName ?? "",
+  );
+
+  final kannadaDesignationController =
+      TextEditingController(
+    text: item?.kannadaDesignation ?? "",
+  );
+
+  final kannadaOfficeAddressController =
+      TextEditingController(
+    text: item?.kannadaOfficeAddress ?? "",
+  );
+
   final remarksController =
       TextEditingController(
     text: item?.remarks ?? "",
@@ -383,6 +403,65 @@ Future<void> openEditor([
 
                         labelText:
                             "Office Address",
+
+                      ),
+
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    TextField(
+
+                      controller:
+                          kannadaNameController,
+
+                      decoration:
+                          const InputDecoration(
+
+                        labelText:
+                            "Kannada Name",
+
+                      ),
+
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    TextField(
+
+                      controller:
+                          kannadaDesignationController,
+
+                      minLines: 2,
+
+                      maxLines: 3,
+
+                      decoration:
+                          const InputDecoration(
+
+                        labelText:
+                            "Kannada Designation (line 1)",
+
+                      ),
+
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    TextField(
+
+                      controller:
+                          kannadaOfficeAddressController,
+
+                      minLines: 2,
+
+                      maxLines: 4,
+
+                      decoration:
+                          const InputDecoration(
+
+                        labelText:
+                            "Kannada Office Address (line 2)",
 
                       ),
 
@@ -522,6 +601,20 @@ Future<void> openEditor([
 
                     officeAddress:
                         officeAddressController
+                            .text
+                            .trim(),
+
+                    kannadaName:
+                        kannadaNameController.text
+                            .trim(),
+
+                    kannadaDesignation:
+                        kannadaDesignationController
+                            .text
+                            .trim(),
+
+                    kannadaOfficeAddress:
+                        kannadaOfficeAddressController
                             .text
                             .trim(),
 

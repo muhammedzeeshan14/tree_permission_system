@@ -24,6 +24,7 @@ import '../../repositories/master_repository.dart';
 import '../../repositories/application_type_repository.dart';
 import '../../repositories/application_type_permission_mapping_repository.dart';
 import '../../widgets/verification_card.dart';
+import '../../widgets/responsive_actions.dart';
 import '../../models/photo_model.dart';
 import '../../models/document_model.dart';
 import '../../repositories/photo_repository.dart';
@@ -359,6 +360,7 @@ Future<void> _loadDeferredRfoRecipients() async {
   void addOption({
     required String key,
     required int? sourceId,
+    String sourceKind = 'SOURCE',
     required String text,
     required String label,
   }) {
@@ -370,6 +372,7 @@ Future<void> _loadDeferredRfoRecipients() async {
     options.add({
       "key": key,
       "sourceId": sourceId,
+      "sourceKind": sourceKind,
       "text": text.trim(),
       "label": label.trim(),
     });
@@ -412,8 +415,10 @@ Future<void> _loadDeferredRfoRecipients() async {
           reference.forwardedBy.trim();
 
       addOption(
-        key: "SOURCE_${reference.sourceId}",
+        key:
+            "${reference.sourceKind}_${reference.sourceId}",
         sourceId: reference.sourceId,
+        sourceKind: reference.sourceKind,
         text: sourceName,
         label: sourceName,
       );
@@ -1273,6 +1278,9 @@ Future<bool> _saveDeferredRfoRecipients({
         recipientKey: copyKey,
         sourceId:
             copyOption["sourceId"] as int?,
+        sourceKind:
+            copyOption["sourceKind"]?.toString() ??
+                "SOURCE",
         recipientText:
             copyOption["text"]?.toString() ??
                 "",
@@ -1290,6 +1298,9 @@ Future<bool> _saveDeferredRfoRecipients({
       recipientKey: primaryKey,
       sourceId:
           primaryOption["sourceId"] as int?,
+      sourceKind:
+          primaryOption["sourceKind"]?.toString() ??
+              "SOURCE",
       recipientText:
           primaryOption["text"]?.toString() ??
               "",
@@ -3363,8 +3374,8 @@ final approvalPages = <Widget>[
                   )
                                  
                                  else
-  Row(
-    mainAxisSize: MainAxisSize.min,
+  Expanded(
+    child: ResponsiveActions(
     children: [
       OutlinedButton.icon(
         icon: const Icon(
@@ -3377,7 +3388,6 @@ final approvalPages = <Widget>[
       ),
 
       if (_hasRfoReinspection) ...[
-        const SizedBox(width: 12),
         ElevatedButton.icon(
           icon: const Icon(
             Icons.reply,
@@ -3388,7 +3398,6 @@ final approvalPages = <Widget>[
           onPressed: _finalizeRfoApproval,
         ),
       ] else if (_allRfoItemsApproved) ...[
-        const SizedBox(width: 12),
         ElevatedButton.icon(
           icon: Icon(
   needsRevenueOpinionRequest
@@ -3407,6 +3416,7 @@ label: Text(
         ),
       ],
     ],
+    ),
   ),
 
               ],

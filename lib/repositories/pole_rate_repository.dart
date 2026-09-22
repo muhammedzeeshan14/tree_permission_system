@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class PoleRateRepository {
   final DatabaseHelper dbHelper = DatabaseHelper.instance;
@@ -12,6 +15,42 @@ class PoleRateRepository {
   // ============================================================
 
   Future<List<Map<String, dynamic>>> getAllRates() async {
+    if (OnlineMode.enabled) {
+      try {
+        final rates = await OnlineDatabase.select('pole_rate_master');
+        final species = await OnlineDatabase.select(
+          'master_data',
+          equals: {'masterType': 'Species'},
+        );
+        final names = <int, String>{
+          for (final m in species)
+            (m['id'] as num).toInt(): (m['value']?.toString() ?? ''),
+        };
+        final rows = [
+          for (final p in rates)
+            {
+              ...Map<String, dynamic>.from(p),
+              'speciesName':
+                  names[(p['speciesId'] as num?)?.toInt()],
+            },
+        ];
+        rows.sort((a, b) {
+          final speciesName = ((a['speciesName'] as String?) ?? '')
+              .compareTo((b['speciesName'] as String?) ?? '');
+          if (speciesName != 0) return speciesName;
+          final order =
+              (((a['displayOrder'] as num?)?.toInt() ?? 0)).compareTo(
+            ((b['displayOrder'] as num?)?.toInt() ?? 0),
+          );
+          if (order != 0) return order;
+          return (((a['id'] as num?)?.toInt() ?? 0))
+              .compareTo((b['id'] as num?)?.toInt() ?? 0);
+        });
+        return rows;
+      } catch (e) {
+        debugPrint('online getAllRates pole_rate_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     return await db.rawQuery('''
@@ -45,6 +84,26 @@ class PoleRateRepository {
   Future<List<Map<String, dynamic>>> getRatesBySpecies(
     int speciesId,
   ) async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'pole_rate_master',
+          equals: {'speciesId': speciesId, 'isActive': 1},
+        );
+        rows.sort((a, b) {
+          final order =
+              (((a['displayOrder'] as num?)?.toInt() ?? 0)).compareTo(
+            ((b['displayOrder'] as num?)?.toInt() ?? 0),
+          );
+          if (order != 0) return order;
+          return (((a['id'] as num?)?.toInt() ?? 0))
+              .compareTo((b['id'] as num?)?.toInt() ?? 0);
+        });
+        return rows;
+      } catch (e) {
+        debugPrint('online getRatesBySpecies pole_rate_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     return await db.query(
@@ -70,6 +129,26 @@ class PoleRateRepository {
     required int displayOrder,
     bool isActive = true,
   }) async {
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.insert(
+          'pole_rate_master',
+          {
+            'speciesId': speciesId,
+            'lengthFrom': lengthFrom,
+            'lengthUpto': lengthUpto,
+            'girthFrom': girthFrom,
+            'girthUpto': girthUpto,
+            'rate': rate,
+            'category': category,
+            'displayOrder': displayOrder,
+            'isActive': isActive ? 1 : 0,
+          },
+        );
+      } catch (e) {
+        debugPrint('online insertRate pole_rate_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     return await db.insert(
@@ -104,6 +183,28 @@ class PoleRateRepository {
     required int displayOrder,
     required bool isActive,
   }) async {
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.update(
+          'pole_rate_master',
+          id,
+          {
+            'speciesId': speciesId,
+            'lengthFrom': lengthFrom,
+            'lengthUpto': lengthUpto,
+            'girthFrom': girthFrom,
+            'girthUpto': girthUpto,
+            'rate': rate,
+            'category': category,
+            'displayOrder': displayOrder,
+            'isActive': isActive ? 1 : 0,
+          },
+        );
+        return 1;
+      } catch (e) {
+        debugPrint('online updateRate pole_rate_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     return await db.update(
@@ -129,6 +230,18 @@ class PoleRateRepository {
   // ============================================================
 
   Future<int> deleteRate(int id) async {
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          'pole_rate_master',
+          column: 'id',
+          value: id,
+        );
+        return 1;
+      } catch (e) {
+        debugPrint('online deleteRate pole_rate_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     return await db.delete(
@@ -146,6 +259,20 @@ class PoleRateRepository {
     int id,
     bool isActive,
   ) async {
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.update(
+          'pole_rate_master',
+          id,
+          {
+            'isActive': isActive ? 1 : 0,
+          },
+        );
+        return 1;
+      } catch (e) {
+        debugPrint('online setActive pole_rate_master failed, falling back to local: $e');
+      }
+    }
     final db = await _db;
 
     return await db.update(

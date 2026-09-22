@@ -7,6 +7,16 @@ import 'package:storage_client/storage_client.dart';
 import 'online_mode.dart';
 import 'supabase_service.dart';
 
+/// A cloud file reference with best-effort size.
+class CloudFileEntry {
+  final String key;
+  final int sizeBytes; // -1 when unknown
+
+  const CloudFileEntry(this.key, this.sizeBytes);
+
+  String get name => key.split('/').last;
+}
+
 /// Cloud file sync via Supabase Storage (free tier).
 ///
 /// DB rows already sync across devices; this moves the actual bytes:
@@ -83,16 +93,33 @@ class CloudFileService {
     String bucket,
     String prefix,
   ) async {
+    final entries = await listFiles(bucket, prefix);
+    return entries.map((e) => e.key).toList();
+  }
+
+  /// Lists files with best-effort sizes (bytes, -1 when unknown).
+  static Future<List<CloudFileEntry>> listFiles(
+    String bucket,
+    String prefix,
+  ) async {
     final client = SupabaseService.client;
     if (client == null || !enabled) return [];
     try {
       final entries = await client.storage
           .from(bucket)
           .list(path: prefix);
-      return entries
-          .where((e) => e.name.isNotEmpty)
-          .map((e) => '$prefix/${e.name}')
-          .toList();
+      return entries.where((e) => e.name.isNotEmpty).map((e) {
+        var size = -1;
+        try {
+          final meta = e.metadata as Map?;
+          final raw = meta?['size'];
+          if (raw is num) size = raw.toInt();
+          if (raw is String) size = int.tryParse(raw) ?? -1;
+        } catch (_) {
+          size = -1;
+        }
+        return CloudFileEntry('$prefix/${e.name}', size);
+      }).toList();
     } catch (e) {
       debugPrint('cloud list $bucket/$prefix failed: $e');
       return [];

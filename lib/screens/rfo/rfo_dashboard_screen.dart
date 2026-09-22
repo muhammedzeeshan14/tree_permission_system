@@ -8,8 +8,26 @@ import '../../repositories/application_repository.dart';
 import '../../widgets/tpms_drawer.dart';
 import '../../widgets/sync_bar.dart';
 
-class RFODashboardScreen extends StatelessWidget {
+class RFODashboardScreen extends StatefulWidget {
   const RFODashboardScreen({super.key});
+
+  @override
+  State<RFODashboardScreen> createState() =>
+      _RFODashboardScreenState();
+}
+
+class _RFODashboardScreenState
+    extends State<RFODashboardScreen> {
+  Future<void> _refresh() async {
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshed'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +43,14 @@ class RFODashboardScreen extends StatelessWidget {
         title: const Text(
           "RFO Dashboard",
         ),
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _refresh,
+          ),
+        ],
 
       ),
 

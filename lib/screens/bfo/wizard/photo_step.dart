@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../models/photo_model.dart';
 import '../../../repositories/photo_repository.dart';
 import '../../../services/cloud_file_service.dart';
@@ -126,13 +127,11 @@ class _PhotoStepState
 
             const SizedBox(height: 15),
 
-            Row(
+            ResponsiveActions(
 
               children: [
 
-                Expanded(
-
-                  child: ElevatedButton.icon(
+                ElevatedButton.icon(
 
                     icon: const Icon(
                       Icons.camera_alt,
@@ -192,13 +191,7 @@ class _PhotoStepState
 
                   ),
 
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-
-                  child: ElevatedButton.icon(
+                ElevatedButton.icon(
 
                     icon: const Icon(
                       Icons.photo_library,
@@ -259,8 +252,6 @@ class _PhotoStepState
 },
 
                   ),
-
-                ),
 
               ],
 
@@ -502,13 +493,11 @@ class _PhotoStepState
 
             ),
 
-            Row(
+            ResponsiveActions(
 
               children: [
 
-                Expanded(
-
-                  child: ElevatedButton(
+                ElevatedButton(
 
                     onPressed:
                         widget.onBack,
@@ -519,13 +508,7 @@ class _PhotoStepState
 
                   ),
 
-                ),
-
-                const SizedBox(width: 15),
-
-                Expanded(
-
-                  child: ElevatedButton(
+                ElevatedButton(
 
                     onPressed:
                         widget.onNext,
@@ -535,8 +518,6 @@ class _PhotoStepState
                     ),
 
                   ),
-
-                ),
 
               ],
 

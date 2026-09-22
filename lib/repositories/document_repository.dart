@@ -4,6 +4,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/document_model.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class DocumentRepository {
 
@@ -17,6 +19,29 @@ class DocumentRepository {
   Future<void> saveDocument(
     DocumentModel document,
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+          "inspection_documents",
+          {
+            "applicationId":
+                document.applicationId,
+            "documentName":
+                document.documentTypeName,
+            "filePath":
+                document.filePath,
+            "remarks":
+                document.remarks,
+            "createdDate":
+                document.createdDate,
+          },
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -54,6 +79,34 @@ class DocumentRepository {
   Future<List<DocumentModel>> getDocuments(
     int applicationId,
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final result = await OnlineDatabase.select(
+          "inspection_documents",
+          equals: {"applicationId": applicationId},
+          orderBy: "id",
+        );
+        return result.map((row) {
+          return DocumentModel(
+            id: (row["id"] as num?)?.toInt() ?? 0,
+            applicationId:
+                (row["applicationId"] as num?)?.toInt() ?? 0,
+            documentTypeId: null,
+            documentTypeName:
+                row["documentName"]?.toString() ?? "",
+            filePath:
+                row["filePath"]?.toString() ?? "",
+            remarks:
+                row["remarks"]?.toString() ?? "",
+            createdDate:
+                row["createdDate"]?.toString() ?? "",
+          );
+        }).toList();
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -112,6 +165,38 @@ class DocumentRepository {
     int documentId,
   ) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "inspection_documents",
+          equals: {"id": documentId},
+          limit: 1,
+        );
+
+        if (rows.isNotEmpty) {
+          final path =
+              rows.first["filePath"]?.toString() ?? "";
+
+          if (path.isNotEmpty) {
+            final file = File(path);
+
+            if (await file.exists()) {
+              await file.delete();
+            }
+          }
+        }
+
+        await OnlineDatabase.delete(
+          "inspection_documents",
+          column: "id",
+          value: documentId,
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
+
     final db = await _db;
 
     final result = await db.query(
@@ -164,6 +249,18 @@ class DocumentRepository {
   Future<int> totalDocuments(
     int applicationId,
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "inspection_documents",
+          equals: {"applicationId": applicationId},
+        );
+        return rows.length;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 

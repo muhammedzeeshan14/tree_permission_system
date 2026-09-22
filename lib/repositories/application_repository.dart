@@ -214,6 +214,7 @@ for (int i = 0; i < references.length; i++) {
   final refRow = <String, Object?>{
     "applicationId": id,
     "sourceId": reference.sourceId,
+    "sourceKind": reference.sourceKind,
     "referenceNumber":
         reference.referenceNumber,
     "referenceDate":
@@ -451,6 +452,7 @@ Future<void> replaceForwardingReferences(
         {
           "applicationId": applicationId,
           "sourceId": reference.sourceId,
+          "sourceKind": reference.sourceKind,
           "referenceNumber":
               reference.referenceNumber,
           "referenceDate":
@@ -479,6 +481,7 @@ Future<void> replaceForwardingReferences(
       {
         "applicationId": applicationId,
         "sourceId": reference.sourceId,
+        "sourceKind": reference.sourceKind,
         "referenceNumber":
             reference.referenceNumber,
         "referenceDate":
@@ -505,15 +508,35 @@ Future<List<ApplicationReferenceModel>>
     final sources = await OnlineDatabase.select(
       'forwarded_source_master',
     );
-    final names = <int, String>{
-      for (final s in sources)
-        (s['id'] as num).toInt(): (s['sourceName']?.toString() ?? ''),
-    };
+    final names = <String, String>{};
+    for (final s in sources) {
+      names['SOURCE_${(s['id'] as num).toInt()}'] =
+          (s['sourceName']?.toString() ?? '');
+    }
+    final agencies = await OnlineDatabase.select(
+      'revenue_opinion_master',
+    );
+    for (final a in agencies) {
+      names['AGENCY_${(a['id'] as num).toInt()}'] =
+          (a['officeName']?.toString() ?? '').isNotEmpty
+              ? "${a['revenueOpinion']} - ${a['officeName']}"
+              : (a['revenueOpinion']?.toString() ?? '');
+    }
+    final officers = await OnlineDatabase.select(
+      'officer_directory',
+    );
+    for (final o in officers) {
+      names['OFFICER_${(o['id'] as num).toInt()}'] =
+          "${o['name']} (${o['role']})";
+    }
     return rows.map((row) {
       final sourceId = (row['sourceId'] as num?)?.toInt() ?? 0;
+      final kind =
+          row['sourceKind']?.toString() ?? 'SOURCE';
       return ApplicationReferenceModel(
         sourceId: sourceId,
-        forwardedBy: names[sourceId] ?? '',
+        sourceKind: kind,
+        forwardedBy: names['${kind}_$sourceId'] ?? '',
         referenceNumber:
             row['referenceNumber']?.toString() ?? '',
         referenceDate:
@@ -528,12 +551,21 @@ Future<List<ApplicationReferenceModel>>
     '''
     SELECT
   afr.sourceId,
+  afr.sourceKind,
   afr.referenceNumber,
   afr.referenceDate,
-  fsm.sourceName
+  fsm.sourceName,
+  rom.officeName AS agencyOffice,
+  rom.revenueOpinion AS agencyName,
+  od.name AS officerName,
+  od.role AS officerRole
     FROM application_forward_references afr
     LEFT JOIN forwarded_source_master fsm
-      ON afr.sourceId = fsm.id
+      ON afr.sourceId = fsm.id AND (afr.sourceKind IS NULL OR afr.sourceKind = 'SOURCE')
+    LEFT JOIN revenue_opinion_master rom
+      ON afr.sourceId = rom.id AND afr.sourceKind = 'AGENCY'
+    LEFT JOIN officer_directory od
+      ON afr.sourceId = od.id AND afr.sourceKind = 'OFFICER'
     WHERE afr.applicationId = ?
     ORDER BY afr.displayOrder ASC, afr.id ASC
     ''',
@@ -542,12 +574,31 @@ Future<List<ApplicationReferenceModel>>
 
   return rows.map((row) {
 
+    final kind =
+        row['sourceKind']?.toString() ?? 'SOURCE';
+
+    String forwardedBy;
+    if (kind == 'AGENCY') {
+      final office =
+          row['agencyOffice']?.toString() ?? '';
+      forwardedBy = office.isNotEmpty
+          ? "${row['agencyName']} - $office"
+          : (row['agencyName']?.toString() ?? '');
+    } else if (kind == 'OFFICER') {
+      forwardedBy =
+          "${row['officerName']} (${row['officerRole']})";
+    } else {
+      forwardedBy =
+          row['sourceName']?.toString() ?? '';
+    }
+
     return ApplicationReferenceModel(
   sourceId:
       (row['sourceId'] as int?) ?? 0,
 
-  forwardedBy:
-      row['sourceName']?.toString() ?? '',
+  sourceKind: kind,
+
+  forwardedBy: forwardedBy,
 
   referenceNumber:
       row['referenceNumber']?.toString() ?? '',

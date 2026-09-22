@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../repositories/master_repository.dart';
 import '../../../widgets/application_header_card.dart';
 import '../../../widgets/tpms_app_bar.dart';
@@ -702,25 +703,18 @@ class _ApplicationAdditionalDetailsStepState
 
                     const SizedBox(height: 14),
 
-                    Row(
+                    ResponsiveActions(
                       children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: widget.onBack,
-                            child:
-                                const Text("BACK"),
-                          ),
+                        ElevatedButton(
+                          onPressed: widget.onBack,
+                          child:
+                              const Text("BACK"),
                         ),
-
-                        const SizedBox(width: 16),
-
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed:
-                                _saveAndContinue,
-                            child: const Text(
-                              "SAVE & CONTINUE",
-                            ),
+                        ElevatedButton(
+                          onPressed:
+                              _saveAndContinue,
+                          child: const Text(
+                            "SAVE & CONTINUE",
                           ),
                         ),
                       ],

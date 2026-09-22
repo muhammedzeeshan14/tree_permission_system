@@ -10,6 +10,12 @@ class RevenueOpinionModel {
 
   String officeAddress;
 
+  String kannadaName;
+
+  String kannadaDesignation;
+
+  String kannadaOfficeAddress;
+
   String remarks;
 
   int displayOrder;
@@ -27,6 +33,12 @@ class RevenueOpinionModel {
     required this.officeName,
 
     required this.officeAddress,
+
+    this.kannadaName = "",
+
+    this.kannadaDesignation = "",
+
+    this.kannadaOfficeAddress = "",
 
     required this.remarks,
 
@@ -49,6 +61,12 @@ class RevenueOpinionModel {
       "officeName": officeName,
 
       "officeAddress": officeAddress,
+
+      "kannadaName": kannadaName,
+
+      "kannadaDesignation": kannadaDesignation,
+
+      "kannadaOfficeAddress": kannadaOfficeAddress,
 
       "remarks": remarks,
 
@@ -78,6 +96,15 @@ class RevenueOpinionModel {
 
       officeAddress:
           map["officeAddress"] ?? "",
+
+      kannadaName:
+          map["kannadaName"]?.toString() ?? "",
+
+      kannadaDesignation:
+          map["kannadaDesignation"]?.toString() ?? "",
+
+      kannadaOfficeAddress:
+          map["kannadaOfficeAddress"]?.toString() ?? "",
 
       remarks:
           map["remarks"] ?? "",

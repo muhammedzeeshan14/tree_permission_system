@@ -119,6 +119,16 @@ forwardedToRFO = data.where((e) {
   }
 
 }
+  Future<void> _refresh() async {
+    await loadApplications();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshed'),
+        ),
+      );
+    }
+  }
 Future<void> openAssignment(
     ApplicationModel app) async {
 
@@ -254,6 +264,14 @@ Widget build(BuildContext context) {
       title: const Text(
         "DRFO Dashboard",
       ),
+
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Refresh',
+          onPressed: _refresh,
+        ),
+      ],
 
       bottom: TabBar(
 

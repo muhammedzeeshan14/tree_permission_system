@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../models/application_revenue_opinion_model.dart';
 
 import '../../../repositories/application_revenue_opinion_repository.dart';
@@ -184,13 +185,11 @@ setState(() {
 
             const Spacer(),
 
-            Row(
+            ResponsiveActions(
 
               children:[
 
-                Expanded(
-
-                  child: ElevatedButton(
+                  ElevatedButton(
 
                     onPressed:
                         widget.onBack,
@@ -200,13 +199,7 @@ setState(() {
 
                   ),
 
-                ),
-
-                const SizedBox(width:15),
-
-                Expanded(
-
-                  child: ElevatedButton(
+                  ElevatedButton(
 
                     onPressed:save,
 
@@ -217,8 +210,6 @@ setState(() {
                     ),
 
                   ),
-
-                ),
 
               ],
 

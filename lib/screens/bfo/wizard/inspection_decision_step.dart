@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../repositories/master_repository.dart';
 import '../../../repositories/inspection_defer_reason_repository.dart';
 import '../../../widgets/application_header_card.dart';
@@ -388,13 +389,11 @@ Widget build(BuildContext context) {
 
                   ],
 
-                                    Row(
+                                    ResponsiveActions(
 
                     children: [
 
-                      Expanded(
-
-                        child: ElevatedButton(
+                      ElevatedButton(
 
                           onPressed: widget.onBack,
 
@@ -404,13 +403,9 @@ Widget build(BuildContext context) {
 
                         ),
 
-                      ),
 
-                      const SizedBox(width: 15),
 
-                      Expanded(
-
-                        child: ElevatedButton(
+                      ElevatedButton(
 
                           onPressed: () async {
 
@@ -503,7 +498,6 @@ Widget build(BuildContext context) {
 
                         ),
 
-                      ),
 
                     ],
 

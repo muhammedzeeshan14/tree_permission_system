@@ -2,6 +2,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/tree_count_detail_model.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class TreeCountDetailRepository {
 
@@ -13,6 +15,18 @@ class TreeCountDetailRepository {
 
   Future<void> insert(
       TreeCountDetailModel item) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+          "application_tree_count",
+          item.toMap(),
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -28,6 +42,22 @@ class TreeCountDetailRepository {
 
   Future<List<TreeCountDetailModel>>
       getBySite(int siteId) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final result = await OnlineDatabase.select(
+          "application_tree_count",
+          equals: {"siteId": siteId},
+          orderBy: "displayOrder",
+        );
+        return result
+            .map((e) =>
+                TreeCountDetailModel.fromMap(e))
+            .toList();
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -52,6 +82,19 @@ class TreeCountDetailRepository {
 
   Future<void> deleteBySite(
       int siteId) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          "application_tree_count",
+          column: "siteId",
+          value: siteId,
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 

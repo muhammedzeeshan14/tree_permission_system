@@ -152,6 +152,17 @@ class _BFODashboardScreenState
     }
   }
 
+  Future<void> _refresh() async {
+    await loadApplications();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshed'),
+        ),
+      );
+    }
+  }
+
   String applicationNumber(
     ApplicationModel application,
   ) {
@@ -386,6 +397,13 @@ class _BFODashboardScreenState
         appBar: AppBar(
           centerTitle: true,
           title: const Text("BFO Dashboard"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: _refresh,
+            ),
+          ],
         ),
         body: const Center(
           child: CircularProgressIndicator(),
@@ -442,6 +460,13 @@ class _BFODashboardScreenState
         appBar: AppBar(
           centerTitle: true,
           title: const Text("BFO Dashboard"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: _refresh,
+            ),
+          ],
         ),
         body: const Center(
           child: Text(
@@ -463,6 +488,13 @@ class _BFODashboardScreenState
         appBar: AppBar(
           centerTitle: true,
           title: const Text("BFO Dashboard"),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: _refresh,
+            ),
+          ],
           bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,

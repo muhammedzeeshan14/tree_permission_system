@@ -5,6 +5,8 @@ class ForwardReference {
 
   int? sourceId;
 
+  String sourceKind;
+
   String sourceName;
 
   String referenceNumber;
@@ -15,6 +17,8 @@ class ForwardReference {
 
     this.sourceId,
 
+    this.sourceKind = "SOURCE",
+
     this.sourceName = "",
 
     this.referenceNumber = "",
@@ -22,6 +26,9 @@ class ForwardReference {
     this.referenceDate = "",
 
   });
+
+  String get key =>
+      "${sourceKind}_${sourceId ?? ""}";
 
 }
 
@@ -47,6 +54,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
     int index,
     int? sourceId,
     String sourceName,
+    String sourceKind,
   ) onSourceSelected;
 
   final void Function(
@@ -208,9 +216,11 @@ class ForwardedReferenceWidget extends StatelessWidget {
                       flex: 3,
 
                       child:
-                          DropdownButtonFormField<int>(
+                          DropdownButtonFormField<String>(
 
-                        value: ref.sourceId,
+                        value: ref.sourceId == null
+                            ? null
+                            : ref.key,
 
                         decoration:
                             const InputDecoration(
@@ -224,9 +234,12 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                         items: sourceList.map((e) {
 
-                          return DropdownMenuItem<int>(
+                          final key =
+                              "${e["sourceKind"] ?? "SOURCE"}_${e["id"]}";
 
-                            value: e["id"],
+                          return DropdownMenuItem<String>(
+
+                            value: key,
 
                             child: Text(
 
@@ -238,14 +251,16 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                         }).toList(),
 
-                        onChanged: (id) {
+                        onChanged: (key) {
 
-                          if (id == null) return;
+                          if (key == null) return;
 
                           final selected =
                               sourceList.firstWhere(
 
-                            (e) => e["id"] == id,
+                            (e) =>
+                                "${e["sourceKind"] ?? "SOURCE"}_${e["id"]}" ==
+                                key,
 
                           );
 
@@ -253,9 +268,15 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                             index,
 
-                            id,
+                            selected["id"] as int?,
 
-                            selected["sourceName"],
+                            selected["sourceName"]
+                                    ?.toString() ??
+                                "",
+
+                            (selected["sourceKind"]
+                                    ?.toString() ??
+                                "SOURCE"),
 
                           );
 

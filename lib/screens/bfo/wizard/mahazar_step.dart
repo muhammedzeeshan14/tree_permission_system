@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../models/mahazar_model.dart';
 import '../../../repositories/mahazar_repository.dart';
 import '../../../repositories/master_repository.dart';
@@ -710,27 +711,22 @@ String? _validateMinute(String? value) {
                       ),
                     ),
 
-                    Row(
+                    ResponsiveActions(
                       children: [
-                        Expanded(
-                          child: ElevatedButton(
+                        ElevatedButton(
                             onPressed:
                                 widget.onBack,
                             child:
                                 const Text("BACK"),
                           ),
-                        ),
 
-                        const SizedBox(width: 15),
 
-                        Expanded(
-                          child: ElevatedButton(
+                        ElevatedButton(
                             onPressed: save,
                             child: const Text(
                               "SAVE & CONTINUE",
                             ),
                           ),
-                        ),
                       ],
                     ),
                   ],

@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/application_revenue_opinion_model.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class ApplicationRevenueOpinionRepository {
 
@@ -14,6 +17,20 @@ class ApplicationRevenueOpinionRepository {
   Future<ApplicationRevenueOpinionModel?>
       getByApplication(
       int applicationId) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "application_revenue_opinion",
+          equals: {"applicationId": applicationId},
+          limit: 1,
+        );
+        if (rows.isEmpty) return null;
+        return ApplicationRevenueOpinionModel.fromMap(rows.first);
+      } catch (e) {
+        debugPrint('online getByApplication application_revenue_opinion failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 
@@ -42,6 +59,35 @@ class ApplicationRevenueOpinionRepository {
 
   Future<void> save(
       ApplicationRevenueOpinionModel item) async{
+
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "application_revenue_opinion",
+          equals: {"applicationId": item.applicationId},
+          limit: 1,
+        );
+        if (rows.isEmpty) {
+          await OnlineDatabase.insert(
+            "application_revenue_opinion",
+            item.toMap(),
+          );
+        } else {
+          await OnlineDatabase.update(
+            "application_revenue_opinion",
+            (rows.first["id"] as num).toInt(),
+            {
+              "applicationId": item.applicationId,
+              "revenueOpinionId": item.revenueOpinionId,
+            },
+          );
+        }
+        return;
+      } catch (e) {
+        if (e is StateError || e is ArgumentError) rethrow;
+        debugPrint('online save application_revenue_opinion failed, falling back to local: $e');
+      }
+    }
 
     final db=await _db;
 

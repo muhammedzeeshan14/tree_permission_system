@@ -233,15 +233,23 @@ on conflict (id) do nothing;
 -- ---------- revenue opinions ----------
 insert into public.revenue_opinion_master
   ("revenueOpinion", code, "officeName", "officeAddress",
+   "kannadaName", "kannadaDesignation", "kannadaOfficeAddress",
    remarks, "displayOrder", "isActive")
 values
   ('Private Land', 'PL', 'Tahsildar, Mysuru Taluk',
-   'Mini Vidhana Soudha, Nazarbad, Mysuru - 570010', '', 1, 1),
+   'Mini Vidhana Soudha, Nazarbad, Mysuru - 570010',
+   'ಖಾಸಗಿ ಜಮೀನು', 'ತಹಶೀಲ್ದಾರ್, ಮೈಸೂರು ತಾಲ್ಲೂಕು',
+   'ಮಿನಿ ವಿಧಾನಸೌಧ, ನಜರಬಾದ್, ಮೈಸೂರು - 570010', '', 1, 1),
   ('Government Land', 'GL', 'Tahsildar, Mysuru Taluk',
-   'Mini Vidhana Soudha, Nazarbad, Mysuru - 570010', '', 2, 1),
+   'Mini Vidhana Soudha, Nazarbad, Mysuru - 570010',
+   'ಸರ್ಕಾರಿ ಜಮೀನು', 'ತಹಶೀಲ್ದಾರ್, ಮೈಸೂರು ತಾಲ್ಲೂಕು',
+   'ಮಿನಿ ವಿಧಾನಸೌಧ, ನಜರಬಾದ್, ಮೈಸೂರು - 570010', '', 2, 1),
   ('Deemed Forest', 'DF', 'Deputy Commissioner, Mysuru',
-   'Deputy Commissioner''s Office, Mysuru - 570001', '', 3, 1),
+   'Deputy Commissioner''s Office, Mysuru - 570001',
+   'ಡೀಮ್ಡ್ ಅರಣ್ಯ', 'ಜಿಲ್ಲಾಧಿಕಾರಿ, ಮೈಸೂರು',
+   'ಜಿಲ್ಲಾಧಿಕಾರಿಗಳ ಕಛೇರಿ, ಮೈಸೂರು - 570001', '', 3, 1),
   ('Not Required', 'NR', '', '',
+   'ಅಗತ್ಯವಿಲ್ಲ', '', '',
    'Revenue opinion not required.', 4, 1)
 on conflict do nothing;
 

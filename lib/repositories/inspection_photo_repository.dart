@@ -1,6 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class InspectionPhotoRepository {
 
@@ -19,6 +21,18 @@ class InspectionPhotoRepository {
       int applicationId,
 
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.select(
+          "inspection_photos",
+          equals: {"applicationId": applicationId},
+          orderBy: "id",
+        );
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -50,6 +64,17 @@ class InspectionPhotoRepository {
 
   ) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.insert(
+          "inspection_photos",
+          data,
+        );
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
+
     final db = await _db;
 
     return await db.insert(
@@ -71,6 +96,19 @@ class InspectionPhotoRepository {
       int id,
 
   ) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          "inspection_photos",
+          column: "id",
+          value: id,
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 

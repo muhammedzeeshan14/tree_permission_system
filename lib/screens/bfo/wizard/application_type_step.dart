@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../widgets/application_header_card.dart';
 import '../../../widgets/tpms_app_bar.dart';
 import '../../../widgets/wizard_progress_card.dart';
@@ -241,25 +242,18 @@ if (!applicationTypeCorrect) ...[
 
 const SizedBox(height: 30),
 
-                      Row(
+                      ResponsiveActions(
                         children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: widget.onBack,
-                              child: const Text(
-                                "BACK",
-                              ),
+                          ElevatedButton(
+                            onPressed: widget.onBack,
+                            child: const Text(
+                              "BACK",
                             ),
                           ),
-
-                          const SizedBox(width: 16),
-
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _saveAndContinue,
-                              child: const Text(
-                                "SAVE & CONTINUE",
-                              ),
+                          ElevatedButton(
+                            onPressed: _saveAndContinue,
+                            child: const Text(
+                              "SAVE & CONTINUE",
                             ),
                           ),
                         ],

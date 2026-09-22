@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class ApplicationForwardReferenceRepository {
 
@@ -16,6 +19,8 @@ class ApplicationForwardReferenceRepository {
 
     required int sourceId,
 
+    String sourceKind = 'SOURCE',
+
     required String referenceNumber,
 
     required String referenceDate,
@@ -23,6 +28,35 @@ class ApplicationForwardReferenceRepository {
     required int displayOrder,
 
   }) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+
+          "application_forward_references",
+
+          {
+
+            "applicationId": applicationId,
+
+            "sourceId": sourceId,
+
+            "sourceKind": sourceKind,
+
+            "referenceNumber": referenceNumber,
+
+            "referenceDate": referenceDate,
+
+            "displayOrder": displayOrder,
+
+          },
+
+        );
+        return;
+      } catch (e) {
+        debugPrint('online saveReference application_forward_references failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 
@@ -35,6 +69,8 @@ class ApplicationForwardReferenceRepository {
         "applicationId": applicationId,
 
         "sourceId": sourceId,
+
+        "sourceKind": sourceKind,
 
         "referenceNumber": referenceNumber,
 
@@ -51,6 +87,26 @@ class ApplicationForwardReferenceRepository {
   Future<List<Map<String, dynamic>>> getReferences(
 
       int applicationId) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+
+          "application_forward_references",
+
+          equals: {"applicationId": applicationId},
+
+          orderBy: "displayOrder",
+
+        );
+        rows.sort((a, b) =>
+            (((a["displayOrder"] as num?)?.toInt() ?? 0)).compareTo(
+                (b["displayOrder"] as num?)?.toInt() ?? 0));
+        return rows;
+      } catch (e) {
+        debugPrint('online getReferences application_forward_references failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 
@@ -70,6 +126,23 @@ class ApplicationForwardReferenceRepository {
 
   Future<void> deleteReferences(
       int applicationId) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+
+          "application_forward_references",
+
+          column: "applicationId",
+
+          value: applicationId,
+
+        );
+        return;
+      } catch (e) {
+        debugPrint('online deleteReferences application_forward_references failed, falling back to local: $e');
+      }
+    }
 
     final db = await _db;
 

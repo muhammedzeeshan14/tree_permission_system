@@ -10,6 +10,9 @@ import '../../repositories/application_type_repository.dart';
 import '../../repositories/section_repository.dart';
 import '../../repositories/beat_repository.dart';
 import '../../repositories/forwarded_source_repository.dart';
+import '../../repositories/revenue_opinion_repository.dart';
+import '../../repositories/officer_repository.dart';
+import '../../services/office_number_service.dart';
 import '../../widgets/forwarded_reference_widget.dart';
 import '../../services/session_service.dart';
 import '../../utils/date_picker_util.dart';
@@ -78,6 +81,8 @@ String applicationSource = "DIRECT";
 String forwardedDate = "";
 
 List<ForwardReference> forwardReferences = [];
+
+  String reservedOfficeNumber = "";
 
   String applicationType = "PL";
   bool get isGovernmentCategory =>
@@ -152,6 +157,18 @@ Future<void> initializeScreen() async {
 
   applicationDateController.text = "DD/MM/YYYY";
   receivedDateController.text = "DD/MM/YYYY";
+
+  // Item 9: reserve the continuous office number up front so the
+  // displayed number is the one saved (gaps possible on cancel).
+  if (!isEdit) {
+    try {
+      reservedOfficeNumber =
+          await OfficeNumberService.nextOfficeNumber();
+    } catch (_) {
+      reservedOfficeNumber = "";
+    }
+    if (mounted) setState(() {});
+  }
 
   await loadWhyRemoving();
 
@@ -242,6 +259,7 @@ workNameController.text =
             .map(
               (ref) => ForwardReference(
                 sourceId: ref.sourceId,
+                sourceKind: ref.sourceKind,
                 sourceName: ref.forwardedBy,
                 referenceNumber:
                     ref.referenceNumber,
@@ -428,9 +446,57 @@ Future<void> loadBeats() async {
 
 Future<void> loadForwardedSources() async {
 
-  forwardedSourceList =
-      await ForwardedSourceRepository()
-          .getSources();
+  // Unified dropdown: forwarding sources + government agencies
+  // (English names) + ACF/DCF officers. Kind-tagged so ids from
+  // different tables never collide.
+  final combined = <Map<String, dynamic>>[];
+
+  final sources = await ForwardedSourceRepository()
+      .getSources();
+  for (final source in sources) {
+    combined.add({
+      "id": source["id"],
+      "sourceKind": "SOURCE",
+      "sourceName":
+          source["sourceName"]?.toString() ?? "",
+    });
+  }
+
+  try {
+    final agencies =
+        await RevenueOpinionRepository().getActive();
+    for (final agency in agencies) {
+      combined.add({
+        "id": agency.id,
+        "sourceKind": "AGENCY",
+        "sourceName": agency.officeName.isNotEmpty
+            ? "${agency.revenueOpinion} - ${agency.officeName}"
+            : agency.revenueOpinion,
+      });
+    }
+  } catch (_) {
+    // Agencies unavailable; sources still work.
+  }
+
+  try {
+    final officers = await OfficerRepository().getAll();
+    for (final officer in officers) {
+      final role =
+          officer["role"]?.toString() ?? "";
+      if (role != "ACF" && role != "DCF") continue;
+      final name =
+          officer["name"]?.toString() ?? role;
+      combined.add({
+        "id": officer["id"],
+        "sourceKind": "OFFICER",
+        "sourceName": "$name ($role)",
+      });
+    }
+  } catch (_) {
+    // Officers unavailable; rest still works.
+  }
+
+  forwardedSourceList = combined;
 
   if (mounted) {
 
@@ -457,8 +523,11 @@ void dispose() {
   @override
   Widget build(BuildContext context) {
 
-    final officeNo =
-        ApplicationService.generateOfficeNumber(applicationType);
+    final officeNo = isEdit
+        ? widget.application!.officeNumber
+        : (reservedOfficeNumber.isEmpty
+            ? "Generating..."
+            : reservedOfficeNumber);
 
     return Scaffold(
       appBar: AppBar(
@@ -541,11 +610,15 @@ void dispose() {
 
     sourceName,
 
+    sourceKind,
+
   ) {
 
     forwardReferences[index].sourceId = sourceId;
 
     forwardReferences[index].sourceName = sourceName;
+
+    forwardReferences[index].sourceKind = sourceKind;
 
   },
 
@@ -1162,9 +1235,9 @@ if (showsNameOfWork &&
 
     ? widget.application!.officeNumber
 
-    : ApplicationService.generateOfficeNumber(
-        applicationType,
-      );
+    : (reservedOfficeNumber.isNotEmpty
+        ? reservedOfficeNumber
+        : await OfficeNumberService.nextOfficeNumber());
 
 // SAVE APPLICATION
 try {
@@ -1222,6 +1295,7 @@ forwardedDate: forwardedDate,
       forwardReferences.map((ref) {
     return ApplicationReferenceModel(
       sourceId: ref.sourceId ?? 0,
+      sourceKind: ref.sourceKind,
       forwardedBy: ref.sourceName,
       referenceNumber: ref.referenceNumber,
       referenceDate: ref.referenceDate,

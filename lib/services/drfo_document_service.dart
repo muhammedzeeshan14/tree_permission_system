@@ -34,6 +34,7 @@ import '../repositories/application_verification_repository.dart';
 import '../repositories/tree_verification_repository.dart';
 import '../repositories/mahazar_verification_repository.dart';
 import '../repositories/rfo_deferred_letter_recipient_repository.dart';
+import 'forwarded_address_service.dart';
 import 'cloud_file_service.dart';
 
 class _RtcTreeTableRow {
@@ -423,7 +424,15 @@ class DrfoDocumentService {
   Future<String> _rfoForwardedRecipientAddress(ApplicationModel application) async {
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isNotEmpty) {
-        return OfficerRepository().sourceAddress(reference.sourceId, reference.forwardedBy.trim());
+        try {
+          return await ForwardedAddressService.toAddress(
+            kind: reference.sourceKind,
+            sourceId: reference.sourceId,
+            fallback: reference.forwardedBy.trim(),
+          );
+        } catch (_) {
+          return reference.forwardedBy.trim();
+        }
       }
     }
     return '';
@@ -535,7 +544,8 @@ class DrfoDocumentService {
         final isAddressedOffice =
             !toApplicant &&
             primaryRecipient.sourceId != null &&
-            primaryRecipient.sourceId == reference.sourceId;
+            primaryRecipient.sourceId == reference.sourceId &&
+            (primaryRecipient.sourceKind == reference.sourceKind);
 
         String line = "$referenceNumber. ";
 
@@ -1515,7 +1525,7 @@ class DrfoDocumentService {
       for (int index = 0; index < copyRecipients.length; index++) {
         copyLines.add(
           "${index + 1}. "
-          "${await OfficerRepository().sourceAddress(copyRecipients[index].sourceId, copyRecipients[index].recipientText, copyTo: true)}",
+          "${await ForwardedAddressService.copyToAddress(kind: copyRecipients[index].sourceKind, sourceId: copyRecipients[index].sourceId, fallback: copyRecipients[index].recipientText)}",
         );
       }
 
@@ -1525,7 +1535,7 @@ class DrfoDocumentService {
     template = _replace(
       template,
       "{{TO_ADDRESS}}",
-      await OfficerRepository().sourceAddress(primaryRecipient.sourceId, primaryRecipient.recipientText),
+      await ForwardedAddressService.toAddress(kind: primaryRecipient.sourceKind, sourceId: primaryRecipient.sourceId, fallback: primaryRecipient.recipientText),
     );
 
     template = _replace(

@@ -1,6 +1,8 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class HistoryRepository {
 
@@ -25,6 +27,25 @@ class HistoryRepository {
     required String actionBy,
 
   }) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.insert(
+          "application_history",
+          {
+            "officeNumber": officeNumber,
+            "action": action,
+            "remarks": remarks,
+            "actionBy": actionBy,
+            "actionDate":
+                DateTime.now().toIso8601String(),
+          },
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -58,6 +79,18 @@ class HistoryRepository {
   Future<List<Map<String, dynamic>>> getHistory(
 
       String officeNumber) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.select(
+          "application_history",
+          equals: {"officeNumber": officeNumber},
+          orderBy: "id",
+        );
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 

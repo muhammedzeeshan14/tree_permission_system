@@ -2,6 +2,8 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/tree_count_site_model.dart';
+import '../services/online_database.dart';
+import '../services/online_mode.dart';
 
 class TreeCountSiteRepository {
 
@@ -13,6 +15,17 @@ class TreeCountSiteRepository {
 
   Future<int> insert(
       TreeCountSiteModel item) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        return await OnlineDatabase.insert(
+          "application_tree_count_site",
+          item.toMap(),
+        );
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -28,6 +41,21 @@ class TreeCountSiteRepository {
 
   Future<void> update(
       TreeCountSiteModel item) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        if (item.id != null) {
+          await OnlineDatabase.update(
+            "application_tree_count_site",
+            item.id!,
+            item.toMap(),
+          );
+        }
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -47,6 +75,22 @@ class TreeCountSiteRepository {
 
   Future<List<TreeCountSiteModel>>
       getSites(int applicationId) async {
+
+    if (OnlineMode.enabled) {
+      try {
+        final result = await OnlineDatabase.select(
+          "application_tree_count_site",
+          equals: {"applicationId": applicationId},
+          orderBy: "displayOrder",
+        );
+        return result
+            .map((e) =>
+                TreeCountSiteModel.fromMap(e))
+            .toList();
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
 
     final db = await _db;
 
@@ -71,6 +115,19 @@ class TreeCountSiteRepository {
 
   Future<void> delete(int id) async {
 
+    if (OnlineMode.enabled) {
+      try {
+        await OnlineDatabase.delete(
+          "application_tree_count_site",
+          column: "id",
+          value: id,
+        );
+        return;
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
+
     final db = await _db;
 
     await db.delete(
@@ -86,6 +143,24 @@ class TreeCountSiteRepository {
   }
 
   Future<void> deleteSite(int siteId) async {
+
+  if (OnlineMode.enabled) {
+    try {
+      await OnlineDatabase.delete(
+        "application_tree_count",
+        column: "siteId",
+        value: siteId,
+      );
+      await OnlineDatabase.delete(
+        "application_tree_count_site",
+        column: "id",
+        value: siteId,
+      );
+      return;
+    } catch (_) {
+      /* fall through to local */
+    }
+  }
 
   final db = await _db;
 

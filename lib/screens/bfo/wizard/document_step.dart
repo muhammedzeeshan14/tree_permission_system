@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../models/document_model.dart';
 import '../../../repositories/document_repository.dart';
 import '../../../repositories/master_repository.dart';
@@ -608,13 +609,11 @@ Expanded(
 ),
             const Spacer(),
 
-            Row(
+            ResponsiveActions(
 
               children: [
 
-                Expanded(
-
-                  child: ElevatedButton(
+                  ElevatedButton(
 
                     onPressed: widget.onBack,
 
@@ -622,21 +621,13 @@ Expanded(
 
                   ),
 
-                ),
-
-                const SizedBox(width: 15),
-
-                Expanded(
-
-                  child: ElevatedButton(
+                  ElevatedButton(
 
                     onPressed: widget.onNext,
 
                     child: const Text("NEXT"),
 
                   ),
-
-                ),
 
               ],
 

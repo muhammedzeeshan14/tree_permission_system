@@ -49,12 +49,19 @@ class OnlineDatabase {
       final payload = Map<String, dynamic>.from(row);
       if (payload['id'] == null) payload.remove('id');
       payload['updatedAt'] ??= DateTime.now().toIso8601String();
-      final inserted = await _client
-          .from(table)
-          .insert(payload)
-          .select('id')
-          .single();
-      return (inserted['id'] as num).toInt();
+      try {
+        final inserted = await _client
+            .from(table)
+            .insert(payload)
+            .select('id')
+            .single();
+        return (inserted['id'] as num).toInt();
+      } catch (_) {
+        // Tables without an `id` column (e.g. government_approvals
+        // keyed by applicationId): plain insert, caller re-reads.
+        await _client.from(table).insert(payload);
+        return 0;
+      }
     } catch (e) {
       debugPrint('online insert $table failed: $e');
       rethrow;

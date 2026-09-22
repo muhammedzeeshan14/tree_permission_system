@@ -1,4 +1,5 @@
 import '../../../widgets/revenue_reply_history_card.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../widgets/government_approval_history_card.dart';
 import 'package:flutter/material.dart';
 
@@ -1128,13 +1129,11 @@ const SizedBox(height: 20),
 
   const SizedBox(height: 20),
 
-  Row(
+  ResponsiveActions(
 
     children: [
 
-      Expanded(
-
-        child: ElevatedButton(
+      ElevatedButton(
 
           onPressed: widget.onBack,
 
@@ -1142,13 +1141,9 @@ const SizedBox(height: 20),
 
         ),
 
-      ),
 
-      const SizedBox(width: 15),
 
-      Expanded(
-
-        child: ElevatedButton(
+      ElevatedButton(
 
           onPressed: widget.onNext,
 
@@ -1156,7 +1151,6 @@ const SizedBox(height: 20),
 
         ),
 
-      ),
 
     ],
 

@@ -9,10 +9,28 @@ import 'application_list_screen.dart';
 import 'new_application_screen.dart';
 import 'approved_rfo_letters_screen.dart';
 
-class CaseWorkerDashboardScreen extends StatelessWidget {
+class CaseWorkerDashboardScreen extends StatefulWidget {
   const CaseWorkerDashboardScreen({
     super.key,
   });
+
+  @override
+  State<CaseWorkerDashboardScreen> createState() =>
+      _CaseWorkerDashboardScreenState();
+}
+
+class _CaseWorkerDashboardScreenState
+    extends State<CaseWorkerDashboardScreen> {
+  Future<void> _refresh() async {
+    setState(() {});
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refreshed'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +49,14 @@ class CaseWorkerDashboardScreen extends StatelessWidget {
         title: const Text(
           "Case Worker Dashboard",
         ),
+
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _refresh,
+          ),
+        ],
 
       ),
 

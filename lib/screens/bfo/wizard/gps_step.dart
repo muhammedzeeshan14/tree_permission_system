@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../widgets/responsive_actions.dart';
 import '../../../models/application_model.dart';
 
 import '../../../widgets/application_header_card.dart';
@@ -182,26 +183,19 @@ class _GPSStepState extends State<GPSStep> {
                       ),
                                             const SizedBox(height: 30),
 
-                      Row(
+                      ResponsiveActions(
                         children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: widget.onBack,
-                              child: const Text(
-                                "BACK",
-                              ),
+                          ElevatedButton(
+                            onPressed: widget.onBack,
+                            child: const Text(
+                              "BACK",
                             ),
                           ),
-
-                          const SizedBox(width: 16),
-
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed:
-                                  _saveAndContinue,
-                              child: const Text(
-                                "SAVE & CONTINUE",
-                              ),
+                          ElevatedButton(
+                            onPressed:
+                                _saveAndContinue,
+                            child: const Text(
+                              "SAVE & CONTINUE",
                             ),
                           ),
                         ],

@@ -38,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 42,
+    version: 43,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -495,6 +495,12 @@ officeName TEXT,
 
 officeAddress TEXT,
 
+kannadaName TEXT,
+
+kannadaDesignation TEXT,
+
+kannadaOfficeAddress TEXT,
+
 remarks TEXT,
 
 displayOrder INTEGER,
@@ -686,6 +692,8 @@ applicationId INTEGER,
 
 sourceId INTEGER,
 
+sourceKind TEXT NOT NULL DEFAULT 'SOURCE',
+
 referenceNumber TEXT,
 
 referenceDate TEXT,
@@ -730,6 +738,7 @@ CREATE TABLE rfo_deferred_letter_recipients(
   applicationId INTEGER NOT NULL,
   recipientKey TEXT NOT NULL,
   sourceId INTEGER,
+  sourceKind TEXT NOT NULL DEFAULT 'SOURCE',
   recipientText TEXT NOT NULL,
   isPrimary INTEGER NOT NULL DEFAULT 0,
   displayOrder INTEGER NOT NULL DEFAULT 0,
@@ -763,6 +772,7 @@ await OfficerRepository.createTable(db);
 await GovernmentApprovalRepository.createTable(db);
 await _createSyncQueueTable(db);
 await _ensureFreshSyncColumns(db);
+await _createOfficeCounterTable(db);
 await seedDevelopmentData(db);
   }
 
@@ -1968,6 +1978,7 @@ if (oldVersion < 34) {
     applicationId INTEGER NOT NULL,
     recipientKey TEXT NOT NULL,
     sourceId INTEGER,
+    sourceKind TEXT NOT NULL DEFAULT 'SOURCE',
     recipientText TEXT NOT NULL,
     isPrimary INTEGER NOT NULL DEFAULT 0,
     displayOrder INTEGER NOT NULL DEFAULT 0,
@@ -1977,6 +1988,8 @@ if (oldVersion < 34) {
     )
   )
   """);
+  await _ensureSyncColumn(
+      db, 'rfo_deferred_letter_recipients', 'sourceKind', 'TEXT');
 }
 
 // ============================================================
@@ -2054,6 +2067,77 @@ if (oldVersion < 42) {
   await _applyV42Defaults(db);
 }
 
+// ============================================================
+// VERSION 43
+// AGENCY KANNADA FIELDS + FORWARD-REF KIND + OFFICE COUNTER
+// ============================================================
+
+if (oldVersion < 43) {
+  await _ensureSyncColumn(
+      db, 'revenue_opinion_master', 'kannadaName', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'revenue_opinion_master', 'kannadaDesignation', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'revenue_opinion_master', 'kannadaOfficeAddress', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_forward_references', 'sourceKind', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'rfo_deferred_letter_recipients', 'sourceKind', 'TEXT');
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS office_number_counter(
+      id INTEGER PRIMARY KEY,
+      last_number INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  await db.insert(
+    'office_number_counter',
+    {'id': 1, 'last_number': 0},
+    conflictAlgorithm: ConflictAlgorithm.ignore,
+  );
+
+  // Backfill Kannada for the 4 seeded revenue opinions.
+  const agencyKannada = {
+    'Private Land': [
+      'ಖಾಸಗಿ ಜಮೀನು',
+      'ತಹಶೀಲ್ದಾರ್, ಮೈಸೂರು ತಾಲ್ಲೂಕು',
+      'ಮಿನಿ ವಿಧಾನಸೌಧ, ನಜರಬಾದ್, ಮೈಸೂರು - 570010'
+    ],
+    'Government Land': [
+      'ಸರ್ಕಾರಿ ಜಮೀನು',
+      'ತಹಶೀಲ್ದಾರ್, ಮೈಸೂರು ತಾಲ್ಲೂಕು',
+      'ಮಿನಿ ವಿಧಾನಸೌಧ, ನಜರಬಾದ್, ಮೈಸೂರು - 570010'
+    ],
+    'Deemed Forest': [
+      'ಡೀಮ್ಡ್ ಅರಣ್ಯ',
+      'ಜಿಲ್ಲಾಧಿಕಾರಿ, ಮೈಸೂರು',
+      'ಜಿಲ್ಲಾಧಿಕಾರಿಗಳ ಕಛೇರಿ, ಮೈಸೂರು - 570001'
+    ],
+    'Not Required': ['ಅಗತ್ಯವಿಲ್ಲ', '', ''],
+  };
+  for (final entry in agencyKannada.entries) {
+    await db.update(
+      'revenue_opinion_master',
+      {
+        'kannadaName': entry.value[0],
+        'kannadaDesignation': entry.value[1],
+        'kannadaOfficeAddress': entry.value[2],
+      },
+      where:
+          'revenueOpinion=? AND (kannadaName IS NULL OR kannadaName=?)',
+      whereArgs: [entry.key, ''],
+    );
+  }
+  // Existing forward references are classic sources.
+  await db.execute(
+    "UPDATE application_forward_references "
+    "SET sourceKind='SOURCE' WHERE sourceKind IS NULL",
+  );
+  await db.execute(
+    "UPDATE rfo_deferred_letter_recipients "
+    "SET sourceKind='SOURCE' WHERE sourceKind IS NULL",
+  );
+}
+
 }
 
 Future<void> _ensureFreshSyncColumns(DatabaseExecutor db) async {
@@ -2102,6 +2186,14 @@ Future<void> _ensureFreshSyncColumns(DatabaseExecutor db) async {
   await _ensureSyncColumn(db, 'users', 'authId', 'TEXT');
   await _ensureSyncColumn(db, 'section_master', 'kannadaName', 'TEXT');
   await _ensureSyncColumn(db, 'beat_master', 'kannadaName', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'revenue_opinion_master', 'kannadaName', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'revenue_opinion_master', 'kannadaDesignation', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'revenue_opinion_master', 'kannadaOfficeAddress', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_forward_references', 'sourceKind', 'TEXT');
 }
 
 /// Default master entries with Kannada names, used by v42 upgrade.
@@ -2265,6 +2357,20 @@ Future<void> _applyV42Defaults(DatabaseExecutor db) async {
       whereArgs: [parts[0], parts[1], ''],
     );
   }
+}
+
+Future<void> _createOfficeCounterTable(DatabaseExecutor db) async {
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS office_number_counter(
+      id INTEGER PRIMARY KEY,
+      last_number INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+  await db.insert(
+    'office_number_counter',
+    {'id': 1, 'last_number': 0},
+    conflictAlgorithm: ConflictAlgorithm.ignore,
+  );
 }
 
 Future<void> _createSyncQueueTable(DatabaseExecutor db) async {

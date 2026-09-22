@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
+import '../../../widgets/responsive_actions.dart';
 import '../../../repositories/application_repository.dart';
 import '../../../repositories/master_repository.dart';
 import '../../../widgets/application_header_card.dart';
@@ -221,20 +222,16 @@ class _InspectingOfficerOverallRemarksStepState
                       ),
                     ),
                   const SizedBox(height: 20),
-                  Row(
+                  ResponsiveActions(
                     children: [
-                      Expanded(
-                        child: ElevatedButton(
+                      ElevatedButton(
                           onPressed:
                               saving
                                   ? null
                                   : widget.onBack,
                           child: const Text("BACK"),
                         ),
-                      ),
-                      const SizedBox(width: 15),
-                      Expanded(
-                        child: ElevatedButton(
+                      ElevatedButton(
                           onPressed:
                               saving || remarks.isEmpty
                                   ? null
@@ -250,7 +247,6 @@ class _InspectingOfficerOverallRemarksStepState
                                 )
                               : const Text("CONTINUE"),
                         ),
-                      ),
                     ],
                   ),
                 ],
