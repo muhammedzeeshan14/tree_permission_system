@@ -371,10 +371,19 @@ Future<void> loadApplicationTypes() async {
   final existingType =
       widget.application?.applicationType ?? "";
 
-  applicationTypeList = allTypes.where((item) {
-    return item["isActive"] == 1 ||
-        item["shortCode"] == existingType;
-  }).toList();
+  // Dedupe by shortCode so duplicate master rows can never
+  // red-screen the dropdown (keeps first active entry).
+  final seenCodes = <String>{};
+  applicationTypeList = [];
+  for (final item in allTypes) {
+    final code =
+        item["shortCode"]?.toString() ?? "";
+    if (code.isEmpty || !seenCodes.add(code)) continue;
+    if (item["isActive"] == 1 ||
+        item["shortCode"] == existingType) {
+      applicationTypeList.add(item);
+    }
+  }
 
   if (mounted) {
     setState(() {});

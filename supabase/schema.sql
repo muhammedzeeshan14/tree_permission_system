@@ -33,7 +33,8 @@ create table if not exists public.section_master (
   "kannadaName" text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique ("sectionName")
 );
 
 create table if not exists public.beat_master (
@@ -43,7 +44,8 @@ create table if not exists public.beat_master (
   "kannadaName" text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique ("sectionId", "beatName")
 );
 
 create table if not exists public.master_data (
@@ -66,7 +68,8 @@ create table if not exists public.master_data (
   "ratePerPole" double precision,
   category text,
   "ratePerTon" double precision,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique ("masterType", value, code, "parentCode")
 );
 
 create table if not exists public.pole_rate_master (
@@ -90,7 +93,8 @@ create table if not exists public.application_type_master (
   "shortCode" text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique ("shortCode")
 );
 
 create table if not exists public.permission_type_master (
@@ -98,7 +102,8 @@ create table if not exists public.permission_type_master (
   "permissionType" text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique ("permissionType")
 );
 
 create table if not exists public.application_type_permission_mapping (
@@ -114,7 +119,8 @@ create table if not exists public.forwarded_source_master (
   "shortCode" text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique ("shortCode")
 );
 
 create table if not exists public.revenue_opinion_master (
@@ -129,7 +135,8 @@ create table if not exists public.revenue_opinion_master (
   remarks text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique (code)
 );
 
 create table if not exists public.inspection_defer_reason_master (
@@ -137,7 +144,8 @@ create table if not exists public.inspection_defer_reason_master (
   reason text,
   "displayOrder" integer,
   "isActive" integer,
-  "updatedAt" timestamptz not null default now()
+  "updatedAt" timestamptz not null default now(),
+  unique (reason)
 );
 
 create table if not exists public.tree_officer_master (
