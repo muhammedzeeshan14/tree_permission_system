@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/document_model.dart';
+import '../services/cloud_file_service.dart';
 import '../services/online_database.dart';
 import '../services/online_mode.dart';
 
@@ -87,7 +88,7 @@ class DocumentRepository {
           equals: {"applicationId": applicationId},
           orderBy: "id",
         );
-        return result.map((row) {
+        final docs = result.map((row) {
           return DocumentModel(
             id: (row["id"] as num?)?.toInt() ?? 0,
             applicationId:
@@ -103,6 +104,14 @@ class DocumentRepository {
                 row["createdDate"]?.toString() ?? "",
           );
         }).toList();
+        // Cloud: fetch bytes uploaded on other devices.
+        for (final doc in docs) {
+          await CloudFileService.ensureDocumentFile(
+            applicationId,
+            doc.filePath,
+          );
+        }
+        return docs;
       } catch (_) {
         /* fall through to local */
       }

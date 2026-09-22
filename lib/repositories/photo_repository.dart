@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/photo_model.dart';
+import '../services/cloud_file_service.dart';
 import '../services/online_database.dart';
 import '../services/online_mode.dart';
 
@@ -73,7 +74,7 @@ class PhotoRepository {
           equals: {"applicationId": applicationId},
           orderBy: "id",
         );
-        return result.map((row) {
+        final photos = result.map((row) {
           return PhotoModel(
             id: (row["id"] as num?)?.toInt() ?? 0,
             applicationId:
@@ -86,6 +87,14 @@ class PhotoRepository {
                 row["createdDate"]?.toString() ?? "",
           );
         }).toList();
+        // Cloud: fetch bytes taken on other devices.
+        for (final photo in photos) {
+          await CloudFileService.ensurePhotoFile(
+            applicationId,
+            photo.photoPath,
+          );
+        }
+        return photos;
       } catch (_) {
         /* fall through to local */
       }

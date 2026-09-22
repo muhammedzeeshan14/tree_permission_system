@@ -4,6 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:storage_client/storage_client.dart';
 
+import '../database/database_helper.dart';
+import 'online_database.dart';
+
 import 'online_mode.dart';
 import 'supabase_service.dart';
 
@@ -95,6 +98,88 @@ class CloudFileService {
   ) async {
     final entries = await listFiles(bucket, prefix);
     return entries.map((e) => e.key).toList();
+  }
+
+  static Future<String> officeNumberFor(int applicationId) async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'applications',
+          equals: {'id': applicationId},
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          final office =
+              rows.first['officeNumber']?.toString() ?? '';
+          if (office.isNotEmpty) return office;
+        }
+      } catch (_) {
+        // Fall through to local.
+      }
+    }
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final rows = await db.query(
+        'applications',
+        columns: ['officeNumber'],
+        where: 'id=?',
+        whereArgs: [applicationId],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        return rows.first['officeNumber']?.toString() ?? '';
+      }
+    } catch (e) {
+      debugPrint('office lookup failed: $e');
+    }
+    return '';
+  }
+
+  /// Best-effort download of an inspection photo. Returns true when
+  /// the local file exists afterwards.
+  static Future<bool> ensurePhotoFile(
+    int applicationId,
+    String localPath,
+  ) async {
+    if (localPath.isEmpty) return false;
+    if (await File(localPath).exists()) return true;
+    if (!enabled) return false;
+    try {
+      final office = await officeNumberFor(applicationId);
+      if (office.isEmpty) return false;
+      await ensureLocal(
+        bucket: photosBucket,
+        key: photoKey(office, localPath),
+        localPath: localPath,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('ensure photo failed: $e');
+      return false;
+    }
+  }
+
+  /// Best-effort download of an uploaded document.
+  static Future<bool> ensureDocumentFile(
+    int applicationId,
+    String localPath,
+  ) async {
+    if (localPath.isEmpty) return false;
+    if (await File(localPath).exists()) return true;
+    if (!enabled) return false;
+    try {
+      final office = await officeNumberFor(applicationId);
+      if (office.isEmpty) return false;
+      await ensureLocal(
+        bucket: docsBucket,
+        key: uploadKey(office, localPath),
+        localPath: localPath,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('ensure document failed: $e');
+      return false;
+    }
   }
 
   /// Lists files with best-effort sizes (bytes, -1 when unknown).

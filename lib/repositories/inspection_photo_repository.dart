@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
+import '../services/cloud_file_service.dart';
 import '../services/online_database.dart';
 import '../services/online_mode.dart';
 
@@ -24,11 +25,19 @@ class InspectionPhotoRepository {
 
     if (OnlineMode.enabled) {
       try {
-        return await OnlineDatabase.select(
+        final rows = await OnlineDatabase.select(
           "inspection_photos",
           equals: {"applicationId": applicationId},
           orderBy: "id",
         );
+        // Cloud: fetch bytes taken on other devices.
+        for (final row in rows) {
+          await CloudFileService.ensurePhotoFile(
+            applicationId,
+            row["photoPath"]?.toString() ?? "",
+          );
+        }
+        return rows;
       } catch (_) {
         /* fall through to local */
       }
