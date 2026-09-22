@@ -3801,11 +3801,14 @@ class DrfoDocumentService {
       await folder.create(recursive: true);
     }
 
-    // Cloud: download PDFs generated on other devices.
+    // Cloud: download PDFs generated on other devices, and push
+    // up local-only PDFs from before cloud sync existed.
     final remoteKeys = await CloudFileService.listKeys(
       CloudFileService.docsBucket,
       'generated/$officeNumber',
     );
+    final remoteNames =
+        remoteKeys.map((k) => k.split('/').last).toSet();
     for (final key in remoteKeys) {
       final name = key.split('/').last;
       try {
@@ -3824,6 +3827,11 @@ class DrfoDocumentService {
     await for (final entity in folder.list()) {
       if (entity is File && entity.path.toLowerCase().endsWith('.pdf')) {
         files.add(entity);
+        final name =
+            entity.path.split(Platform.pathSeparator).last;
+        if (!remoteNames.contains(name)) {
+          CloudFileService.uploadGenerated(officeNumber, entity);
+        }
       }
     }
 

@@ -104,12 +104,43 @@ class DocumentRepository {
                 row["createdDate"]?.toString() ?? "",
           );
         }).toList();
-        // Cloud: fetch bytes uploaded on other devices.
-        for (final doc in docs) {
-          await CloudFileService.ensureDocumentFile(
+        // Cloud: download bytes uploaded elsewhere; upload
+        // local-only files from before cloud sync existed.
+        try {
+          final office =
+              await CloudFileService.officeNumberFor(
             applicationId,
-            doc.filePath,
           );
+          if (office.isNotEmpty) {
+            final remote =
+                await CloudFileService.listKeys(
+              CloudFileService.docsBucket,
+              'uploads/$office',
+            );
+            final remoteNames = remote
+                .map((k) => k.split('/').last)
+                .toSet();
+            for (final doc in docs) {
+              if (doc.filePath.isEmpty) continue;
+              final file = File(doc.filePath);
+              if (await file.exists()) {
+                final name = doc.filePath
+                    .split(Platform.pathSeparator)
+                    .last;
+                if (!remoteNames.contains(name)) {
+                  CloudFileService.uploadDocument(
+                      office, file);
+                }
+              } else {
+                await CloudFileService.ensureDocumentFile(
+                  applicationId,
+                  doc.filePath,
+                );
+              }
+            }
+          }
+        } catch (_) {
+          // Best effort only.
         }
         return docs;
       } catch (_) {

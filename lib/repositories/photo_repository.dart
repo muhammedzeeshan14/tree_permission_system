@@ -87,12 +87,43 @@ class PhotoRepository {
                 row["createdDate"]?.toString() ?? "",
           );
         }).toList();
-        // Cloud: fetch bytes taken on other devices.
-        for (final photo in photos) {
-          await CloudFileService.ensurePhotoFile(
+        // Cloud: download bytes taken elsewhere; upload local-only
+        // files from before cloud sync existed.
+        try {
+          final office =
+              await CloudFileService.officeNumberFor(
             applicationId,
-            photo.photoPath,
           );
+          if (office.isNotEmpty) {
+            final remote =
+                await CloudFileService.listKeys(
+              CloudFileService.photosBucket,
+              'photos/$office',
+            );
+            final remoteNames = remote
+                .map((k) => k.split('/').last)
+                .toSet();
+            for (final photo in photos) {
+              if (photo.photoPath.isEmpty) continue;
+              final file = File(photo.photoPath);
+              if (await file.exists()) {
+                final name = photo.photoPath
+                    .split(Platform.pathSeparator)
+                    .last;
+                if (!remoteNames.contains(name)) {
+                  CloudFileService.uploadPhoto(
+                      office, file);
+                }
+              } else {
+                await CloudFileService.ensurePhotoFile(
+                  applicationId,
+                  photo.photoPath,
+                );
+              }
+            }
+          }
+        } catch (_) {
+          // Best effort only.
         }
         return photos;
       } catch (_) {
