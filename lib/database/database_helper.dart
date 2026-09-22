@@ -38,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 43,
+    version: 44,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -694,9 +694,13 @@ sourceId INTEGER,
 
 sourceKind TEXT NOT NULL DEFAULT 'SOURCE',
 
+sourceName TEXT NOT NULL DEFAULT '',
+
 referenceNumber TEXT,
 
 referenceDate TEXT,
+
+receivedDate TEXT,
 
 displayOrder INTEGER
 
@@ -2136,6 +2140,18 @@ if (oldVersion < 43) {
     "UPDATE rfo_deferred_letter_recipients "
     "SET sourceKind='SOURCE' WHERE sourceKind IS NULL",
   );
+}
+
+// ============================================================
+// VERSION 44
+// FORWARD-REF RECEIVED DATE + SAVED DISPLAY NAME
+// ============================================================
+
+if (oldVersion < 44) {
+  await _ensureSyncColumn(
+      db, 'application_forward_references', 'receivedDate', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_forward_references', 'sourceName', 'TEXT');
 }
 
 }

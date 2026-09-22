@@ -1,9 +1,10 @@
 class ApplicationReferenceModel {
   final int sourceId;
-  final String sourceKind; // SOURCE | AGENCY | OFFICER
+  final String sourceKind; // SOURCE | AGENCY | OFFICER | OTHER
   final String forwardedBy;
   final String referenceNumber;
   final String referenceDate;
+  final String receivedDate;
 
   ApplicationReferenceModel({
     required this.sourceId,
@@ -11,5 +12,6 @@ class ApplicationReferenceModel {
     required this.forwardedBy,
     required this.referenceNumber,
     required this.referenceDate,
+    this.receivedDate = '',
   });
 }

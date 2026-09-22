@@ -9,7 +9,6 @@ import '../../repositories/master_repository.dart';
 import '../../repositories/application_type_repository.dart';
 import '../../repositories/section_repository.dart';
 import '../../repositories/beat_repository.dart';
-import '../../repositories/forwarded_source_repository.dart';
 import '../../repositories/revenue_opinion_repository.dart';
 import '../../repositories/officer_repository.dart';
 import '../../services/office_number_service.dart';
@@ -257,15 +256,26 @@ workNameController.text =
     forwardReferences =
         widget.application!.forwardingReferences
             .map(
-              (ref) => ForwardReference(
-                sourceId: ref.sourceId,
-                sourceKind: ref.sourceKind,
-                sourceName: ref.forwardedBy,
-                referenceNumber:
-                    ref.referenceNumber,
-                referenceDate:
-                    ref.referenceDate,
-              ),
+              (ref) {
+                final isOther =
+                    ref.sourceKind.trim().toUpperCase() ==
+                        "OTHER";
+                return ForwardReference(
+                  sourceId: ref.sourceId,
+                  sourceKind: ref.sourceKind,
+                  sourceName: isOther
+                      ? "Others"
+                      : ref.forwardedBy,
+                  customSourceName:
+                      isOther ? ref.forwardedBy : "",
+                  referenceNumber:
+                      ref.referenceNumber,
+                  referenceDate:
+                      ref.referenceDate,
+                  receivedDate:
+                      ref.receivedDate,
+                );
+              },
             )
             .toList();
 
@@ -446,21 +456,9 @@ Future<void> loadBeats() async {
 
 Future<void> loadForwardedSources() async {
 
-  // Unified dropdown: forwarding sources + government agencies
-  // (English names) + ACF/DCF officers. Kind-tagged so ids from
-  // different tables never collide.
+  // Dropdown shows ONLY government agencies + ACF/DCF officers
+  // (English names) plus an Others free-text option.
   final combined = <Map<String, dynamic>>[];
-
-  final sources = await ForwardedSourceRepository()
-      .getSources();
-  for (final source in sources) {
-    combined.add({
-      "id": source["id"],
-      "sourceKind": "SOURCE",
-      "sourceName":
-          source["sourceName"]?.toString() ?? "",
-    });
-  }
 
   try {
     final agencies =
@@ -475,7 +473,7 @@ Future<void> loadForwardedSources() async {
       });
     }
   } catch (_) {
-    // Agencies unavailable; sources still work.
+    // Agencies unavailable; officers still work.
   }
 
   try {
@@ -495,6 +493,12 @@ Future<void> loadForwardedSources() async {
   } catch (_) {
     // Officers unavailable; rest still works.
   }
+
+  combined.add({
+    "id": -1,
+    "sourceKind": "OTHER",
+    "sourceName": "Others",
+  });
 
   forwardedSourceList = combined;
 
@@ -620,6 +624,12 @@ void dispose() {
 
     forwardReferences[index].sourceKind = sourceKind;
 
+    if (forwardReferences[index].isOther) {
+      forwardReferences[index].sourceId = -1;
+    }
+
+    setState(() {});
+
   },
 
   onReferenceNumberChanged: (
@@ -643,6 +653,30 @@ void dispose() {
   ) {
 
     forwardReferences[index].referenceDate = value;
+
+  },
+
+  onReceivedDateChanged: (
+
+    index,
+
+    value,
+
+  ) {
+
+    forwardReferences[index].receivedDate = value;
+
+  },
+
+  onCustomSourceChanged: (
+
+    index,
+
+    value,
+
+  ) {
+
+    forwardReferences[index].customSourceName = value;
 
   },
 
@@ -1294,11 +1328,13 @@ forwardedDate: forwardedDate,
   forwardingReferences:
       forwardReferences.map((ref) {
     return ApplicationReferenceModel(
-      sourceId: ref.sourceId ?? 0,
+      sourceId:
+          ref.isOther ? -1 : (ref.sourceId ?? 0),
       sourceKind: ref.sourceKind,
-      forwardedBy: ref.sourceName,
+      forwardedBy: ref.displayName,
       referenceNumber: ref.referenceNumber,
       referenceDate: ref.referenceDate,
+      receivedDate: ref.receivedDate,
     );
   }).toList(),
 

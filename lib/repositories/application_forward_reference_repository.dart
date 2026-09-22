@@ -21,9 +21,13 @@ class ApplicationForwardReferenceRepository {
 
     String sourceKind = 'SOURCE',
 
+    String sourceName = '',
+
     required String referenceNumber,
 
     required String referenceDate,
+
+    String receivedDate = '',
 
     required int displayOrder,
 
@@ -43,9 +47,13 @@ class ApplicationForwardReferenceRepository {
 
             "sourceKind": sourceKind,
 
+            "sourceName": sourceName,
+
             "referenceNumber": referenceNumber,
 
             "referenceDate": referenceDate,
+
+            "receivedDate": receivedDate,
 
             "displayOrder": displayOrder,
 
@@ -72,9 +80,13 @@ class ApplicationForwardReferenceRepository {
 
         "sourceKind": sourceKind,
 
+        "sourceName": sourceName,
+
         "referenceNumber": referenceNumber,
 
         "referenceDate": referenceDate,
+
+        "receivedDate": receivedDate,
 
         "displayOrder": displayOrder,
 

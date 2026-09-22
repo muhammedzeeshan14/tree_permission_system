@@ -1,3 +1,6 @@
+
+
+
 ವಿಷಯ: ಮೈಸೂರು ವಲಯ ವ್ಯಾಪ್ತಿಯ {{TREE_LOCATION}} ರ ಸರ್ಕಾರಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ಬಹಿರಂಗ ಹರಾಜಿನ ಮೂಲಕ ತೆರವುಗೊಳಿಸುವ ಬಗ್ಗೆ.
 ಉಲ್ಲೇಖ:
 {{DO_REFERENCES}}
@@ -13,11 +16,15 @@
 [/JUSTIFY]
 
 [DO_CLOSING]
-ತಮ್ಮ ನಂಬುಗೆಯ,
+ವಂದನೆಗಳೊಂದಿಗೆ,
 [DO_TO]
 ರವರಿಗೆ,
-{{TREE_OFFICER_NAME}}
-{{TREE_OFFICER_TO_ADDRESS}}
+    {{TREE_OFFICER_NAME}}
+    {{TREE_OFFICER_TO_ADDRESS}}
 [DO_SIGNATURE]
-{{RFO_NAME}}
+ತಮ್ಮ ನಂಬುಗೆಯ
+
+
+
+({{RFO_NAME}})
 [/DO_CLOSING]

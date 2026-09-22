@@ -215,10 +215,13 @@ for (int i = 0; i < references.length; i++) {
     "applicationId": id,
     "sourceId": reference.sourceId,
     "sourceKind": reference.sourceKind,
+    "sourceName": reference.forwardedBy,
     "referenceNumber":
         reference.referenceNumber,
     "referenceDate":
         reference.referenceDate,
+    "receivedDate":
+        reference.receivedDate,
     "displayOrder": i + 1,
   };
 
@@ -453,10 +456,13 @@ Future<void> replaceForwardingReferences(
           "applicationId": applicationId,
           "sourceId": reference.sourceId,
           "sourceKind": reference.sourceKind,
+          "sourceName": reference.forwardedBy,
           "referenceNumber":
               reference.referenceNumber,
           "referenceDate":
               reference.referenceDate,
+          "receivedDate":
+              reference.receivedDate,
           "displayOrder": i + 1,
         },
       );
@@ -482,10 +488,13 @@ Future<void> replaceForwardingReferences(
         "applicationId": applicationId,
         "sourceId": reference.sourceId,
         "sourceKind": reference.sourceKind,
+        "sourceName": reference.forwardedBy,
         "referenceNumber":
             reference.referenceNumber,
         "referenceDate":
             reference.referenceDate,
+        "receivedDate":
+            reference.receivedDate,
         "displayOrder": i + 1,
       },
     );
@@ -533,14 +542,20 @@ Future<List<ApplicationReferenceModel>>
       final sourceId = (row['sourceId'] as num?)?.toInt() ?? 0;
       final kind =
           row['sourceKind']?.toString() ?? 'SOURCE';
+      final savedName =
+          row['sourceName']?.toString().trim() ?? '';
       return ApplicationReferenceModel(
         sourceId: sourceId,
         sourceKind: kind,
-        forwardedBy: names['${kind}_$sourceId'] ?? '',
+        forwardedBy: savedName.isNotEmpty
+            ? savedName
+            : (names['${kind}_$sourceId'] ?? ''),
         referenceNumber:
             row['referenceNumber']?.toString() ?? '',
         referenceDate:
             row['referenceDate']?.toString() ?? '',
+        receivedDate:
+            row['receivedDate']?.toString() ?? '',
       );
     }).toList();
   }
@@ -554,6 +569,7 @@ Future<List<ApplicationReferenceModel>>
   afr.sourceKind,
   afr.referenceNumber,
   afr.referenceDate,
+  afr.receivedDate,
   fsm.sourceName,
   rom.officeName AS agencyOffice,
   rom.revenueOpinion AS agencyName,
@@ -577,8 +593,13 @@ Future<List<ApplicationReferenceModel>>
     final kind =
         row['sourceKind']?.toString() ?? 'SOURCE';
 
+    final savedName =
+        row['sourceName']?.toString().trim() ?? '';
+
     String forwardedBy;
-    if (kind == 'AGENCY') {
+    if (savedName.isNotEmpty) {
+      forwardedBy = savedName;
+    } else if (kind == 'AGENCY') {
       final office =
           row['agencyOffice']?.toString() ?? '';
       forwardedBy = office.isNotEmpty
@@ -605,6 +626,9 @@ Future<List<ApplicationReferenceModel>>
 
   referenceDate:
       row['referenceDate']?.toString() ?? '',
+
+  receivedDate:
+      row['receivedDate']?.toString() ?? '',
 );
 
   }).toList();

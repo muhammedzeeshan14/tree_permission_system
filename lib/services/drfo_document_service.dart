@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 
 import '../models/application_model.dart';
+import '../models/application_reference_model.dart';
 import '../database/database_helper.dart';
 import '../repositories/mahazar_repository.dart';
 import '../repositories/tree_repository.dart';
@@ -309,16 +310,18 @@ class DrfoDocumentService {
   // ==========================================================
 
   String _date(String value) {
-    if (value.isEmpty) return '';
+    final text = value.trim();
+    if (text.isEmpty) return '';
 
     try {
-      final date = DateTime.parse(value);
+      final date = DateTime.parse(text);
 
-      return '${date.day.toString().padLeft(2, '0')}/'
-          '${date.month.toString().padLeft(2, '0')}/'
+      // Letter/list date format: dd-MM-yyyy.
+      return '${date.day.toString().padLeft(2, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
           '${date.year}';
     } catch (_) {
-      return value;
+      return text.replaceAll('/', '-');
     }
   }
 
@@ -341,6 +344,14 @@ class DrfoDocumentService {
   // ==========================================================
   // BUILD FORWARDING REFERENCES
   // ==========================================================
+
+  /// "(ಈ ಕಛೇರಿ ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: <date>)" suffix for references
+  /// that carry a received date.
+  String _receivedSuffix(ApplicationReferenceModel ref) {
+    final received = ref.receivedDate.trim();
+    if (received.isEmpty) return '';
+    return ' (ಈ ಕಛೇರಿ ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ${_date(received)})';
+  }
 
   String _buildForwardedReference(
     ApplicationModel application, {
@@ -387,6 +398,8 @@ class DrfoDocumentService {
       if (referenceDate.isNotEmpty) {
         line += ', ದಿನಾಂಕ: ${_date(referenceDate)}';
       }
+
+      line += _receivedSuffix(ref);
 
       lines.add(line);
 
@@ -438,7 +451,7 @@ class DrfoDocumentService {
     return '';
   }
 
-  String _buildRfoRtcReferences(ApplicationModel application) {
+  Future<String> _buildRfoRtcReferences(ApplicationModel application) async {
     final lines = <String>[];
 
     final recipient = _rfoForwardedReferenceOfficer(application);
@@ -476,10 +489,12 @@ class DrfoDocumentService {
         firstLine += ", ದಿನಾಂಕ: ${_date(reference.referenceDate.trim())}";
       }
 
+      firstLine += _receivedSuffix(reference);
+
       lines.add(firstLine);
     }
 
-    final section = application.section.trim();
+    final section = await _printSectionName(application);
 
     final drfoReportDate = _date(application.drfoInspectionDate.trim());
 
@@ -492,10 +507,10 @@ class DrfoDocumentService {
     return lines.join("\n");
   }
 
-  String _buildRfoNonRtcDeferredReferences({
+  Future<String> _buildRfoNonRtcDeferredReferences({
     required ApplicationModel application,
     required RfoDeferredLetterRecipient primaryRecipient,
-  }) {
+  }) async {
     final lines = <String>[];
 
     final toApplicant = primaryRecipient.recipientKey == "APPLICANT";
@@ -565,12 +580,14 @@ class DrfoDocumentService {
           line += " ದಿನಾಂಕ: $letterDate";
         }
 
+        line += _receivedSuffix(reference);
+
         lines.add(line);
         referenceNumber++;
       }
     }
 
-    final section = application.section.trim();
+    final section = await _printSectionName(application);
 
     final drfoReportDate = _date(application.drfoInspectionDate.trim());
 
@@ -1418,7 +1435,7 @@ class DrfoDocumentService {
   ) async {
     final recipient = await _rfoForwardedRecipientAddress(application);
 
-    final references = _buildRfoRtcReferences(application);
+    final references = await _buildRfoRtcReferences(application);
 
     template = _replace(
       template,
@@ -1442,7 +1459,7 @@ class DrfoDocumentService {
   ) async {
     final recipient = await _rfoForwardedRecipientAddress(application);
 
-    final references = _buildRfoRtcReferences(application);
+    final references = await _buildRfoRtcReferences(application);
 
     final deferredReasons = await _buildDeferredReasons(application);
 
@@ -1478,7 +1495,7 @@ class DrfoDocumentService {
 
     final deferredReasons = await _buildDeferredReasons(application);
 
-    final references = _buildRfoNonRtcDeferredReferences(
+    final references = await _buildRfoNonRtcDeferredReferences(
       application: application,
       primaryRecipient: primaryRecipient,
     );
@@ -2774,8 +2791,20 @@ class DrfoDocumentService {
         bold: true,
       );
 
+      // Second head line (range + location) is bold like the first.
+      final rightRangeParagraph = await _buildParagraph(
+        text: rightBodyLines.isNotEmpty ? rightBodyLines.first : "",
+        width: rightColumnWidth,
+        fontSize: defaultFontSize * _scale,
+        alignment: ui.TextAlign.center,
+        bold: true,
+        lineHeight: 1.18,
+      );
+
       final rightBodyParagraph = await _buildParagraph(
-        text: rightBodyLines.join("\n"),
+        text: rightBodyLines.length > 1
+            ? rightBodyLines.sublist(1).join("\n")
+            : "",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
         alignment: ui.TextAlign.center,
@@ -2796,6 +2825,7 @@ class DrfoDocumentService {
 
       final rightHeaderHeight =
           rightTitleParagraph.height +
+          rightRangeParagraph.height +
           rightBodyParagraph.height +
           dateTopGap +
           rightDateParagraph.height;
@@ -2819,8 +2849,14 @@ class DrfoDocumentService {
       canvas.drawParagraph(rightTitleParagraph, ui.Offset(rightX, y));
 
       canvas.drawParagraph(
-        rightBodyParagraph,
+        rightRangeParagraph,
         ui.Offset(rightX, y + rightTitleParagraph.height),
+      );
+
+      canvas.drawParagraph(
+        rightBodyParagraph,
+        ui.Offset(rightX,
+            y + rightTitleParagraph.height + rightRangeParagraph.height),
       );
 
       canvas.drawParagraph(
@@ -2829,6 +2865,7 @@ class DrfoDocumentService {
           rightX,
           y +
               rightTitleParagraph.height +
+              rightRangeParagraph.height +
               rightBodyParagraph.height +
               dateTopGap,
         ),
@@ -4432,7 +4469,7 @@ class DrfoDocumentService {
     await finishPage();return pages;
   }
 
-  String _buildGovernmentDoReferences(ApplicationModel application) {
+  Future<String> _buildGovernmentDoReferences(ApplicationModel application) async {
     final references = <String>[
       '1. ' + application.applicantName + ' ರವರ ಮನವಿ ದಿನಾಂಕ: ' + _date(application.applicationDate) +
         ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + _date(application.receivedDate) + ').',
@@ -4440,10 +4477,10 @@ class DrfoDocumentService {
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty && reference.referenceNumber.trim().isEmpty && reference.referenceDate.trim().isEmpty) continue;
       references.add((references.length + 1).toString() + '. ' + reference.forwardedBy.trim() +
-        ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + reference.referenceNumber.trim() + ', ದಿನಾಂಕ: ' + _date(reference.referenceDate) + '.');
+        ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + reference.referenceNumber.trim() + ', ದಿನಾಂಕ: ' + _date(reference.referenceDate) + _receivedSuffix(reference) + '.');
     }
     references.add((references.length + 1).toString() + '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
-      application.section + ' ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ' + _date(application.drfoInspectionDate) + '.');
+      await _printSectionName(application) + ' ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ' + _date(application.drfoInspectionDate) + '.');
     return references.join('\n');
   }
 
@@ -4491,7 +4528,7 @@ class DrfoDocumentService {
     final replyReference = afterReply
         ? '3. ' + application.applicantName + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') + ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') + ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + _date(answers['receivedDate'] ?? '') + ').'
         : '';
-    var valuationReferences = _buildGovernmentDoReferences(application);
+    var valuationReferences = await _buildGovernmentDoReferences(application);
     if (afterReply) {
       final forwardedCount = application.forwardingReferences.where((reference) =>
           reference.forwardedBy.trim().isNotEmpty || reference.referenceNumber.trim().isNotEmpty || reference.referenceDate.trim().isNotEmpty).length;
@@ -4504,7 +4541,7 @@ class DrfoDocumentService {
       '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ' + application.applicantLetterNumber.trim(),
       '{{VALUATION_REFERENCES}}': valuationReferences,
       '{{RFO_NAME}}': senderName ?? '',
-      '{{DO_REFERENCES}}': _buildGovernmentDoReferences(application),
+      '{{DO_REFERENCES}}': await _buildGovernmentDoReferences(application),
       '{{TREE_OFFICER_NAME}}': recipientName,
       '{{RFO_DESIGNATION_ADDRESS}}': senderAddress,
       '{{OFFICE_NUMBER}}': application.officeNumber,

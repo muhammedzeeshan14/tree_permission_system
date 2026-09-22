@@ -376,8 +376,10 @@ create table if not exists public.application_forward_references (
   "applicationId" integer,
   "sourceId" integer,
   "sourceKind" text not null default 'SOURCE',
+  "sourceName" text not null default '',
   "referenceNumber" text,
   "referenceDate" text,
+  "receivedDate" text,
   "displayOrder" integer,
   "updatedAt" timestamptz not null default now()
 );

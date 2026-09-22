@@ -9,9 +9,13 @@ class ForwardReference {
 
   String sourceName;
 
+  String customSourceName;
+
   String referenceNumber;
 
   String referenceDate;
+
+  String receivedDate;
 
   ForwardReference({
 
@@ -21,14 +25,25 @@ class ForwardReference {
 
     this.sourceName = "",
 
+    this.customSourceName = "",
+
     this.referenceNumber = "",
 
     this.referenceDate = "",
+
+    this.receivedDate = "",
 
   });
 
   String get key =>
       "${sourceKind}_${sourceId ?? ""}";
+
+  bool get isOther =>
+      sourceKind.trim().toUpperCase() == "OTHER";
+
+  /// Display name: typed text for Others, master name otherwise.
+  String get displayName =>
+      isOther ? customSourceName.trim() : sourceName.trim();
 
 }
 
@@ -67,6 +82,16 @@ class ForwardedReferenceWidget extends StatelessWidget {
     String value,
   ) onReferenceDateChanged;
 
+  final void Function(
+    int index,
+    String value,
+  ) onReceivedDateChanged;
+
+  final void Function(
+    int index,
+    String value,
+  ) onCustomSourceChanged;
+
   const ForwardedReferenceWidget({
 
     super.key,
@@ -92,6 +117,10 @@ class ForwardedReferenceWidget extends StatelessWidget {
     required this.onReferenceNumberChanged,
 
     required this.onReferenceDateChanged,
+
+    required this.onReceivedDateChanged,
+
+    required this.onCustomSourceChanged,
 
   });
 
@@ -207,7 +236,11 @@ class ForwardedReferenceWidget extends StatelessWidget {
                 padding:
                     const EdgeInsets.only(bottom: 10),
 
-                child: Row(
+                child: Column(
+
+                  children: [
+
+                    Row(
 
                   children: [
 
@@ -397,6 +430,69 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                       ),
 
+                    ),
+
+                  ],
+
+                ),
+
+                    if (ref.isOther) ...[
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        initialValue:
+                            ref.customSourceName,
+                        decoration:
+                            const InputDecoration(
+                          labelText:
+                              "Forwarded By (type name)",
+                          border:
+                              OutlineInputBorder(),
+                        ),
+                        onChanged: (v) {
+                          onCustomSourceChanged(
+                            index,
+                            v,
+                          );
+                        },
+                      ),
+                    ],
+
+                    const SizedBox(height: 10),
+
+                    Builder(
+                      builder: (context) {
+                        final receivedController =
+                            TextEditingController(
+                          text: ref.receivedDate,
+                        );
+
+                        return TextFormField(
+                          controller:
+                              receivedController,
+                          readOnly: true,
+                          decoration:
+                              const InputDecoration(
+                            labelText:
+                                "Date Received",
+                            border:
+                                OutlineInputBorder(),
+                            suffixIcon: Icon(
+                                Icons.calendar_month),
+                          ),
+                          onTap: () async {
+                            await DatePickerUtil
+                                .pickDate(
+                              context,
+                              receivedController,
+                            );
+
+                            onReceivedDateChanged(
+                              index,
+                              receivedController.text,
+                            );
+                          },
+                        );
+                      },
                     ),
 
                   ],
