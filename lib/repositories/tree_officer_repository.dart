@@ -26,8 +26,38 @@ class TreeOfficerRepository {
     return outcomeFor(rows.first);
   }
 
-  Future<PrivateLandOutcome> getCompletionOutcome(int applicationId) async =>
-      completionOutcome(await _db, applicationId);
+  Future<PrivateLandOutcome> getCompletionOutcome(int applicationId) async {
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'application_tree_officer',
+          equals: {'applicationId': applicationId},
+          limit: 1,
+        );
+        if (rows.isEmpty) {
+          throw StateError(
+              'Select Tree officer before final approval.');
+        }
+        final officerId =
+            (rows.first['treeOfficerId'] as num?)?.toInt();
+        final officers = await OnlineDatabase.select(
+          'tree_officer_master',
+          equals: {'id': officerId},
+          limit: 1,
+        );
+        if (officers.isEmpty) {
+          throw StateError(
+              'Select Tree officer before final approval.');
+        }
+        return outcomeFor(officers.first);
+      } catch (e) {
+        if (e is StateError) rethrow;
+        debugPrint(
+            'online getCompletionOutcome failed, falling back to local: $e');
+      }
+    }
+    return completionOutcome(await _db, applicationId);
+  }
 
   final Database? databaseOverride;
   TreeOfficerRepository({this.databaseOverride});
