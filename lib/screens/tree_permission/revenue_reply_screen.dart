@@ -16,11 +16,11 @@ import '../bfo/wizard/inspection_summary_step.dart';
 String revenueDate(String value) {
   final date = DateTime.tryParse(value);
   return date == null
-      ? value
+      ? value.replaceAll('/', '-')
       : date.day.toString().padLeft(2, '0') +
-            '/' +
+            '-' +
             date.month.toString().padLeft(2, '0') +
-            '/' +
+            '-' +
             date.year.toString();
 }
 

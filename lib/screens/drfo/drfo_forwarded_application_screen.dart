@@ -51,6 +51,9 @@ class _DRFOForwardedApplicationScreenState
     _loadGeneratedDocuments();
   }
 
+  String _baseName(String path) =>
+      path.split(RegExp(r'[/\\]')).last;
+
   Future<void> _loadGeneratedDocuments() async {
     try {
       final allFiles =
@@ -71,7 +74,7 @@ final files = widget.rfoApprovedOnly
             .last
             .toUpperCase();
 
-        if (widget.application.status == WorkflowStatus.pendingRevenueOpinion && revenueReply != null) return file.path == revenueReply!.requestLetterPath;
+        if (widget.application.status == WorkflowStatus.pendingRevenueOpinion && revenueReply != null) return _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase();
         return fileName.contains("_RFO_");
       }).toList()
     : allFiles;
@@ -188,7 +191,7 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
   setState(() => printing = true);
   try {
     final printed = await documentService.openPdf(file);
-    if (printed && revenueReply?.stage == 'printing' && file.path == revenueReply!.requestLetterPath) {
+    if (printed && revenueReply?.stage == 'printing' && _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase()) {
       await RevenueReplyRepository().markPrinted(revenueReply!);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Pending Revenue Opinion.')));

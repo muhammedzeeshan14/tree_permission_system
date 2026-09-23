@@ -1398,6 +1398,22 @@ Future<void> _saveRfoDraft() async {
 }
 
 Future<void> _finalizeRfoApproval() async {
+  try {
+    await _finalizeRfoApprovalUnsafe();
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Final approval failed: $e",
+        ),
+        duration: const Duration(seconds: 8),
+      ),
+    );
+  }
+}
+
+Future<void> _finalizeRfoApprovalUnsafe() async {
   final requiredKeys = _requiredApprovalKeys();
 
   final missingDecision = requiredKeys.any(
@@ -2866,6 +2882,10 @@ modifyField: Align(
         });
 
         await _loadApprovals();
+
+        // Tree edits can flip the all-NR/deferred state, which
+        // controls the To-recipient section on the final page.
+        await _loadDeferredRfoRecipients();
 
 await _regenerateRfoUpdatedMahazar();
 

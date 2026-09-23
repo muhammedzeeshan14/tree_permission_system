@@ -1630,9 +1630,16 @@ class DrfoDocumentService {
     final officeAddress = addressOpinion.officeAddress.trim();
 
     final recipientRole = addressOpinion.code.trim().toUpperCase();
+    final kannadaTo = [
+      addressOpinion.kannadaName.trim(),
+      addressOpinion.kannadaDesignation.trim(),
+      addressOpinion.kannadaOfficeAddress.trim(),
+    ].where((value) => value.isNotEmpty).join('\n');
     final toAddress = {'ACF', 'DCF'}.contains(recipientRole)
         ? await OfficerRepository().addressForRole(recipientRole)
-        : [officeName, officeAddress].where((value) => value.isNotEmpty).join("\n");
+        : kannadaTo.isNotEmpty
+            ? kannadaTo
+            : [officeName, officeAddress].where((value) => value.isNotEmpty).join("\n");
 
     if (toAddress.isEmpty) {
       throw Exception("Revenue Opinion office name/address is missing.");
@@ -4470,9 +4477,10 @@ class DrfoDocumentService {
   }
 
   Future<String> _buildGovernmentDoReferences(ApplicationModel application) async {
+    final appReceived = _date(application.receivedDate);
     final references = <String>[
       '1. ' + application.applicantName + ' ರವರ ಮನವಿ ದಿನಾಂಕ: ' + _date(application.applicationDate) +
-        ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + _date(application.receivedDate) + ').',
+        (appReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $appReceived).'),
     ];
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty && reference.referenceNumber.trim().isEmpty && reference.referenceDate.trim().isEmpty) continue;
@@ -4525,8 +4533,9 @@ class DrfoDocumentService {
     final money = NumberFormat('#,##,##0.00', 'en_IN');
     final total = rows.fold<double>(0, (sum, row) => sum + row.totalValueNumber);
     final answers = approval.answers;
+    final replyReceived = _date(answers['receivedDate'] ?? '');
     final replyReference = afterReply
-        ? '3. ' + application.applicantName + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') + ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') + ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + _date(answers['receivedDate'] ?? '') + ').'
+        ? '3. ' + application.applicantName + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') + ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') + (replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).')
         : '';
     var valuationReferences = await _buildGovernmentDoReferences(application);
     if (afterReply) {
@@ -4535,7 +4544,7 @@ class DrfoDocumentService {
       valuationReferences += '\n' + (forwardedCount + 3).toString() + '. ' +
           (answers['authority'] ?? '') + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') +
           ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') +
-          ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + _date(answers['receivedDate'] ?? '') + ').';
+          (replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).');
     }
     final values = <String,String>{
       '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ' + application.applicantLetterNumber.trim(),
