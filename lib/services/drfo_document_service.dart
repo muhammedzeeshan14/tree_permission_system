@@ -4523,7 +4523,9 @@ class DrfoDocumentService {
       senderName = sender.single['name'].toString().replaceAll(RegExp(r'\s+'), ' ').trim();
       senderAddress = OfficerRepository.formatAddress(sender.single);
       final selected = (await TreeOfficerRepository().getAll()).firstWhere((row) => row['id'] == approval.treeOfficerId);
-      recipientName = directory.firstWhere((row) => row['role'] == selected['code'])['name'].toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+      final recipientRows = directory.where((row) => row['role'] == selected['code']).toList();
+      if (recipientRows.isEmpty) throw StateError('Add the ${selected['code']} officer in Administration > Officers before generating the DO letter.');
+      recipientName = recipientRows.single['name'].toString().replaceAll(RegExp(r'\s+'), ' ').trim();
     }
     final config = await OfficeConfigurationRepository().getConfiguration();
     final range = config?['rangeName']?.toString() ?? '';
