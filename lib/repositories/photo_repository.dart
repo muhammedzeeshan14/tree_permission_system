@@ -108,7 +108,7 @@ class PhotoRepository {
               final file = File(photo.photoPath);
               if (await file.exists()) {
                 final name = photo.photoPath
-                    .split(Platform.pathSeparator)
+                    .split(RegExp(r'[/\\]'))
                     .last;
                 if (!remoteNames.contains(name)) {
                   CloudFileService.uploadPhoto(

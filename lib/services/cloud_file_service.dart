@@ -39,8 +39,10 @@ class CloudFileService {
 
   static bool get enabled => OnlineMode.enabled;
 
+  // Split on BOTH separators: paths synced from another OS use
+  // that OS's separator (mobile '/' vs Windows '\').
   static String _fileName(String path) =>
-      path.split(Platform.pathSeparator).last;
+      path.split(RegExp(r'[/\\]')).last;
 
   static String photoKey(String officeNumber, String localPath) =>
       'photos/$officeNumber/${_fileName(localPath)}';

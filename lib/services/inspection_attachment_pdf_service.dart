@@ -201,7 +201,7 @@ class InspectionAttachmentPdfService {
     final pdf = pw.Document();
     for (var i = 0; i < existing.length; i++) {
       final doc = existing[i];
-      final name = doc.filePath.split(Platform.pathSeparator).last;
+      final name = doc.filePath.split(RegExp(r'[/\\]')).last;
       if (_isImage(doc.filePath)) {
         final bytes = await File(doc.filePath).readAsBytes();
         pdf.addPage(

@@ -125,7 +125,7 @@ class DocumentRepository {
               final file = File(doc.filePath);
               if (await file.exists()) {
                 final name = doc.filePath
-                    .split(Platform.pathSeparator)
+                    .split(RegExp(r'[/\\]'))
                     .last;
                 if (!remoteNames.contains(name)) {
                   CloudFileService.uploadDocument(
