@@ -20,6 +20,8 @@ class _TreeOfficerMasterScreenState extends State<TreeOfficerMasterScreen> {
     try {
       final result=await repository.getAll();
       if (!mounted) return;
+      for (final c in names) { c.dispose(); }
+      names.clear();
       rows=result.map((r)=>Map<String,dynamic>.from(r)).toList();
       names.addAll(rows.map((r)=>TextEditingController(text:r['name'].toString())));
     } catch(e) { loadError=e.toString(); }
@@ -32,6 +34,8 @@ class _TreeOfficerMasterScreenState extends State<TreeOfficerMasterScreen> {
     setState(()=>saving=true);
     try {
       await repository.saveAll([for(int i=0;i<rows.length;i++) {...rows[i], 'name':names[i].text}]);
+      setState(()=>loading=true);
+      await load();
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Tree officer mappings saved.')));
     } catch(e) {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
