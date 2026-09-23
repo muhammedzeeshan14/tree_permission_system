@@ -38,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 45,
+    version: 46,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -673,6 +673,10 @@ gpsStatus TEXT,
 photosStatus TEXT,
 
 documentsStatus TEXT,
+
+deferredCorrect INTEGER,
+
+deferredReason TEXT,
 
 verifiedBy TEXT,
 
@@ -2152,6 +2156,10 @@ if (oldVersion < 44) {
       db, 'application_forward_references', 'receivedDate', 'TEXT');
   await _ensureSyncColumn(
       db, 'application_forward_references', 'sourceName', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'deferredCorrect', 'INTEGER');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'deferredReason', 'TEXT');
 }
 
 // ============================================================
@@ -2181,6 +2189,18 @@ if (oldVersion < 45) {
         "TRIM(UPPER(applicationType))='RTC' AND "
         "(permissionType IS NULL OR TRIM(permissionType)='')",
   );
+}
+
+// ============================================================
+// VERSION 46
+// DEFERRED VERIFICATION PERSISTENCE
+// ============================================================
+
+if (oldVersion < 46) {
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'deferredCorrect', 'INTEGER');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'deferredReason', 'TEXT');
 }
 
 }

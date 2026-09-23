@@ -43,6 +43,9 @@ String? overallRemarkReason,
     bool? documentsCorrect,
     String? documentsReason,
 
+    bool? deferredCorrect,
+    String? deferredReason,
+
     String? applicationTypeStatus,
 String? governmentAgencyStatus,
 String? urbanRuralStatus,
@@ -134,6 +137,12 @@ String? documentsStatus,
                   ? 1
                   : 0,
           "documentsReason": documentsReason,
+          "deferredCorrect": deferredCorrect == null
+              ? null
+              : deferredCorrect
+                  ? 1
+                  : 0,
+          "deferredReason": deferredReason,
           "applicationTypeStatus": applicationTypeStatus,
           "governmentAgencyStatus": governmentAgencyStatus,
           "urbanRuralStatus": urbanRuralStatus,
@@ -262,6 +271,13 @@ String? documentsStatus,
         ? 1
         : 0,
         "documentsReason": documentsReason,
+
+        "deferredCorrect": deferredCorrect == null
+    ? null
+    : deferredCorrect
+        ? 1
+        : 0,
+        "deferredReason": deferredReason,
 
         "applicationTypeStatus":
     applicationTypeStatus,

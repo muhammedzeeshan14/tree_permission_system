@@ -150,17 +150,21 @@ if (opinion != null) {
 
   }
 
-  Future<void> showReinspectDialog() async {
+  Future<String?> showReinspectDialog() async {
 
     String? selectedReason;
 
-    await showDialog(
+    return showDialog<String?>(
 
       context: context,
 
       builder: (_) {
 
-        return AlertDialog(
+        return StatefulBuilder(
+
+          builder: (dialogContext, setDialogState) {
+
+            return AlertDialog(
 
           title: const Text(
             "Reason for Re-inspection",
@@ -189,9 +193,9 @@ if (opinion != null) {
                 .toList(),
 
             onChanged: (v) {
-
-              selectedReason = v;
-
+              setDialogState(() {
+                selectedReason = v;
+              });
             },
 
           ),
@@ -202,7 +206,7 @@ if (opinion != null) {
 
               onPressed: () {
 
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
 
               },
 
@@ -222,22 +226,8 @@ if (opinion != null) {
 
                 }
 
-                await verificationRepository
-                    .saveVerification(
-
-                  applicationId:
-                      widget.application.id!,
-
-                  verification:
-                      "Re-inspect",
-
-                  reason: selectedReason,
-
-                );
-
-                if (!mounted) return;
-
-                Navigator.pop(context);
+                Navigator.pop(
+                    dialogContext, selectedReason);
 
               },
 
@@ -247,12 +237,11 @@ if (opinion != null) {
 
           ],
 
+            );
+          },
         );
-
       },
-
     );
-
   }
   @override
 Widget build(BuildContext context) {
@@ -477,9 +466,21 @@ if (mounted) {
 
                     onChanged: (v) async {
 
+                      final previous = verification;
+
                       verification = v;
 
                       setState(() {});
+
+                      final reason =
+                          await showReinspectDialog();
+
+                      if (reason == null) {
+                        verification = previous;
+
+                        setState(() {});
+                        return;
+                      }
 
                       await verificationRepository
                           .saveVerification(
@@ -489,9 +490,9 @@ if (mounted) {
 
                         verification: v!,
 
-                      );
+                        reason: reason,
 
-                      await showReinspectDialog();
+                      );
 
                     },
 

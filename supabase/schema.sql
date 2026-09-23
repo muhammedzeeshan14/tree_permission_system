@@ -374,6 +374,8 @@ create table if not exists public.application_verifications (
   "gpsStatus" text,
   "photosStatus" text,
   "documentsStatus" text,
+  "deferredCorrect" integer,
+  "deferredReason" text,
   "verifiedBy" text,
   "verifiedDate" text,
   "updatedAt" timestamptz not null default now()

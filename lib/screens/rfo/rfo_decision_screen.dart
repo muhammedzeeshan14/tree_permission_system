@@ -39,6 +39,7 @@ import '../../services/workflow_service.dart';
 import '../bfo/wizard/inspection_summary_step.dart';
 import '../bfo/wizard/photo_step.dart';
 import '../bfo/wizard/document_step.dart';
+import '../bfo/wizard/inspection_decision_step.dart';
 import '../bfo/wizard/mahazar_step.dart';
 import '../../repositories/mahazar_repository.dart';
 import '../bfo/tree/add_edit_tree_screen.dart';
@@ -2673,6 +2674,48 @@ Widget _buildDeferredApprovalPage() {
         value: deferredText,
         reasons:
             deferredVerificationReasons,
+        modifyField: Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.edit),
+            label: const Text(
+              "Edit Deferred Reasons",
+            ),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (routeContext) =>
+                      InspectionDecisionStep(
+                    application:
+                        widget.application,
+                    onBack: () {
+                      Navigator.pop(
+                        routeContext,
+                      );
+                    },
+                    onNext: () {
+                      Navigator.pop(
+                        routeContext,
+                      );
+                    },
+                    onDeferred: () {
+                      Navigator.pop(
+                        routeContext,
+                      );
+                    },
+                  ),
+                ),
+              );
+
+              await _loadApprovals();
+
+              if (mounted) {
+                setState(() {});
+              }
+            },
+          ),
+        ),
       ),
     ],
   );

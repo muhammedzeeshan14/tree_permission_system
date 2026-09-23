@@ -79,6 +79,40 @@ class TreeVerificationRepository {
     return result.first["verification"] as String?;
   }
 
+  Future<String?> getVerificationReason(
+    int treeId,
+  ) async {
+    if (OnlineMode.enabled) {
+      try {
+        final result = await OnlineDatabase.select(
+          "tree_verifications",
+          equals: {"treeId": treeId},
+          limit: 1,
+        );
+        if (result.isEmpty) {
+          return null;
+        }
+        return result.first["verificationReason"]?.toString();
+      } catch (_) {
+        /* fall through to local */
+      }
+    }
+    final db = await dbHelper.database;
+
+    final result = await db.query(
+      "tree_verifications",
+      where: "treeId=?",
+      whereArgs: [treeId],
+      limit: 1,
+    );
+
+    if (result.isEmpty) {
+      return null;
+    }
+
+    return result.first["verificationReason"]?.toString();
+  }
+
 Future<bool> hasModifiedTreeForApplication(
   int applicationId,
 ) async {

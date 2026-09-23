@@ -195,17 +195,21 @@ String get endTimeDisplay {
 
   }
 
-  Future<void> showReinspectDialog() async {
+  Future<String?> showReinspectDialog() async {
 
   String? selectedReason;
 
-  await showDialog(
+  return showDialog<String?>(
 
     context: context,
 
     builder: (_) {
 
-      return AlertDialog(
+      return StatefulBuilder(
+
+        builder: (dialogContext, setDialogState) {
+
+          return AlertDialog(
 
         title: const Text(
           "Reason for Re-inspection",
@@ -229,9 +233,9 @@ String get endTimeDisplay {
               .toList(),
 
           onChanged: (v) {
-
-            selectedReason = v;
-
+            setDialogState(() {
+              selectedReason = v;
+            });
           },
 
         ),
@@ -242,7 +246,7 @@ String get endTimeDisplay {
 
             onPressed: () {
 
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
 
             },
 
@@ -260,22 +264,8 @@ String get endTimeDisplay {
 
               }
 
-              await verificationRepository
-                  .saveVerification(
-
-                applicationId:
-                    widget.application.id!,
-
-                verification:
-                    "Re-inspect",
-
-                reason: selectedReason,
-
-              );
-
-              if (!mounted) return;
-
-              Navigator.pop(context);
+              Navigator.pop(
+                  dialogContext, selectedReason);
 
             },
 
@@ -285,12 +275,12 @@ String get endTimeDisplay {
 
         ],
 
+          );
+
+        },
       );
-
     },
-
   );
-
 }
 
 @override
@@ -555,9 +545,21 @@ ListTile(
 
                     onChanged:(v) async {
 
+                      final previous = verification;
+
                       verification=v;
 
                       setState((){});
+
+                      final reason =
+                          await showReinspectDialog();
+
+                      if (reason == null) {
+                        verification = previous;
+
+                        setState((){});
+                        return;
+                      }
 
                       await verificationRepository
                           .saveVerification(
@@ -567,9 +569,9 @@ ListTile(
 
                         verification:v!,
 
-                      );
+                        reason: reason,
 
-                      await showReinspectDialog();
+                      );
 
                     },
 

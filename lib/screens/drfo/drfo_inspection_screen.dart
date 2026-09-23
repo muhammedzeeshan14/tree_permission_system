@@ -698,6 +698,12 @@ Future<void> _loadSavedVerification() async {
   documentsReason =
       readReason("documentsReason");
 
+  deferredCorrect =
+      readVerificationValue("deferredCorrect");
+
+  deferredReason =
+      readReason("deferredReason");
+
   applicationTypeStatus =
       readVerificationStatus(
     "applicationTypeStatus",
@@ -962,6 +968,9 @@ Future<void> _saveVerification() async {
     gpsStatus: gpsStatus,
     photosStatus: photosStatus,
     documentsStatus: documentsStatus,
+
+    deferredCorrect: isDeferred ? deferredCorrect : null,
+    deferredReason: isDeferred ? deferredReason : null,
 
     verifiedBy: SessionService.instance.name,
   );
@@ -2066,6 +2075,8 @@ else
 
           });
 
+          await _saveVerification();
+
         },
 
         onChanged: (value) {
@@ -2075,6 +2086,8 @@ else
             deferredCorrect = value;
 
           });
+
+          _saveVerification();
 
         },
 
@@ -2986,9 +2999,11 @@ if (!isDeferred && !hasAnyReInspection())
 
               "PREVIOUS",
 
+              textAlign: TextAlign.center,
+
               style: TextStyle(
 
-                fontSize: 18,
+                fontSize: 15,
 
                 fontWeight: FontWeight.bold,
 
@@ -3076,9 +3091,11 @@ if (!isDeferred && !hasAnyReInspection())
 
                   : "RETURN TO BFO",
 
+              textAlign: TextAlign.center,
+
               style: const TextStyle(
 
-                fontSize: 18,
+                fontSize: 15,
 
                 fontWeight: FontWeight.bold,
 
@@ -3309,9 +3326,11 @@ if (!isDeferred &&
 
               "NEXT",
 
+              textAlign: TextAlign.center,
+
               style: TextStyle(
 
-                fontSize: 18,
+                fontSize: 15,
 
                 fontWeight: FontWeight.bold,
 
@@ -3351,6 +3370,14 @@ if (!isDeferred &&
 
                   onPressed: () async {
 
+  await _saveVerification();
+
+  await ApplicationRepository().touchForSync(
+    widget.application.id!,
+  );
+
+  if (!mounted) return;
+
   ScaffoldMessenger.of(context).showSnackBar(
 
     const SnackBar(
@@ -3369,9 +3396,11 @@ if (!isDeferred &&
 
                     "SAVE DRAFT",
 
+                    textAlign: TextAlign.center,
+
                     style: TextStyle(
 
-                      fontSize: 18,
+                      fontSize: 15,
 
                       fontWeight: FontWeight.bold,
 
@@ -3617,8 +3646,10 @@ child: Text(
           : "RETURN TO BFO")
       : "FORWARD TO RFO",
 
+  textAlign: TextAlign.center,
+
   style: const TextStyle(
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: FontWeight.bold,
   ),
 

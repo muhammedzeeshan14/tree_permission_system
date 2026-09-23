@@ -37,6 +37,7 @@ class TreeVerificationScreenState
       MasterRepository();
   List<TreeModel> trees = [];
   Map<int, String> verificationStatus = {};
+  Map<int, String> verificationReasons = {};
 
   Map<int, String> speciesMap = {};
   Map<int, String> recommendationTypeMap = {};
@@ -58,6 +59,7 @@ class TreeVerificationScreenState
     );
 
     verificationStatus.clear();
+    verificationReasons.clear();
 
 for (final tree in trees) {
   final status =
@@ -66,6 +68,14 @@ for (final tree in trees) {
 
   if (status != null) {
     verificationStatus[tree.id!] = status;
+  }
+
+  final reason =
+      await treeVerificationRepository
+          .getVerificationReason(tree.id!);
+
+  if (reason != null && reason.trim().isNotEmpty) {
+    verificationReasons[tree.id!] = reason;
   }
 }
 
@@ -132,23 +142,52 @@ bool validateVerification() {
 
       return false;
     }
+
+    if (verificationStatus[tree.id!] == "Re-inspect" &&
+        (verificationReasons[tree.id!]?.trim().isEmpty ?? true)) {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+
+        SnackBar(
+
+          content: Text(
+
+            "Please select a re-inspection reason for Tree No. ${tree.treeNumber}.",
+
+          ),
+
+        ),
+
+      );
+
+      return false;
+    }
   }
 
   return true;
 }
-Future<void> _showReinspectDialog(
+Future<String?> _showReinspectDialog(
   TreeModel tree,
 ) async {
 
   String? selectedReason;
 
-  await showDialog(
+  final existing = verificationReasons[tree.id!];
+  if (existing != null && existing.trim().isNotEmpty) {
+    selectedReason = existing;
+  }
+
+  return showDialog<String?>(
 
     context: context,
 
     builder: (_) {
 
-      return AlertDialog(
+      return StatefulBuilder(
+
+        builder: (dialogContext, setDialogState) {
+
+          return AlertDialog(
 
         title: const Text(
           "Reason for Re-inspection",
@@ -156,7 +195,10 @@ Future<void> _showReinspectDialog(
 
         content: DropdownButtonFormField<String>(
 
-          value: selectedReason,
+          value: treeVerificationReasons.contains(
+                  selectedReason)
+              ? selectedReason
+              : null,
 
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
@@ -172,7 +214,9 @@ Future<void> _showReinspectDialog(
               .toList(),
 
           onChanged: (v) {
-            selectedReason = v;
+            setDialogState(() {
+              selectedReason = v;
+            });
           },
 
         ),
@@ -182,7 +226,7 @@ Future<void> _showReinspectDialog(
           TextButton(
 
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
 
             child: const Text("Cancel"),
@@ -197,9 +241,8 @@ Future<void> _showReinspectDialog(
                 return;
               }
 
-              // We'll save this in the next patch.
-
-              Navigator.pop(context);
+              Navigator.pop(
+                  dialogContext, selectedReason);
 
             },
 
@@ -209,12 +252,11 @@ Future<void> _showReinspectDialog(
 
         ],
 
+          );
+        },
       );
-
     },
-
   );
-
 }
 
   @override
@@ -332,17 +374,41 @@ Future<void> _showReinspectDialog(
 
   if (v == null) return;
 
+  final previousStatus = verificationStatus[tree.id!];
+  final previousReason = verificationReasons[tree.id!];
+
   setState(() {
     verificationStatus[tree.id!] = v;
+  });
+
+  final reason = await _showReinspectDialog(tree);
+
+  if (reason == null) {
+    setState(() {
+      if (previousStatus == null) {
+        verificationStatus.remove(tree.id!);
+      } else {
+        verificationStatus[tree.id!] = previousStatus;
+      }
+      if (previousReason == null) {
+        verificationReasons.remove(tree.id!);
+      } else {
+        verificationReasons[tree.id!] = previousReason;
+      }
+    });
+    return;
+  }
+
+  setState(() {
+    verificationReasons[tree.id!] = reason;
   });
 
   await treeVerificationRepository
       .saveVerification(
     treeId: tree.id!,
     verification: v,
+    verificationReason: reason,
   );
-
-  await _showReinspectDialog(tree);
 },
     ),
 

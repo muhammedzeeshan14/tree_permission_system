@@ -104,7 +104,7 @@ final GlobalKey<TreeCountSummaryCardState>
 
   }
 
-Future<void> showReinspectDialog() async {
+Future<String?> showReinspectDialog() async {
 
   String? selectedReason;
 
@@ -114,7 +114,11 @@ Future<void> showReinspectDialog() async {
 
     builder: (_) {
 
-      return AlertDialog(
+      return StatefulBuilder(
+
+        builder: (dialogContext, setDialogState) {
+
+          return AlertDialog(
 
         title: const Text(
           "Reason for Re-inspection",
@@ -138,9 +142,9 @@ Future<void> showReinspectDialog() async {
               .toList(),
 
           onChanged: (v) {
-
-            selectedReason = v;
-
+            setDialogState(() {
+              selectedReason = v;
+            });
           },
 
         ),
@@ -182,22 +186,7 @@ Future<void> showReinspectDialog() async {
 
               }
 
-              await verificationRepository
-                  .saveVerification(
-
-                applicationId:
-                    widget.application.id!,
-
-                verification:
-                    "Re-inspect",
-
-                reason: selectedReason,
-
-              );
-
-              if (!mounted) return;
-
-              Navigator.pop(context);
+              Navigator.pop(dialogContext, selectedReason);
 
             },
 
@@ -207,12 +196,12 @@ Future<void> showReinspectDialog() async {
 
         ],
 
+          );
+
+        },
       );
-
     },
-
   );
-
 }
 
   @override
@@ -367,9 +356,21 @@ await load();
 
                           onChanged: (v) async {
 
+                            final previous = verification;
+
                             verification = v;
 
                             setState(() {});
+
+                            final reason =
+                                await showReinspectDialog();
+
+                            if (reason == null) {
+                              verification = previous;
+
+                              setState(() {});
+                              return;
+                            }
 
                             await verificationRepository
                                 .saveVerification(
@@ -379,9 +380,9 @@ await load();
 
                               verification: v!,
 
-                            );
+                              reason: reason,
 
-                            await showReinspectDialog();
+                            );
 
                           },
 
