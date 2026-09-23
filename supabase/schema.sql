@@ -152,7 +152,8 @@ create table if not exists public.tree_officer_master (
   id bigint primary key,
   code text not null unique,
   name text not null,
-  "requiresFellingPermission" integer
+  "requiresFellingPermission" integer,
+  "updatedAt" timestamptz not null default now()
 );
 
 create table if not exists public.officer_directory (
