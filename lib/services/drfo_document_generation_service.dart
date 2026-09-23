@@ -68,11 +68,11 @@ class DrfoDocumentGenerationService {
         application.drfoInspectionDate,
       );
 
-      return '${date.day.toString().padLeft(2, '0')}/'
-          '${date.month.toString().padLeft(2, '0')}/'
+      return '${date.day.toString().padLeft(2, '0')}-'
+          '${date.month.toString().padLeft(2, '0')}-'
           '${date.year}';
     } catch (_) {
-      return application.drfoInspectionDate;
+      return application.drfoInspectionDate.replaceAll('/', '-');
     }
   }
 

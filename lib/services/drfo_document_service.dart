@@ -1133,8 +1133,8 @@ class DrfoDocumentService {
     final now = DateTime.now();
 
     final letterDate =
-        '${now.day.toString().padLeft(2, '0')}/'
-        '${now.month.toString().padLeft(2, '0')}/'
+        '${now.day.toString().padLeft(2, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
         '${now.year}';
 
     // ----------------------------------------------------------
@@ -1741,8 +1741,8 @@ class DrfoDocumentService {
     final now = DateTime.now();
 
     final generatedDate =
-        '${now.day.toString().padLeft(2, '0')}/'
-        '${now.month.toString().padLeft(2, '0')}/'
+        '${now.day.toString().padLeft(2, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
         '${now.year}';
 
     // ----------------------------------------------------------
@@ -5830,7 +5830,7 @@ class DrfoDocumentService {
     // Old-template placeholders remain supported temporarily
     // for other application types.
 
-    template = _replace(template, "{{MAHAZAR_DATE}}", mahazarDateText);
+    template = _replace(template, "{{MAHAZAR_DATE}}", _date(mahazarDateText));
 
     template = _replace(template, "{{LAND_TYPE}}", getLandType(application));
 
