@@ -38,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 44,
+    version: 45,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -2152,6 +2152,35 @@ if (oldVersion < 44) {
       db, 'application_forward_references', 'receivedDate', 'TEXT');
   await _ensureSyncColumn(
       db, 'application_forward_references', 'sourceName', 'TEXT');
+}
+
+// ============================================================
+// VERSION 45
+// RTC ROWS WITHOUT PERMISSION TYPE GO TO TREE COUNT
+// ============================================================
+
+if (oldVersion < 45) {
+  int? treeCountId;
+  final types = await db.query(
+    'permission_type_master',
+    columns: ['id'],
+    where: 'permissionType=?',
+    whereArgs: ['Tree Count'],
+    limit: 1,
+  );
+  if (types.isNotEmpty) {
+    treeCountId = types.first['id'] as int?;
+  }
+  await db.update(
+    'applications',
+    {
+      'permissionType': 'Tree Count',
+      if (treeCountId != null) 'permissionTypeId': treeCountId,
+    },
+    where:
+        "TRIM(UPPER(applicationType))='RTC' AND "
+        "(permissionType IS NULL OR TRIM(permissionType)='')",
+  );
 }
 
 }

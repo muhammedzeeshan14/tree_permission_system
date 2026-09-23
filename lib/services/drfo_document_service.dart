@@ -499,7 +499,7 @@ class DrfoDocumentService {
     final drfoReportDate = _date(application.drfoInspectionDate.trim());
 
     lines.add(
-      "2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, "
+      "${lines.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, "
       "$section ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: "
       "$drfoReportDate",
     );

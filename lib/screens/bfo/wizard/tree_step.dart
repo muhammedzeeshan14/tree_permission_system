@@ -64,8 +64,16 @@ class _TreeStepState
 
       builder: (_) {
 
-        if (widget.application.permissionType ==
-            "Tree Count") {
+        // RTC applications always take the tree-count flow, even
+        // when the saved permissionType is blank (legacy rows).
+        final isTreeCountFlow = widget.application.permissionType ==
+                "Tree Count" ||
+            widget.application.applicationType
+                    .trim()
+                    .toUpperCase() ==
+                "RTC";
+
+        if (isTreeCountFlow) {
 
           return TreeCountHomeScreen(
 

@@ -261,3 +261,16 @@ select 'Mysuru Range', 'MYR', 'MYR', '2026-27',
        'Range Forest Office, Mysuru',
        'Mysuru Division', 'Mysuru Sub Division'
 where not exists (select 1 from public.office_configuration);
+
+-- ---------- type → permission mapping ----------
+-- application types: 1 STGL, 2 CGL, 3 PL, 4 RTC, 5 MCC, 6 SGL, 7 SPL
+-- permission types: 1 Permission, 2 Valuation, 3 Tree Count,
+--   4 Forward to Tree Officer, 5 Auction, 6 Sandal Depot
+insert into public.application_type_permission_mapping
+  ("applicationTypeId", "permissionTypeId")
+select mapping.a, mapping.p
+from (values (1,1),(2,1),(3,1),(4,3),(5,1),(6,6),(7,2)) as mapping(a,p)
+where not exists (
+  select 1 from public.application_type_permission_mapping m
+  where m."applicationTypeId" = mapping.a
+);

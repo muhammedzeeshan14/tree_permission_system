@@ -9,6 +9,7 @@ import '../../repositories/master_repository.dart';
 import '../../repositories/application_type_repository.dart';
 import '../../repositories/section_repository.dart';
 import '../../repositories/beat_repository.dart';
+import '../../repositories/permission_type_repository.dart';
 import '../../repositories/revenue_opinion_repository.dart';
 import '../../repositories/officer_repository.dart';
 import '../../services/office_number_service.dart';
@@ -1295,6 +1296,28 @@ final permission =
   selectedApplicationType["id"],
 );
 
+// RTC always uses the Tree Count flow, even when the
+// type→permission mapping row is missing.
+String permissionType =
+    permission?["permissionType"]?.toString() ?? "";
+int? permissionTypeId = permission?["id"] as int?;
+if (permissionType.isEmpty &&
+    applicationType.trim().toUpperCase() == "RTC") {
+  permissionType = "Tree Count";
+  try {
+    final types = await PermissionTypeRepository()
+        .getActive();
+    final match = types.where((t) =>
+        (t["permissionType"]?.toString() ?? "") ==
+        "Tree Count");
+    if (match.isNotEmpty) {
+      permissionTypeId = (match.first["id"] as num).toInt();
+    }
+  } catch (_) {
+    // Keep the type; id stays null.
+  }
+}
+
    ApplicationModel application = ApplicationModel(
 
   id: isEdit
@@ -1308,10 +1331,9 @@ final permission =
 
   verifiedApplicationType: applicationType,
 
-  permissionTypeId: permission?["id"] as int?,
+  permissionTypeId: permissionTypeId,
 
-permissionType:
-    permission?["permissionType"]?.toString() ?? "",
+permissionType: permissionType,
 
   applicationDate: formatDate(applicationDateController.text),
 
