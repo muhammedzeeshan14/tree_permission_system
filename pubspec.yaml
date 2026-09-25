@@ -53,6 +53,8 @@ flutter:
     - assets/templates/drfo/DRFO_NOT_RECOMMENDED.txt
     - assets/templates/drfo/MAHAZAR.txt
     - assets/templates/drfo/PRIVATE_LAND_MAHAZAR.txt
+    - assets/templates/drfo/SANDAL_MAHAZAR.txt
+    - assets/templates/drfo/SANDAL_ENUMERATION.txt
     - assets/templates/rfo/RFO_APPROVED_RTC.txt
     - assets/templates/rfo/RFO_APPROVED_PL.txt
     - assets/templates/rfo/RFO_GL_VALUATION.txt
@@ -67,3 +69,4 @@ flutter:
     - assets/templates/rfo/RFO_NOT_RECOMMENDED_NON_RTC.txt
     - assets/templates/rfo/RFO_REVENUE_OPINION_REQUEST_PL.txt
     - assets/templates/rfo/RFO_APPLY_ONLINE_PL.txt
+    - assets/templates/rfo/RFO_APPROVED_SPL.txt

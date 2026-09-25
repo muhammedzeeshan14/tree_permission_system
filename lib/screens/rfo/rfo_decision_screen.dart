@@ -278,7 +278,7 @@ bool get needsRevenueOpinionRequest {
           .trim()
           .toUpperCase();
 
-  return type == "PL" &&
+  return (type == "PL" || type == "SPL") &&
       !isDeferredApplication &&
       !allTreesNotRecommended &&
       hasFullTreeRecommendation;

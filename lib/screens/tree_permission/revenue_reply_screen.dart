@@ -229,12 +229,19 @@ class _RevenueReplyWorkflowScreenState
           requestCycle: current.cycle + 1,
         );
       } else {
+        // Sandal Private: To is always the DCF officer; no tree-officer
+        // outcome or selection is needed.
+        final isSandal = widget.application.applicationType
+                .trim()
+                .toUpperCase() ==
+            'SPL';
         // Single letter per outcome (never multiple):
         // - felling required (tree-officer outcome) + online NOT
         //   applied -> ONLY the apply-online letter; the case stays
         //   open until the caseworker refills the online number.
         // - all other satisfied cases -> the normal decision letter.
-        final holdingForOnlineNumber = current.answers['nature'] ==
+        final holdingForOnlineNumber = !isSandal &&
+            current.answers['nature'] ==
                 RevenueReply.satisfied &&
             current.answers['onlineApplicationStatus'] ==
                 RevenueReply.onlineNotApplied &&
@@ -246,6 +253,13 @@ class _RevenueReplyWorkflowScreenState
             widget.application,
             current,
           );
+        } else if (isSandal &&
+            current.answers['nature'] ==
+                RevenueReply.satisfied) {
+          file = await documents.generateRfoSandalApprovalLetter(
+            widget.application,
+            current,
+          );
         } else {
           file = await documents.generateRfoPrivateLandDecisionLetter(
             widget.application,
@@ -253,7 +267,17 @@ class _RevenueReplyWorkflowScreenState
           );
         }
       }
-      await repository.finalize(current, file?.path ?? '', now);
+      await repository.finalize(
+        current,
+        file?.path ?? '',
+        now,
+        outcomeOverride: widget.application.applicationType
+                    .trim()
+                    .toUpperCase() ==
+                'SPL'
+            ? PrivateLandOutcome.treeOfficerLetter
+            : null,
+      );
       widget.application.status =
           current.answers['nature'] == RevenueReply.wrongAuthority
           ? WorkflowStatus.pendingRevenueOpinion
@@ -360,6 +384,10 @@ class _RevenueReplyWorkflowScreenState
     ],
   );
   String get _satisfiedOutcomeMessage {
+    if (widget.application.applicationType.trim().toUpperCase() ==
+        'SPL') {
+      return 'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and completes the application.';
+    }
     final selected = treeOfficers.where((row) => row['id'] == selectedTreeOfficerId);
     if (selected.isEmpty) return 'Select Tree officer to determine the final approval action.';
     try {
@@ -391,7 +419,11 @@ class _RevenueReplyWorkflowScreenState
         style: const TextStyle(fontSize: 20),
       ),
       const SizedBox(height: 18),
-      if (reply!.answers['nature'] == RevenueReply.satisfied) ...[
+      if (reply!.answers['nature'] == RevenueReply.satisfied &&
+          widget.application.applicationType
+                  .trim()
+                  .toUpperCase() !=
+              'SPL') ...[
         DropdownButtonFormField<int>(
           initialValue: selectedTreeOfficerId,
           isExpanded: true,

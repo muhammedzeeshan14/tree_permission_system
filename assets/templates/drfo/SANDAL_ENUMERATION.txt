@@ -1,0 +1,26 @@
+[CENTER]
+[BOLD]
+ಶ್ರೀಗಂಧ ಮರಗಳ ಎಣಿಕೆ ಪಟ್ಟಿ
+[/BOLD]
+[/CENTER]
+
+ಅರ್ಜಿದಾರರ ಹೆಸರು: {{APPLICANT_NAME}}
+ವಿಳಾಸ: {{APPLICANT_ADDRESS}}
+ಖಾತೆ/ಸ್ಥಳ: {{TREE_LOCATION}}
+ಒಟ್ಟು ಶಿಫಾರಸು ಮಾಡಲಾದ ಶ್ರೀಗಂಧ ಮರಗಳು: {{TOTAL_RECOMMENDED_TREES}}
+
+{{SANDAL_TREE_TABLE}}
+
+[CENTER]
+ವಂದನೆಗಳೊಂದಿಗೆ,
+[/CENTER]
+[RIGHT]
+ತಮ್ಮ ನಂಬುಗೆಯೊಂದಿಗೆ,
+
+
+
+ಉಪವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರ
+{{SECTION}} ಶಾಖೆ, {{RANGE_NAME}} ವಲಯ
+[/RIGHT]
+ದಿನಾಂಕ: {{LETTER_DATE}}
+ಸ್ಥಳ: {{RANGE_LOCATION}}

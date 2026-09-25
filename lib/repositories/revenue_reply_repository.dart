@@ -600,8 +600,9 @@ class RevenueReplyRepository {
   Future<void> finalize(
     RevenueReply reply,
     String letterPath,
-    String approvalDate,
-  ) async {
+    String approvalDate, {
+    PrivateLandOutcome? outcomeOverride,
+  }) async {
     if (!reply.allApproved)
       throw StateError('Approve every answer before final approval.');
     if (OnlineMode.enabled) {
@@ -609,9 +610,10 @@ class RevenueReplyRepository {
         await _onlineCheck(reply, 'RFO', 'review');
         final app = await _onlineApplication(reply.applicationId);
         final resend = reply.answers['nature'] == RevenueReply.wrongAuthority;
-        final outcome = reply.answers['nature'] == RevenueReply.satisfied
-            ? await _onlineCompletionOutcome(reply.applicationId)
-            : null;
+        final outcome = outcomeOverride ??
+            (reply.answers['nature'] == RevenueReply.satisfied
+                ? await _onlineCompletionOutcome(reply.applicationId)
+                : null);
         final onlinePermission = outcome == PrivateLandOutcome.onlinePermission;
         if (onlinePermission && letterPath.trim().isNotEmpty) {
           throw StateError('RFO online permission completion must not generate a letter.');
@@ -678,8 +680,9 @@ class RevenueReplyRepository {
       await _check(tx, reply, 'RFO', 'review');
       final app = await _application(tx, reply.applicationId);
       final resend = reply.answers['nature'] == RevenueReply.wrongAuthority;
-      final outcome = reply.answers['nature'] == RevenueReply.satisfied
-          ? await TreeOfficerRepository.completionOutcome(tx, reply.applicationId) : null;
+      final outcome = outcomeOverride ??
+          (reply.answers['nature'] == RevenueReply.satisfied
+              ? await TreeOfficerRepository.completionOutcome(tx, reply.applicationId) : null);
       final onlinePermission = outcome == PrivateLandOutcome.onlinePermission;
       if (onlinePermission && letterPath.trim().isNotEmpty) {
         throw StateError('RFO online permission completion must not generate a letter.');

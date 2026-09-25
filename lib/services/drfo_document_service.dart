@@ -55,6 +55,24 @@ class _RtcTreeTableRow {
   });
 }
 
+class _SandalTreeTableRow {
+  final int serialNumber;
+  final String treeNumber;
+  final String speciesName;
+  final String gbh;
+  final String height;
+  final String remarks;
+
+  const _SandalTreeTableRow({
+    required this.serialNumber,
+    required this.treeNumber,
+    required this.speciesName,
+    required this.gbh,
+    required this.height,
+    required this.remarks,
+  });
+}
+
 class _NotRecommendedTreeTableRow {
   final int serialNumber;
   final String applicantAndLocation;
@@ -1194,7 +1212,8 @@ class DrfoDocumentService {
     if ((applicationType == 'GL' ||
             applicationType == 'STGL' ||
             applicationType == 'CGL' ||
-            applicationType == 'PL') &&
+            applicationType == 'PL' ||
+            applicationType == 'SPL') &&
         application.id != null) {
       final treeRepository = TreeRepository();
 
@@ -2085,6 +2104,157 @@ class DrfoDocumentService {
     return y;
   }
 
+  Future<double> _drawSandalEnumerationTable({
+    required ui.Canvas canvas,
+    required double y,
+    required double contentWidth,
+    required List<_SandalTreeTableRow> rows,
+  }) async {
+    final tableX = _leftMargin * _scale;
+    final padding = 5 * _scale;
+
+    final columnWidths = <double>[
+      contentWidth * 0.08,
+      contentWidth * 0.13,
+      contentWidth * 0.22,
+      contentWidth * 0.16,
+      contentWidth * 0.16,
+      contentWidth * 0.25,
+    ];
+
+    final borderPaint = ui.Paint()
+      ..color = const ui.Color(0xFF000000)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 0.7 * _scale;
+
+    final headerPaint = ui.Paint()
+      ..color = const ui.Color(0xFFF2F2F2)
+      ..style = ui.PaintingStyle.fill;
+
+    Future<List<ui.Paragraph>> buildCells(
+      List<String> values, {
+      bool bold = false,
+    }) async {
+      final cells = <ui.Paragraph>[];
+
+      for (int index = 0; index < values.length; index++) {
+        cells.add(
+          await _buildParagraph(
+            text: _safeText(values[index]),
+            width: columnWidths[index] - (padding * 2),
+            fontSize: 10 * _scale,
+            alignment: ui.TextAlign.center,
+            bold: bold,
+          ),
+        );
+      }
+
+      return cells;
+    }
+
+    double rowHeightFor(List<ui.Paragraph> paragraphs) {
+      double greatestHeight = 0;
+
+      for (final paragraph in paragraphs) {
+        if (paragraph.height > greatestHeight) {
+          greatestHeight = paragraph.height;
+        }
+      }
+
+      return greatestHeight + (padding * 2);
+    }
+
+    void drawRowBorders(double top, double rowHeight) {
+      canvas.drawRect(
+        ui.Rect.fromLTWH(tableX, top, contentWidth, rowHeight),
+        borderPaint,
+      );
+
+      double x = tableX;
+
+      for (int index = 0; index < columnWidths.length - 1; index++) {
+        x += columnWidths[index];
+
+        canvas.drawLine(
+          ui.Offset(x, top),
+          ui.Offset(x, top + rowHeight),
+          borderPaint,
+        );
+      }
+    }
+
+    void drawCells(
+      List<ui.Paragraph> paragraphs,
+      double top,
+      double rowHeight,
+    ) {
+      double x = tableX;
+
+      for (int index = 0; index < paragraphs.length; index++) {
+        final paragraph = paragraphs[index];
+
+        canvas.drawParagraph(
+          paragraph,
+          ui.Offset(x + padding, top + ((rowHeight - paragraph.height) / 2)),
+        );
+
+        x += columnWidths[index];
+      }
+    }
+
+    final headerCells = await buildCells([
+      'ಕ್ರ.\nಸಂಖ್ಯೆ',
+      'ಮರದ\nಸಂಖ್ಯೆ',
+      'ಮರದ\nಜಾತಿ',
+      'ಸುತ್ತಳತೆ\n(ಮೀ ಗಳಲ್ಲಿ)',
+      'ಎತ್ತರ\n(ಮೀ ಗಳಲ್ಲಿ)',
+      'ಷರಾ',
+    ], bold: true);
+
+    final headerHeight = rowHeightFor(headerCells);
+
+    y = _pagePosition(y, headerHeight);
+    canvas.drawRect(
+      ui.Rect.fromLTWH(tableX, y, contentWidth, headerHeight),
+      headerPaint,
+    );
+    drawRowBorders(y, headerHeight);
+    drawCells(headerCells, y, headerHeight);
+
+    y += headerHeight;
+
+    for (final row in rows) {
+      final rowCells = await buildCells([
+        row.serialNumber.toString(),
+        row.treeNumber,
+        row.speciesName,
+        row.gbh,
+        row.height,
+        row.remarks.isEmpty ? '—' : row.remarks,
+      ]);
+
+      final rowHeight = rowHeightFor(rowCells);
+
+      final rowY = _pagePosition(y, rowHeight);
+      if (rowY != y) {
+        y = _pagePosition(rowY, headerHeight + rowHeight);
+        canvas.drawRect(
+          ui.Rect.fromLTWH(tableX, y, contentWidth, headerHeight),
+          headerPaint,
+        );
+        drawRowBorders(y, headerHeight);
+        drawCells(headerCells, y, headerHeight);
+        y += headerHeight;
+      }
+      drawRowBorders(y, rowHeight);
+      drawCells(rowCells, y, rowHeight);
+
+      y += rowHeight;
+    }
+
+    return y;
+  }
+
   Future<double> _drawNotRecommendedTreeTable({
     required ui.Canvas canvas,
     required double y,
@@ -2736,6 +2906,7 @@ class DrfoDocumentService {
     List<_RtcTreeTableRow> rtcTreeRows = const [],
     List<_NotRecommendedTreeTableRow> notRecommendedTreeRows = const [],
     List<_GlTreeEnumerationRow> glTreeEnumerationRows = const [],
+    List<_SandalTreeTableRow> sandalTreeRows = const [],
   }) async {
     final width = (_pageWidth * _scale).round();
     final height = (_pageHeight * _scale).round();
@@ -3139,6 +3310,18 @@ class DrfoDocumentService {
           y: y,
           contentWidth: contentWidth,
           rows: notRecommendedTreeRows,
+        );
+
+        y += 8 * _scale;
+        continue;
+      }
+
+      if (trimmed == '{{SANDAL_TREE_TABLE}}') {
+        y = await _drawSandalEnumerationTable(
+          canvas: canvas,
+          y: y,
+          contentWidth: contentWidth,
+          rows: sandalTreeRows,
         );
 
         y += 8 * _scale;
@@ -3678,6 +3861,7 @@ class DrfoDocumentService {
     List<_RtcTreeTableRow> rtcTreeRows = const [],
     List<_NotRecommendedTreeTableRow> notRecommendedTreeRows = const [],
     List<_GlTreeEnumerationRow> glTreeEnumerationRows = const [],
+    List<_SandalTreeTableRow> sandalTreeRows = const [],
   }) async {
     final lines = master.trimRight().split('\n');
 
@@ -3687,6 +3871,7 @@ class DrfoDocumentService {
       rtcTreeRows: rtcTreeRows,
       notRecommendedTreeRows: notRecommendedTreeRows,
       glTreeEnumerationRows: glTreeEnumerationRows,
+      sandalTreeRows: sandalTreeRows,
     );
   }
 
@@ -4012,7 +4197,8 @@ class DrfoDocumentService {
         applicationType == 'STGL' ||
         applicationType == 'CGL';
 
-    final isPrivateLand = applicationType == 'PL';
+    final isPrivateLand = applicationType == 'PL' ||
+        applicationType == 'SPL';
 
     final isNotRecommended =
         !isRtcApplication && await _areAllTreesNotRecommended(application);
@@ -4302,7 +4488,7 @@ class DrfoDocumentService {
 
     final applicationType = application.applicationType.trim().toUpperCase();
 
-    if (applicationType != "PL") {
+    if (applicationType != "PL" && applicationType != "SPL") {
       throw Exception(
         "Revenue Opinion request letter can be generated "
         "only for Private Land applications.",
@@ -4819,6 +5005,132 @@ class DrfoDocumentService {
         officeNumber: application.officeNumber,
         fileName: _safeFileName(application.officeNumber) +
             '_RFO_APPLY_ONLINE_CYCLE_' +
+            reply.cycle.toString() +
+            '.pdf',
+        bytes: await pdf.save());
+  }
+
+  /// RFO sandal approval letter (SPL satisfied). To is always the DCF
+  /// officer from the officer master. Editable template
+  /// RFO_APPROVED_SPL.txt (user supplies final wording, keeping the
+  /// {{PLACEHOLDERS}}).
+  Future<File> generateRfoSandalApprovalLetter(
+    ApplicationModel application,
+    RevenueReply reply,
+  ) async {
+    if (application.applicationType.trim().toUpperCase() != 'SPL') {
+      throw StateError(
+          'Sandal approval letter can be generated only for Sandal Private applications.');
+    }
+    if (!reply.allApproved ||
+        reply.answers['nature'] == RevenueReply.wrongAuthority) {
+      throw StateError(
+          'Approve the revenue reply before generating a final decision.');
+    }
+    await _loadFlutterKannadaFont();
+    final config = await OfficeConfigurationRepository().getConfiguration();
+    final range = config?['rangeName']?.toString() ?? '';
+    final location = config?['rangeLocation']?.toString() ?? range;
+    final masterRepository = MasterRepository();
+
+    final applicantReceived = _date(application.receivedDate);
+    final revenueReceived = _date(reply.answers['receivedDate'] ?? '');
+    final references = <String>[
+      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}' +
+          (applicantReceived.isEmpty
+              ? '.'
+              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'),
+      '2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.',
+      '3. ${reply.answers['authority'] ?? ''} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}, ದಿನಾಂಕ: ${_date(reply.answers['letterDate'] ?? '')}' +
+          (revenueReceived.isEmpty
+              ? '.'
+              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $revenueReceived).'),
+    ];
+
+    // To is always the DCF officer from the officer master.
+    final dcfName = await _officerMasterDisplayName('DCF', '');
+    final dcfAddress =
+        await OfficerRepository().addressForRole('DCF');
+    final toAddress = dcfName.isEmpty
+        ? dcfAddress
+        : '$dcfName\n$dcfAddress';
+
+    final whyRemoving = await _masterKannadaName(
+        masterRepository, application.whyRemovingId);
+    final opinionSelection = await ApplicationRevenueOpinionRepository()
+        .getByApplication(application.id!);
+    final opinion = opinionSelection == null
+        ? null
+        : await RevenueOpinionRepository()
+            .getById(opinionSelection.revenueOpinionId);
+    final revenueRemarks = opinion == null
+        ? ''
+        : (opinion.remarks.trim().isNotEmpty
+            ? opinion.remarks.trim()
+            : opinion.revenueOpinion.trim());
+    final replyDetails = [
+      'ownership',
+      'reserved',
+      'taxes',
+      'dispute',
+      'extra'
+    ]
+        .map((key) => reply.answers[key]?.trim() ?? '')
+        .where((value) => value.isNotEmpty)
+        .join(', ');
+    final locationPhrase = application.treeLocationSame
+        ? ''
+        : application.treeLocationAddress.trim();
+    final recommendedCount =
+        (await _buildSandalTreeRows(application)).length;
+
+    var master = await _loadRfoTemplate('RFO_APPROVED_SPL.txt');
+    final values = <String, String>{
+      '{{TREE_OFFICER_TO_ADDRESS}}': toAddress,
+      '{{APPLICANT_NAME}}': application.applicantName,
+      '{{APPLICANT_ADDRESS}}': application.applicantAddress,
+      '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
+      '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
+      '{{SANDAL_REFERENCES}}': references.join('\n'),
+      '{{SECTION}}': await _printSectionName(application),
+      '{{BEAT}}': await _printBeatName(application),
+      '{{RANGE_NAME}}': range,
+      '{{RANGE_LOCATION}}': location,
+      '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
+      '{{TOTAL_RECOMMENDED_TREES}}': recommendedCount.toString(),
+      '{{WHY_REMOVING_KANNADA}}': whyRemoving,
+      '{{REVENUE_OPINION_REMARKS}}': revenueRemarks,
+      '{{REVENUE_AUTHORITY}}': reply.answers['authority'] ?? '',
+      '{{REVENUE_REPLY_DETAILS}}': replyDetails,
+    };
+    master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+      final value = values[match.group(0)];
+      if (value == null) {
+        throw StateError(
+            'Unknown sandal approval template placeholder: ' +
+                match.group(0)!);
+      }
+      return value.trim().isEmpty ? '—' : value;
+    });
+    final sandalRows = await _buildSandalTreeRows(application);
+    final pages = await _renderMasterToPng(master,
+        rfoLetterhead: _RfoLetterheadData(
+          letterNumber: application.officeNumber,
+          rangeName: range,
+          rangeLocation: location,
+          rangeOfficeAddress:
+              config?['rangeOfficeAddress']?.toString() ?? '',
+          rangeEmail: config?['rangeEmail']?.toString() ?? '',
+          logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',
+          approvalDate: _date(application.rfoApprovalDate),
+        ),
+        sandalTreeRows: sandalRows);
+    final pdf = pw.Document();
+    _appendRenderedPages(pdf, pages);
+    return await _savePdf(
+        officeNumber: application.officeNumber,
+        fileName: _safeFileName(application.officeNumber) +
+            '_RFO_APPROVED_SPL_CYCLE_' +
             reply.cycle.toString() +
             '.pdf',
         bytes: await pdf.save());
@@ -5456,16 +5768,22 @@ class DrfoDocumentService {
 
     final applicationType = application.applicationType.trim().toUpperCase();
 
-    // Private Land uses its own Mahazar format.
+    // Private Land uses its own Mahazar format; Sandal Private uses
+    // the sandal variant without timber/pole/firewood produce.
     // Other application types temporarily continue
     // using the old template until their formats are supplied.
+    final usesSandalMahazar = applicationType == "SPL";
+
     final usesCommonLandMahazar =
-        applicationType == "PL" ||
+        !usesSandalMahazar &&
+        (applicationType == "PL" ||
         applicationType == "GL" ||
         applicationType == "STGL" ||
-        applicationType == "CGL";
+        applicationType == "CGL");
 
-    final templateFile = usesCommonLandMahazar
+    final templateFile = usesSandalMahazar
+        ? "SANDAL_MAHAZAR.txt"
+        : usesCommonLandMahazar
         ? "PRIVATE_LAND_MAHAZAR.txt"
         : "MAHAZAR.txt";
 
@@ -5755,7 +6073,15 @@ class DrfoDocumentService {
 
     final produceParts = <String>[];
 
-    if (totalTimberVolume > 0) {
+    final isSandal = applicationType == "SPL";
+
+    if (isSandal) {
+      final sandalCount = enumerationRows.length;
+      produceParts.add(
+        "ಒಟ್ಟು $sandalCount ಸಂಖ್ಯೆ ಶ್ರೀಗಂಧ ಮರ/ಮರಗಳು",
+      );
+    } else {
+      if (totalTimberVolume > 0) {
       produceParts.add(
         "ಒಟ್ಟು ${_formatDocumentDecimal(totalTimberVolume, decimals: 3)} ಘ.ಮೀ ನಾಟ",
       );
@@ -5769,6 +6095,7 @@ class DrfoDocumentService {
       produceParts.add(
         "ಒಟ್ಟು ${_formatDocumentDecimal(totalFirewood)} ಟನ್ ಸೌದೆ",
       );
+    }
     }
 
     final produceSummary = produceParts.isEmpty
@@ -5999,6 +6326,8 @@ class DrfoDocumentService {
 
     final fileSuffix = isUpdated
         ? "_UPDATED_MAHAZAR.pdf"
+        : applicationType == "SPL"
+        ? "_SANDAL_MAHAZAR.pdf"
         : applicationType == "PL"
         ? "_PRIVATE_LAND_MAHAZAR.pdf"
         : "_MAHAZAR.pdf";
@@ -6190,8 +6519,97 @@ class DrfoDocumentService {
     );
   }
 
+  Future<List<_SandalTreeTableRow>> _buildSandalTreeRows(
+    ApplicationModel application,
+  ) async {
+    final rows = await _buildGlTreeEnumerationRows(application);
+
+    return rows
+        .asMap()
+        .entries
+        .map(
+          (entry) => _SandalTreeTableRow(
+            serialNumber: entry.key + 1,
+            treeNumber: entry.value.treeNumber,
+            speciesName: entry.value.speciesName,
+            gbh: entry.value.gbh,
+            height: entry.value.height,
+            remarks: entry.value.recommendationReason,
+          ),
+        )
+        .toList();
+  }
+
+  // ==========================================================
+  // SANDAL TREE ENUMERATION PDF (no money columns)
+  // ==========================================================
+
+  Future<File> _generateSandalTreeEnumeration(
+    ApplicationModel application,
+  ) async {
+    await _loadFlutterKannadaFont();
+
+    final sandalRows = await _buildSandalTreeRows(application);
+
+    final officeConfiguration = await OfficeConfigurationRepository()
+        .getConfiguration();
+
+    final rangeName =
+        officeConfiguration?["rangeName"]?.toString().trim().isNotEmpty == true
+        ? officeConfiguration!["rangeName"].toString().trim()
+        : 'ಮೈಸೂರು';
+
+    final rangeLocation =
+        officeConfiguration?["rangeLocation"]?.toString().trim().isNotEmpty ==
+            true
+        ? officeConfiguration!["rangeLocation"].toString().trim()
+        : rangeName;
+
+    var master = await _loadTemplate('SANDAL_ENUMERATION.txt');
+
+    master = _replace(master, '{{APPLICANT_NAME}}',
+        _safeText(application.applicantName));
+    master = _replace(master, '{{APPLICANT_ADDRESS}}',
+        _safeText(application.applicantAddress));
+    master = _replace(master, '{{TREE_LOCATION}}',
+        _safeText(_location(application)));
+    master = _replace(master, '{{TOTAL_RECOMMENDED_TREES}}',
+        sandalRows.length.toString());
+    master = _replace(master, '{{SECTION}}',
+        await _printSectionName(application));
+    master = _replace(master, '{{BEAT}}',
+        await _printBeatName(application));
+    master = _replace(master, '{{RANGE_NAME}}', _safeText(rangeName));
+    master = _replace(master, '{{RANGE_LOCATION}}',
+        _safeText(rangeLocation));
+    master = _replace(
+        master, '{{LETTER_DATE}}', _date(DateTime.now().toIso8601String()));
+
+    final pngBytes = await _renderMasterToPng(
+      master,
+      sandalTreeRows: sandalRows,
+    );
+
+    final pdf = pw.Document();
+
+    _appendRenderedPages(pdf, pngBytes);
+
+    final bytes = await pdf.save();
+
+    return await _savePdf(
+      officeNumber: application.officeNumber,
+      fileName: '${_safeFileName(application.officeNumber)}'
+          '_SANDAL_TREE_ENUMERATION.pdf',
+      bytes: bytes,
+    );
+  }
+
   Future<File> generateTreeEnumeration(ApplicationModel application) async {
     final applicationType = application.applicationType.trim().toUpperCase();
+
+    if (applicationType == 'SPL') {
+      return await _generateSandalTreeEnumeration(application);
+    }
 
     if (applicationType == 'GL' ||
         applicationType == 'STGL' ||
