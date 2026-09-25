@@ -56,11 +56,17 @@ class _ApplicationAdditionalDetailsStepState
           .trim()
           .toUpperCase();
 
+  bool get isMcc => applicationType == "MCC";
+
   bool get isGovernmentCategory =>
       applicationType == "GL" ||
       applicationType == "STGL" ||
       applicationType == "CGL" ||
-      applicationType == "SGL";
+      applicationType == "SGL" ||
+      applicationType == "MCC";
+
+  bool get showsGovernmentAgency =>
+      isGovernmentCategory && !isMcc;
 
   bool get isPrivateCategory =>
       applicationType == "PL" ||
@@ -110,9 +116,11 @@ class _ApplicationAdditionalDetailsStepState
     workNameController.text =
         widget.application.workName;
 
-    firstFieldCorrect = isGovernmentCategory
+    firstFieldCorrect = showsGovernmentAgency
         ? selectedGovernmentAgencyId != null
-        : selectedUrbanRuralId != null;
+        : isMcc
+            ? true
+            : selectedUrbanRuralId != null;
 
     whyRemovingCorrect =
         selectedWhyRemovingId != null;
@@ -370,7 +378,7 @@ class _ApplicationAdditionalDetailsStepState
   }
 
   void _saveAndContinue() {
-    if (isGovernmentCategory &&
+    if (showsGovernmentAgency &&
         selectedGovernmentAgencyId == null) {
       _showMessage(
         "Please select the correct Government Agency.",
@@ -415,11 +423,13 @@ class _ApplicationAdditionalDetailsStepState
       return;
     }
 
-    if (isGovernmentCategory) {
+    if (showsGovernmentAgency) {
       widget.application.governmentAgencyId =
           selectedGovernmentAgencyId;
 
       widget.application.urbanRuralId = null;
+    } else {
+      widget.application.governmentAgencyId = null;
     }
 
     if (isPrivateCategory) {
@@ -510,6 +520,8 @@ class _ApplicationAdditionalDetailsStepState
 
                     const SizedBox(height: 16),
 
+                    // MCC has neither agency nor urban/rural selection.
+                    if (!isMcc)
                     _verificationCard(
                       title: firstTitle,
                       enteredValue: firstValue,

@@ -85,11 +85,14 @@ List<ForwardReference> forwardReferences = [];
   String reservedOfficeNumber = "";
 
   String applicationType = "PL";
+  bool get isMcc =>
+    applicationType.trim().toUpperCase() == "MCC";
   bool get isGovernmentCategory =>
     applicationType == "GL" ||
     applicationType == "STGL" ||
     applicationType == "CGL" ||
-    applicationType == "SGL";
+    applicationType == "SGL" ||
+    applicationType == "MCC";
 
 bool get isPrivateCategory =>
     applicationType == "PL" ||
@@ -913,7 +916,7 @@ TextFormField(
 
 ),
 
-if (isGovernmentCategory) ...[
+if (isGovernmentCategory && !isMcc) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
@@ -1228,6 +1231,7 @@ if (requiresWhyRemovingAndPurpose &&
 }
 
 if (isGovernmentCategory &&
+    !isMcc &&
     governmentAgencyId == null) {
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
@@ -1413,7 +1417,7 @@ beat: beat,
           : null,
 
   governmentAgencyId:
-    isGovernmentCategory
+    isGovernmentCategory && !isMcc
         ? governmentAgencyId
         : null,
 

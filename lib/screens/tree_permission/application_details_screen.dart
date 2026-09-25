@@ -43,7 +43,15 @@ bool get isGovernmentCategory {
   return type == "GL" ||
       type == "STGL" ||
       type == "CGL" ||
-      type == "SGL";
+      type == "SGL" ||
+      type == "MCC";
+}
+
+bool get isMcc {
+  return widget.application.applicationType
+          .trim()
+          .toUpperCase() ==
+      "MCC";
 }
 
 bool get isPrivateCategory {
@@ -177,7 +185,7 @@ Future<void> loadAdditionalApplicationDetails() async {
   widget.application.purpose,
 ),
 
-if (isGovernmentCategory)
+if (isGovernmentCategory && !isMcc)
   detail(
     "Government Agency",
     governmentAgencyName,

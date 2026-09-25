@@ -64,6 +64,37 @@ class ApplicationTypeRepository {
 
   }
 
+  Future<String> getKannadaName(String shortCode) async {
+    final code = shortCode.trim().toUpperCase();
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          "application_type_master",
+        );
+        for (final row in rows) {
+          if ((row["shortCode"]?.toString() ?? '')
+                  .trim()
+                  .toUpperCase() ==
+              code) {
+            return (row["kannadaName"]?.toString() ?? '').trim();
+          }
+        }
+        return '';
+      } catch (e) {
+        debugPrint('online getKannadaName failed, falling back to local: $e');
+      }
+    }
+    final db = await _db;
+    final rows = await db.query(
+      "application_type_master",
+      where: "TRIM(UPPER(shortCode))=?",
+      whereArgs: [code],
+      limit: 1,
+    );
+    if (rows.isEmpty) return '';
+    return (rows.first["kannadaName"]?.toString() ?? '').trim();
+  }
+
   Future<void> insert({
 
   required String applicationType,

@@ -240,6 +240,12 @@ bool get isRtcApplication =>
         .toUpperCase() ==
     "RTC";
 
+bool get isMccApplication =>
+    widget.application.applicationType
+        .trim()
+        .toUpperCase() ==
+    "MCC";
+
 bool get isGovernmentApplication {
   final type =
       widget.application.applicationType
@@ -249,7 +255,8 @@ bool get isGovernmentApplication {
   return type == "GL" ||
       type == "STGL" ||
       type == "CGL" ||
-      type == "SGL";
+      type == "SGL" ||
+      type == "MCC";
 }
 
 bool get isPrivateApplication {
@@ -1326,10 +1333,23 @@ Future<bool> _saveGovernmentOptions() async {
   } finally { if (mounted) setState(() => governmentBusy = false); }
 }
 
-Widget _governmentFinalPage() => ListView(padding: const EdgeInsets.all(20), children: [
+Widget _governmentFinalPage() {
+  // MCC follows valuation workflow only (no auction).
+  if (isMccApplication && governmentPermission.isEmpty) {
+    governmentPermission = 'Valuation';
+  }
+  return ListView(padding: const EdgeInsets.all(20), children: [
   const Text('Government Land — Final Approval', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
   const SizedBox(height: 20),
-  DropdownButtonFormField<String>(initialValue: governmentPermission.isEmpty ? null : governmentPermission,
+  if (isMccApplication)
+    const InputDecorator(
+      decoration: InputDecoration(
+          labelText: 'Permission type for RFO',
+          border: OutlineInputBorder()),
+      child: Text('Valuation'),
+    )
+  else
+    DropdownButtonFormField<String>(initialValue: governmentPermission.isEmpty ? null : governmentPermission,
     isExpanded: true, decoration: const InputDecoration(labelText: 'Select permission type for RFO', border: OutlineInputBorder()),
     items: GovernmentApproval.types.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
     onChanged: governmentBusy ? null : (v) async {setState(() {governmentPermission = v ?? '';}); await _saveGovernmentOptions();},
@@ -1355,7 +1375,8 @@ Widget _governmentFinalPage() => ListView(padding: const EdgeInsets.all(20), chi
   ],
   const SizedBox(height: 16), const Text('Finalized letters will be available to the caseworker for printing.'),
   if (governmentBusy) const LinearProgressIndicator(),
-]);
+  ]);
+}
 
 Future<void> _finalizeGovernmentApproval() async {
   if (governmentBusy) return;
@@ -1811,7 +1832,8 @@ Widget _buildApplicationApprovalPage() {
 ),
 
       if (!isRtcApplication &&
-          isGovernmentApplication)
+          isGovernmentApplication &&
+          !isMccApplication)
       _approvalCard(
   itemKey: "GOVERNMENT_AGENCY",
   title: "Government Agency",

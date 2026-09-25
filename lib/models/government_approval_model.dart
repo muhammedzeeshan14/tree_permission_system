@@ -25,7 +25,7 @@ class GovernmentApproval {
       answers=Map<String,String>.from(jsonDecode(row['answers'] as String? ?? '{}')),
       approvedFields=Set<String>.from(jsonDecode(row['approvedFields'] as String? ?? '[]')),
       finalPaths=List<String>.from(jsonDecode(row['finalPaths'] as String? ?? '[]'));
-  static bool isGovernment(String type)=>{'STGL','CGL','GL'}.contains(type.trim().toUpperCase());
+  static bool isGovernment(String type)=>{'STGL','CGL','GL','MCC'}.contains(type.trim().toUpperCase());
   static String? validateAnswers(Map<String,String> answers) {
     for(final key in questions.keys) {if((answers[key]??'').trim().isEmpty)return 'Enter '+questions[key]!+'.';}
     if(!natures.contains(answers['nature']))return 'Select reply nature.';

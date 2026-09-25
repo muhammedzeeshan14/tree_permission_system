@@ -21,6 +21,7 @@ import 'package:printing/printing.dart';
 import '../models/application_model.dart';
 import '../models/application_reference_model.dart';
 import '../database/database_helper.dart';
+import '../repositories/application_type_repository.dart';
 import '../repositories/mahazar_repository.dart';
 import '../repositories/tree_repository.dart';
 import '../repositories/tree_count_detail_repository.dart';
@@ -344,6 +345,23 @@ class DrfoDocumentService {
   // ==========================================================
   // BUILD FORWARDING REFERENCES
   // ==========================================================
+
+  /// Government-agency placeholder value. MCC applications use the
+  /// Kannada name of the MCC application type from its master instead
+  /// of a government agency (which MCC hides).
+  Future<String> _governmentAgencyKannadaFor(
+    ApplicationModel application,
+  ) async {
+    if (application.applicationType.trim().toUpperCase() == 'MCC') {
+      final kannada =
+          await ApplicationTypeRepository().getKannadaName('MCC');
+      if (kannada.isNotEmpty) return kannada;
+    }
+    return _masterKannadaName(
+      MasterRepository(),
+      application.governmentAgencyId,
+    );
+  }
 
   /// "(ಈ ಕಛೇರಿ ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: <date>)" suffix for references
   /// that carry a received date.
@@ -1091,10 +1109,8 @@ class DrfoDocumentService {
       application.urbanRuralId,
     );
 
-    final governmentAgencyKannada = await _masterKannadaName(
-      masterRepository,
-      application.governmentAgencyId,
-    );
+    final governmentAgencyKannada =
+        await _governmentAgencyKannadaFor(application);
 
     final structureTypeKannada = await _masterKannadaName(
       masterRepository,
@@ -1500,10 +1516,8 @@ class DrfoDocumentService {
       primaryRecipient: primaryRecipient,
     );
 
-    final governmentAgencyKannada = await _masterKannadaName(
-      masterRepository,
-      application.governmentAgencyId,
-    );
+    final governmentAgencyKannada =
+        await _governmentAgencyKannadaFor(application);
 
     final urbanRuralKannada = await _masterKannadaName(
       masterRepository,
@@ -5527,10 +5541,8 @@ class DrfoDocumentService {
       application.urbanRuralId,
     );
 
-    final governmentAgencyKannada = await _masterKannadaName(
-      masterRepository,
-      application.governmentAgencyId,
-    );
+    final governmentAgencyKannada =
+        await _governmentAgencyKannadaFor(application);
 
     final landClassificationKannada =
         applicationType == "PL" || applicationType == "SPL"
@@ -6014,12 +6026,11 @@ class DrfoDocumentService {
         applicationType == "GL" ||
         applicationType == "STGL" ||
         applicationType == "CGL" ||
-        applicationType == "SGL";
+        applicationType == "SGL" ||
+        applicationType == "MCC";
 
-    final governmentAgencyKannada = await _masterKannadaName(
-      MasterRepository(),
-      application.governmentAgencyId,
-    );
+    final governmentAgencyKannada =
+        await _governmentAgencyKannadaFor(application);
 
     final governmentAgencyPrefix =
         isGovernmentApplication && governmentAgencyKannada.isNotEmpty

@@ -98,8 +98,19 @@ bool get isGovernmentCategory {
   return type == "GL" ||
       type == "STGL" ||
       type == "CGL" ||
-      type == "SGL";
+      type == "SGL" ||
+      type == "MCC";
 }
+
+bool get isMcc {
+  return widget.application.applicationType
+          .trim()
+          .toUpperCase() ==
+      "MCC";
+}
+
+bool get showsGovernmentAgency =>
+    isGovernmentCategory && !isMcc;
 
 bool get isPrivateCategory {
   final type = widget.application.applicationType
@@ -856,11 +867,11 @@ Future<void> _saveVerification() async {
         applicationTypeReason,
 
     governmentAgencyCorrect:
-        isGovernmentCategory
+        showsGovernmentAgency
             ? governmentAgencyCorrect
             : null,
     governmentAgencyReason:
-        isGovernmentCategory
+        showsGovernmentAgency
             ? governmentAgencyReason
             : null,
 
@@ -1387,7 +1398,7 @@ bool validateApplicationVerification() {
     return false;
   }
 
-  if (isGovernmentCategory &&
+  if (showsGovernmentAgency &&
       !validateItem(
         status: governmentAgencyStatus,
         title: "Government Agency",
@@ -1515,7 +1526,7 @@ bool validateOverallRemarkVerification() {
 
 bool hasApplicationReInspection() {
   return applicationTypeStatus == "Re-inspect" ||
-      (isGovernmentCategory &&
+      (showsGovernmentAgency &&
           governmentAgencyStatus == "Re-inspect") ||
       (isPrivateCategory &&
           urbanRuralStatus == "Re-inspect") ||
@@ -2234,7 +2245,7 @@ VerificationCard(
   ),
 ),
 
-if (isGovernmentCategory) ...[
+if (showsGovernmentAgency) ...[
   const SizedBox(height: 8),
 
    VerificationCard(
