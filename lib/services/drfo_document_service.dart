@@ -4511,7 +4511,12 @@ class DrfoDocumentService {
       final officers = await TreeOfficerRepository().getAll();
       final selected = officers.where((row) => row['id'] == approval.treeOfficerId).toList();
       if (selected.isEmpty) throw StateError('Select Tree officer.');
-      officerAddress = await OfficerRepository().addressForRole(selected.single['code'].toString());
+      final roleCode = selected.single['code'].toString();
+      final roleAddress = await OfficerRepository().addressForRole(roleCode);
+      final roleName = await _officerMasterDisplayName(roleCode, '');
+      officerAddress = roleName.isEmpty
+          ? roleAddress
+          : '$roleName\n$roleAddress';
     }
     String? senderName;
     String senderAddress = '';
@@ -4675,6 +4680,30 @@ class DrfoDocumentService {
       bytes: await pdf.save());
   }
 
+  /// Officer-master display name for a tree-officer role code.
+  /// Tree-officer mapping names are never printed; the mapping only
+  /// carries the felling-permission flag.
+  Future<String> _officerMasterDisplayName(
+    String roleCode,
+    String fallback,
+  ) async {
+    try {
+      final directory = await OfficerRepository().getAll();
+      for (final row in directory) {
+        if ((row['role']?.toString() ?? '').trim().toUpperCase() ==
+            roleCode.trim().toUpperCase()) {
+          final name = (row['name']?.toString() ?? '')
+              .replaceAll(RegExp(r'\s+'), ' ')
+              .trim();
+          if (name.isNotEmpty) return name;
+        }
+      }
+    } catch (_) {
+      // Fall through to mapping name.
+    }
+    return fallback;
+  }
+
   Future<Map<String, String>> _privateLandApprovalValues(ApplicationModel application, RevenueReply reply, {bool addressTreeOfficer = true}) async {
     final applicationId = application.id;
     if (applicationId == null) throw StateError('Application is missing.');
@@ -4704,10 +4733,26 @@ class DrfoDocumentService {
     final whyRemoving = await _masterKannadaName(masterRepository, application.whyRemovingId);
     final replyDetails = ['ownership', 'reserved', 'taxes', 'dispute', 'extra']
         .map((key) => reply.answers[key]?.trim() ?? '').where((value) => value.isNotEmpty).join(', ');
+    // To address: officer name + designation + posting address, always
+    // from the officer master (never the tree-officer mapping name).
+    String treeOfficerToAddress = '';
+    if (addressTreeOfficer &&
+        {'ACF', 'DCF'}.contains(selected.first['code'])) {
+      final roleCode = selected.first['code'].toString();
+      final roleName =
+          await _officerMasterDisplayName(roleCode, '');
+      final roleAddress =
+          await OfficerRepository().addressForRole(roleCode);
+      treeOfficerToAddress = roleName.isEmpty
+          ? roleAddress
+          : '$roleName\n$roleAddress';
+    } else if (addressTreeOfficer) {
+      treeOfficerToAddress = await _officerMasterDisplayName(
+          selected.first['code'].toString(),
+          selected.first['name'].toString().trim());
+    }
     return {
-      '{{TREE_OFFICER_TO_ADDRESS}}': addressTreeOfficer && {'ACF','DCF'}.contains(selected.first['code'])
-          ? await OfficerRepository().addressForRole(selected.first['code'].toString())
-          : selected.first['name'].toString().trim(),
+      '{{TREE_OFFICER_TO_ADDRESS}}': treeOfficerToAddress,
       '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
       '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
       '{{RECEIVED_DATE}}': _date(application.receivedDate),

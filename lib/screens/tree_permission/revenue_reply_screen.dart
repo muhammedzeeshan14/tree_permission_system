@@ -8,6 +8,7 @@ import '../../repositories/application_repository.dart';
 import '../../repositories/revenue_reply_repository.dart';
 import '../../repositories/revenue_opinion_repository.dart';
 import '../../repositories/tree_officer_repository.dart';
+import '../../repositories/officer_repository.dart';
 import '../../services/drfo_document_service.dart';
 import '../../services/session_service.dart';
 import '../../constants/workflow_status.dart';
@@ -117,6 +118,7 @@ class _RevenueReplyWorkflowScreenState
   RevenueReply? reply;
   List<RevenueOpinionModel> authorities = [];
   List<Map<String, dynamic>> treeOfficers = [];
+  Map<String, String> officerDisplayNames = {};
   int? selectedTreeOfficerId;
   int step = 0;
   bool busy = false;
@@ -135,9 +137,25 @@ class _RevenueReplyWorkflowScreenState
           : <RevenueOpinionModel>[];
       final officers = widget.rfo ? await TreeOfficerRepository().getAll() : <Map<String, dynamic>>[];
       final officerId = widget.rfo ? await TreeOfficerRepository().getSelection(widget.application.id!) : null;
+      // Display names come from the officer master; the tree-officer
+      // mapping only carries the felling-permission flag.
+      final displayNames = <String, String>{};
+      if (widget.rfo) {
+        try {
+          final directory = await OfficerRepository().getAll();
+          for (final entry in directory) {
+            final role = (entry['role']?.toString() ?? '').trim().toUpperCase();
+            final name = (entry['name']?.toString() ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+            if (role.isNotEmpty && name.isNotEmpty) displayNames[role] = name;
+          }
+        } catch (_) {
+          // Fall back to mapping names below.
+        }
+      }
       if (!mounted) return;
       setState(() {
         treeOfficers = officers;
+        officerDisplayNames = displayNames;
         selectedTreeOfficerId = officerId;
         reply = current;
         authorities = options;
@@ -340,7 +358,13 @@ class _RevenueReplyWorkflowScreenState
           initialValue: selectedTreeOfficerId,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Select Tree officer', border: OutlineInputBorder()),
-          items: treeOfficers.map((row) => DropdownMenuItem<int>(value: row['id'] as int, child: Text(row['name'].toString()))).toList(),
+          items: treeOfficers.map((row) {
+            final code = (row['code']?.toString() ?? '').trim().toUpperCase();
+            final label = officerDisplayNames[code] ??
+                (row['name']?.toString() ?? code);
+            return DropdownMenuItem<int>(
+                value: row['id'] as int, child: Text('$label ($code)'));
+          }).toList(),
           onChanged: busy ? null : (id) {
             if (id != null) _run(() async {
               await TreeOfficerRepository().saveSelection(widget.application.id!, id);
