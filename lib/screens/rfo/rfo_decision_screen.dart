@@ -1334,9 +1334,13 @@ Future<bool> _saveGovernmentOptions() async {
 }
 
 Widget _governmentFinalPage() {
-  // MCC follows valuation workflow only (no auction).
+  // MCC follows valuation workflow only (no auction) with khata
+  // treated as given (no khata question).
   if (isMccApplication && governmentPermission.isEmpty) {
     governmentPermission = 'Valuation';
+  }
+  if (isMccApplication) {
+    governmentKhata = true;
   }
   return ListView(padding: const EdgeInsets.all(20), children: [
   const Text('Government Land — Final Approval', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
@@ -1354,7 +1358,7 @@ Widget _governmentFinalPage() {
     items: GovernmentApproval.types.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
     onChanged: governmentBusy ? null : (v) async {setState(() {governmentPermission = v ?? '';}); await _saveGovernmentOptions();},
   ),
-  if (governmentPermission == 'Valuation') ...[
+  if (governmentPermission == 'Valuation' && !isMccApplication) ...[
     const SizedBox(height: 20),
     DropdownButtonFormField<bool>(initialValue: governmentKhata, decoration: const InputDecoration(labelText: 'Whether khata details given?', border: OutlineInputBorder()),
       items: const [DropdownMenuItem(value: true, child: Text('Yes')), DropdownMenuItem(value: false, child: Text('No'))],
@@ -1362,6 +1366,10 @@ Widget _governmentFinalPage() {
     ),
     const SizedBox(height: 20),
     Text(governmentKhata == false ? 'Final Approval generates a document request to the applicant and moves the case to Pending Government land approvals.' : 'Final Approval generates the RFO GL valuation letter to the selected Tree Officer and completes the application.'),
+  ],
+  if (governmentPermission == 'Valuation' && isMccApplication) ...[
+    const SizedBox(height: 20),
+    const Text('Final Approval generates the RFO GL valuation letter to the selected Tree Officer and completes the application.'),
   ],
   if (GovernmentApproval.types.contains(governmentPermission)) ...[
     const SizedBox(height: 20),
