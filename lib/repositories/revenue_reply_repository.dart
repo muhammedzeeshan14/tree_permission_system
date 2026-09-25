@@ -453,10 +453,13 @@ class RevenueReplyRepository {
     Map<String, String> answers, {
     bool rfo = false,
     bool submit = false,
+    bool includeOnline = true,
   }) async {
-    final clean = RevenueReply.activeAnswers(answers);
+    final clean =
+        RevenueReply.activeAnswers(answers, includeOnline: includeOnline);
     if (submit) {
-      final error = RevenueReply.validate(clean);
+      final error =
+          RevenueReply.validate(clean, includeOnline: includeOnline);
       if (error != null) throw StateError(error);
     }
     if (OnlineMode.enabled) {
@@ -468,7 +471,8 @@ class RevenueReplyRepository {
         );
         final changed =
             jsonEncode(clean) !=
-            jsonEncode(RevenueReply.activeAnswers(reply.answers));
+            jsonEncode(RevenueReply.activeAnswers(reply.answers,
+                includeOnline: includeOnline));
         final next = await _onlineUpdated(reply, {
           'answers': jsonEncode(clean),
           if (changed || submit) 'decisions': '{}',
@@ -531,9 +535,12 @@ class RevenueReplyRepository {
   Future<RevenueReply> decide(
     RevenueReply reply,
     String field,
-    String decision,
-  ) async {
-    if (!RevenueReply.fields(reply.answers).contains(field) ||
+    String decision, {
+    bool includeOnline = true,
+  }) async {
+    if (!RevenueReply.fields(reply.answers,
+                includeOnline: includeOnline)
+            .contains(field) ||
         !['Approve', 'Re-inspect'].contains(decision)) {
       throw ArgumentError('Invalid revenue review decision.');
     }
@@ -602,8 +609,9 @@ class RevenueReplyRepository {
     String letterPath,
     String approvalDate, {
     PrivateLandOutcome? outcomeOverride,
+    bool includeOnline = true,
   }) async {
-    if (!reply.allApproved)
+    if (!reply.allApprovedFor(includeOnline: includeOnline))
       throw StateError('Approve every answer before final approval.');
     if (OnlineMode.enabled) {
       try {

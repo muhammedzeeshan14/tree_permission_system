@@ -60,35 +60,55 @@ class RevenueReply {
       nextAuthorityId = map['nextAuthorityId'] as int?,
       finalLetterPath = map['finalLetterPath'] as String? ?? '';
 
-  static List<String> fields(Map<String, String> answers) => [
-    'authority',
-    'letterNumber',
-    'letterDate',
-    'receivedDate',
-    'nature',
-    if (answers['nature'] == satisfied) ...[
-      'ownership',
-      'reserved',
-      'taxes',
-      'dispute',
-      'extra',
-    ],
-    if (answers['nature'] == notSatisfied) 'unsatisfiedDetails',
-    if (answers['nature'] == wrongAuthority) 'wrongAuthorityDetails',
-    'onlineApplicationStatus',
-    if (answers['onlineApplicationStatus'] == onlineApplied)
-      'onlineApplicationNumber',
-  ];
+  static List<String> fields(
+    Map<String, String> answers, {
+    bool includeOnline = true,
+  }) {
+    final list = [
+      'authority',
+      'letterNumber',
+      'letterDate',
+      'receivedDate',
+      'nature',
+      if (answers['nature'] == satisfied) ...[
+        'ownership',
+        'reserved',
+        'taxes',
+        'dispute',
+        'extra',
+      ],
+      if (answers['nature'] == notSatisfied) 'unsatisfiedDetails',
+      if (answers['nature'] == wrongAuthority) 'wrongAuthorityDetails',
+    ];
+    // Sandal Private has no online-application concept.
+    if (includeOnline) {
+      list.add('onlineApplicationStatus');
+      if (answers['onlineApplicationStatus'] == onlineApplied) {
+        list.add('onlineApplicationNumber');
+      }
+    }
+    return list;
+  }
 
-  static Map<String, String> activeAnswers(Map<String, String> answers) => {
-    for (final key in fields(answers)) key: (answers[key] ?? '').trim(),
+  static Map<String, String> activeAnswers(
+    Map<String, String> answers, {
+    bool includeOnline = true,
+  }) => {
+    for (final key in fields(answers, includeOnline: includeOnline))
+      key: (answers[key] ?? '').trim(),
   };
 
-  static String? validate(Map<String, String> answers) {
+  static String? validate(
+    Map<String, String> answers, {
+    bool includeOnline = true,
+  }) {
     if (!natures.contains(answers['nature']))
       return 'Select the revenue opinion nature.';
-    if (!onlineStatuses.contains(answers['onlineApplicationStatus']))
+    if (includeOnline &&
+        !onlineStatuses.contains(
+            answers['onlineApplicationStatus'])) {
       return 'Select online application status (Applied / Not applied).';
+    }
     for (final key in requiredFields) {
       if ((answers[key] ?? '').trim().isEmpty) {
         return 'Enter ' + questions[key]! + '.';
@@ -103,7 +123,10 @@ class RevenueReply {
     return null;
   }
 
-  bool get allApproved =>
-      validate(answers) == null &&
-      fields(answers).every((key) => decisions[key] == 'Approve');
+  bool get allApproved => allApprovedFor();
+
+  bool allApprovedFor({bool includeOnline = true}) =>
+      validate(answers, includeOnline: includeOnline) == null &&
+      fields(answers, includeOnline: includeOnline)
+          .every((key) => decisions[key] == 'Approve');
 }

@@ -55,7 +55,10 @@ class _RevenueReplyHistoryCardState extends State<RevenueReplyHistoryCard> {
                 ),
                 Text('Stage: ' + reply.stage),
                 if (reply.answers.isNotEmpty)
-                  for (final field in RevenueReply.fields(reply.answers))
+                  for (final field in RevenueReply.fields(
+                      reply.answers,
+                      includeOnline: reply.answers.containsKey(
+                          'onlineApplicationStatus')))
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Row(

@@ -135,6 +135,10 @@ class _RevenueReplyWorkflowScreenState
   List<Map<String, dynamic>> treeOfficers = [];
   Map<String, String> officerDisplayNames = {};
   int? selectedTreeOfficerId;
+
+  bool get isSandal =>
+      widget.application.applicationType.trim().toUpperCase() ==
+      'SPL';
   int step = 0;
   bool busy = false;
   String? error;
@@ -200,7 +204,11 @@ class _RevenueReplyWorkflowScreenState
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RevenueReplyEntryScreen(reply: reply!, rfo: widget.rfo),
+        builder: (_) => RevenueReplyEntryScreen(
+            reply: reply!,
+            rfo: widget.rfo,
+            applicationType:
+                widget.application.applicationType),
       ),
     );
     if (!mounted) return;
@@ -213,7 +221,9 @@ class _RevenueReplyWorkflowScreenState
 
   Future<void> _finalize() async {
     final current = reply!;
-    if (!current.allApproved) throw StateError('Approve every answer first.');
+    if (!current.allApprovedFor(includeOnline: !isSandal)) {
+      throw StateError('Approve every answer first.');
+    }
     final now = DateTime.now().toIso8601String();
     final previousDate = widget.application.rfoApprovalDate;
     widget.application.rfoApprovalDate = now;
@@ -277,6 +287,7 @@ class _RevenueReplyWorkflowScreenState
                 'SPL'
             ? PrivateLandOutcome.treeOfficerLetter
             : null,
+        includeOnline: !isSandal,
       );
       widget.application.status =
           current.answers['nature'] == RevenueReply.wrongAuthority
@@ -307,7 +318,8 @@ class _RevenueReplyWorkflowScreenState
         'Every answer must be approved. Re-inspect leaves the application unapproved. Modified answers must be reviewed again.',
       ),
       const SizedBox(height: 12),
-      for (final field in RevenueReply.fields(reply!.answers))
+      for (final field in RevenueReply.fields(reply!.answers,
+          includeOnline: !isSandal))
         Card(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -368,6 +380,8 @@ class _RevenueReplyWorkflowScreenState
                                         reply!,
                                         field,
                                         decision,
+                                        includeOnline:
+                                            !isSandal,
                                       );
                                     }
                                   }),
@@ -384,8 +398,7 @@ class _RevenueReplyWorkflowScreenState
     ],
   );
   String get _satisfiedOutcomeMessage {
-    if (widget.application.applicationType.trim().toUpperCase() ==
-        'SPL') {
+    if (isSandal) {
       return 'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and completes the application.';
     }
     final selected = treeOfficers.where((row) => row['id'] == selectedTreeOfficerId);
@@ -541,7 +554,7 @@ class _RevenueReplyWorkflowScreenState
                   const SizedBox(width: 12),
                   FilledButton(
                     onPressed:
-                        busy || (widget.rfo && step == 1 && !reply!.allApproved)
+                        busy || (widget.rfo && step == 1 && !reply!.allApprovedFor(includeOnline: !isSandal))
                         ? null
                         : () => _run(() async {
                             if (!widget.rfo) {
@@ -573,10 +586,12 @@ class _RevenueReplyWorkflowScreenState
 class RevenueReplyEntryScreen extends StatefulWidget {
   final RevenueReply reply;
   final bool rfo;
+  final String applicationType;
   const RevenueReplyEntryScreen({
     super.key,
     required this.reply,
     this.rfo = false,
+    this.applicationType = '',
   });
   @override
   State<RevenueReplyEntryScreen> createState() =>
@@ -604,6 +619,9 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
   Map<String, String> get answers => {
     for (final entry in controllers.entries) entry.key: entry.value.text,
   };
+
+  bool get isSandal =>
+      widget.applicationType.trim().toUpperCase() == 'SPL';
   void _changed() {
     setState(() {});
     if (!widget.rfo) return;
@@ -617,7 +635,8 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
   Future<void> _autosave() {
     final values = answers;
     final operation = queue.then((_) async {
-      reply = await repository.saveAnswers(reply, values, rfo: true);
+      reply = await repository.saveAnswers(reply, values,
+          rfo: true, includeOnline: !isSandal);
       if (mounted)
         setState(() => saveStatus = 'Changes saved. Review the answers again.');
     });
@@ -636,7 +655,8 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
         await queue;
         await _autosave();
       } else {
-        reply = await repository.saveAnswers(reply, answers, submit: submit);
+        reply = await repository.saveAnswers(reply, answers,
+            submit: submit, includeOnline: !isSandal);
       }
       if (!mounted) return;
       setState(() => allowPop = true);
@@ -747,7 +767,8 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                for (final field in RevenueReply.fields(answers))
+                for (final field in RevenueReply.fields(answers,
+                    includeOnline: !isSandal))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Row(
