@@ -165,6 +165,13 @@ String selectedRecommendationCode = "";
   // Load Application
   //----------------------------------------------------------
 
+  bool get isSandalApplication {
+    final type = (application?.applicationType ?? "")
+        .trim()
+        .toUpperCase();
+    return type == "SPL" || type == "SGL";
+  }
+
   Future<void> _loadApplication() async {
 
     application =
@@ -275,9 +282,23 @@ Future<void> _loadRecommendationTypes() async {
     "Recommendation Type",
   );
 
-  recommendationTypeList = all
+  final active = all
       .where((item) => item["isActive"] == 1)
       .toList();
+
+  // Sandal applications allow only Full Tree and Not Recommended.
+  if (isSandalApplication) {
+    recommendationTypeList = active.where((item) {
+      final code = item["code"]
+              ?.toString()
+              .trim()
+              .toUpperCase() ??
+          "";
+      return code == "FULL" || code == "NR";
+    }).toList();
+  } else {
+    recommendationTypeList = active;
+  }
 
 }
 
@@ -1258,6 +1279,8 @@ Widget _treeStatusDropdown() {
 
     const SizedBox(height: 12),
 
+    // Not applicable for sandal applications.
+    if (!isSandalApplication) ...[
 CheckboxListTile(
 
   contentPadding: EdgeInsets.zero,
@@ -1288,6 +1311,8 @@ CheckboxListTile(
       controller: firewoodController,
       label: "Firewood (Tonnes)",
     ),
+
+    ],
 
   ],
 ),

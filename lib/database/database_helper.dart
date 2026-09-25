@@ -38,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 47,
+    version: 48,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -2272,6 +2272,33 @@ if (oldVersion < 47) {
         'isActive': 1,
       });
     }
+  }
+}
+
+// ============================================================
+// VERSION 48
+// REMOVE DEFAULT SEEDED SPECIES (RFO-entered only)
+// ============================================================
+
+if (oldVersion < 48) {
+  const seededSpecies = [
+    ['Neem', 'NEEM'],
+    ['Honge', 'HONGE'],
+    ['Teak', 'TEAK'],
+    ['Mango', 'MANGO'],
+    ['Rain Tree', 'RAIN'],
+    ['Silver Oak', 'SILVER'],
+    ['Nilgiri', 'NILGIRI'],
+    ['Banyan', 'BANYAN'],
+    ['Peepal', 'PEEPAL'],
+    ['Tamarind', 'TAMARIND'],
+  ];
+  for (final seed in seededSpecies) {
+    await db.delete(
+      'master_data',
+      where: 'masterType=? AND value=? AND code=?',
+      whereArgs: ['Species', seed[0], seed[1]],
+    );
   }
 }
 

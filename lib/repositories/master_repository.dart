@@ -963,17 +963,8 @@ await add("Beat","Beat-2","B2","",2);
   await add("Sandal Destination","Sandalwood Depot, Hunsur","HUNSUR_DEPOT","BOTH",3);
 
   // SPECIES
-
-  await add("Species","Neem","NEEM","",1);
-await add("Species","Honge","HONGE","",2);
-await add("Species","Teak","TEAK","",3);
-await add("Species","Mango","MANGO","",4);
-await add("Species","Rain Tree","RAIN","",5);
-await add("Species","Silver Oak","SILVER","",6);
-await add("Species","Nilgiri","NILGIRI","",7);
-await add("Species","Banyan","BANYAN","",8);
-await add("Species","Peepal","PEEPAL","",9);
-await add("Species","Tamarind","TAMARIND","",10);
+  // No default species are seeded. Only species entered and saved
+  // through the Species master screen exist here.
 
   // PROBLEMS
 

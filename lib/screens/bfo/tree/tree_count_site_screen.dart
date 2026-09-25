@@ -57,8 +57,48 @@ class _TreeCountSiteScreenState
 
   Future<void> load() async {
 
-  speciesList =
+  final allSpecies =
       await speciesRepo.getSpecies();
+
+  // Show each species once (timber record preferred); pole/timber
+  // category is decided later by measurements.
+  final Map<String, Map<String, dynamic>> unique = {};
+
+  for (final species in allSpecies) {
+    final name = species["value"]
+            ?.toString()
+            .trim()
+            .toLowerCase() ??
+        "";
+
+    if (name.isEmpty) continue;
+
+    final existing = unique[name];
+
+    if (existing == null) {
+      unique[name] = species;
+      continue;
+    }
+
+    final existingGroup = existing["speciesGroup"]
+            ?.toString()
+            .trim()
+            .toUpperCase() ??
+        "";
+
+    final currentGroup = species["speciesGroup"]
+            ?.toString()
+            .trim()
+            .toUpperCase() ??
+        "";
+
+    if (existingGroup != "TIMBER" &&
+        currentGroup == "TIMBER") {
+      unique[name] = species;
+    }
+  }
+
+  speciesList = unique.values.toList();
 
   if (widget.siteId != null) {
 
