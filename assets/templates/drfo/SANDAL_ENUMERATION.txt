@@ -1,26 +1,14 @@
 [CENTER]
 [BOLD]
-ಶ್ರೀಗಂಧ ಮರಗಳ ಎಣಿಕೆ ಪಟ್ಟಿ
+ಅಂದಾಜು ಅಳತೆ ಪಟ್ಟಿ
 [/BOLD]
-[/CENTER]
 
-ಅರ್ಜಿದಾರರ ಹೆಸರು: {{APPLICANT_NAME}}
-ವಿಳಾಸ: {{APPLICANT_ADDRESS}}
-ಖಾತೆ/ಸ್ಥಳ: {{TREE_LOCATION}}
-ಒಟ್ಟು ಶಿಫಾರಸು ಮಾಡಲಾದ ಶ್ರೀಗಂಧ ಮರಗಳು: {{TOTAL_RECOMMENDED_TREES}}
+{{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ರವರ ಅರ್ಜಿಯಂತೆ {{GOVERNMENT_AGENCY_PREFIX}}{{TREE_LOCATION}} {{LAND_TYPE_KANNADA}}ದಲ್ಲಿರುವ ಶ್ರೀಗಂಧ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅಂದಾಜು ಅಳತೆ ಪಟ್ಟಿ
+[/CENTER]
 
 {{SANDAL_TREE_TABLE}}
 
-[CENTER]
-ವಂದನೆಗಳೊಂದಿಗೆ,
-[/CENTER]
 [RIGHT]
-ತಮ್ಮ ನಂಬುಗೆಯೊಂದಿಗೆ,
-
-
-
 ಉಪವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರ
 {{SECTION}} ಶಾಖೆ, {{RANGE_NAME}} ವಲಯ
 [/RIGHT]
-ದಿನಾಂಕ: {{LETTER_DATE}}
-ಸ್ಥಳ: {{RANGE_LOCATION}}

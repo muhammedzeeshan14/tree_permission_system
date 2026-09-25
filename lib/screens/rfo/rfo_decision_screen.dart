@@ -246,6 +246,12 @@ bool get isMccApplication =>
         .toUpperCase() ==
     "MCC";
 
+bool get isSandalGovernmentApplication =>
+    widget.application.applicationType
+        .trim()
+        .toUpperCase() ==
+    "SGL";
+
 bool get isSandalApplication {
   final type = widget.application.applicationType
       .trim()
@@ -1388,6 +1394,21 @@ Widget _governmentFinalPage() {
   if (isMccApplication) {
     governmentKhata = true;
   }
+  // Sandal Government: direct DCF letter, no valuation/auction,
+  // no khata question, no tree-officer selection.
+  if (isSandalGovernmentApplication) {
+    return ListView(padding: const EdgeInsets.all(20), children: [
+      const Text('Government Sandal — Final Approval',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 20),
+      const Text(
+          'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and completes the application.'),
+      const SizedBox(height: 16),
+      const Text(
+          'Finalized letters will be available to the caseworker for printing.'),
+      if (governmentBusy) const LinearProgressIndicator(),
+    ]);
+  }
   return ListView(padding: const EdgeInsets.all(20), children: [
   const Text('Government Land — Final Approval', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
   const SizedBox(height: 20),
@@ -1437,6 +1458,26 @@ Future<void> _finalizeGovernmentApproval() async {
   setState(() => governmentBusy = true);
   final previousDate = widget.application.rfoApprovalDate;
   try {
+    // Sandal Government: direct DCF approval letter, no options.
+    if (isSandalGovernmentApplication) {
+      final date = DateTime.now().toIso8601String();
+      widget.application.rfoApprovalDate = date;
+      await documentService.generateRfoSandalGovtApprovalLetter(
+        widget.application,
+      );
+      widget.application.status = WorkflowStatus.completed;
+      await applicationRepository.updateApplication(
+        widget.application,
+      );
+      await historyRepository.addHistory(
+        officeNumber: widget.application.officeNumber,
+        action: HistoryActions.approved,
+        remarks: "Sandal government application approved by RFO.",
+        actionBy: SessionService.instance.name,
+      );
+      if (mounted) Navigator.pop(context, true);
+      return;
+    }
     final record = await governmentRepository.saveOptions(widget.application.id!, governmentPermission, governmentKhata, governmentOfficerId);
     final error = GovernmentApprovalRepository.validateOptions(record);
     if (error != null) throw StateError(error);

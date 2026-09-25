@@ -70,3 +70,4 @@ flutter:
     - assets/templates/rfo/RFO_REVENUE_OPINION_REQUEST_PL.txt
     - assets/templates/rfo/RFO_APPLY_ONLINE_PL.txt
     - assets/templates/rfo/RFO_APPROVED_SPL.txt
+    - assets/templates/rfo/RFO_APPROVED_SGL.txt

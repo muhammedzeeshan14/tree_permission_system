@@ -4222,7 +4222,8 @@ class DrfoDocumentService {
     final isGovernmentLand =
         applicationType == 'GL' ||
         applicationType == 'STGL' ||
-        applicationType == 'CGL';
+        applicationType == 'CGL' ||
+        applicationType == 'SGL';
 
     final isPrivateLand = applicationType == 'PL' ||
         applicationType == 'SPL';
@@ -5168,6 +5169,186 @@ class DrfoDocumentService {
         bytes: await pdf.save());
   }
 
+  /// RFO sandal government approval letter (SGL recommended). To is
+  /// always the DCF officer from the officer master; no valuation or
+  /// auction is involved. Editable template RFO_APPROVED_SGL.txt.
+  Future<File> generateRfoSandalGovtApprovalLetter(
+    ApplicationModel application,
+  ) async {
+    if (application.applicationType.trim().toUpperCase() != 'SGL') {
+      throw StateError(
+          'Sandal government approval letter can be generated only for Sandal Government applications.');
+    }
+    if (application.id == null) {
+      throw StateError('Application is missing.');
+    }
+    await _loadFlutterKannadaFont();
+    final config = await OfficeConfigurationRepository().getConfiguration();
+    final range = config?['rangeName']?.toString() ?? '';
+    final location = config?['rangeLocation']?.toString() ?? range;
+    final masterRepository = MasterRepository();
+
+    final applicantReceived = _date(application.receivedDate);
+    final references = <String>[
+      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}' +
+          (applicantReceived.isEmpty
+              ? '.'
+              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'),
+    ];
+    for (final reference in application.forwardingReferences) {
+      if (reference.forwardedBy.trim().isEmpty &&
+          reference.referenceNumber.trim().isEmpty &&
+          reference.referenceDate.trim().isEmpty) {
+        continue;
+      }
+      references.add(
+          '${references.length + 1}. ${reference.forwardedBy.trim()} ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ${reference.referenceNumber.trim()}, ದಿನಾಂಕ: ${_date(reference.referenceDate)}${_receivedSuffix(reference)}.');
+    }
+    references.add(
+        '${references.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.');
+
+    final dcfName = await _officerMasterDisplayName('DCF', '');
+    final dcfAddress =
+        await OfficerRepository().addressForRole('DCF');
+    final toAddress = dcfName.isEmpty
+        ? dcfAddress
+        : '$dcfName\n$dcfAddress';
+
+    final structureTypeKannada = await _masterKannadaName(
+      masterRepository,
+      application.structureTypeId,
+    );
+    final purposeKannada = await _masterKannadaName(
+      masterRepository,
+      application.purposeId,
+    );
+    final workNameText = application.workName.trim();
+    final whyRemovingItem = await masterRepository.getMasterById(
+      application.whyRemovingId,
+    );
+    final whyRemovingKannada =
+        whyRemovingItem?['kannadaName']?.toString().trim().isNotEmpty == true
+            ? whyRemovingItem!['kannadaName'].toString().trim()
+            : whyRemovingItem?['value']?.toString().trim() ?? '';
+    final trees = await TreeRepository().getTrees(application.id!);
+    final recommendationTypes = await masterRepository.getMasters(
+      'Recommendation Type',
+    );
+    final recommendedIds = recommendationTypes
+        .where((row) => {
+              'FULL',
+              'BRANCH',
+              'TWIG',
+              'TOP'
+            }.contains(
+            row['code']?.toString().trim().toUpperCase()))
+        .map((row) => row['id'])
+        .toSet();
+    final recommendedTrees = trees
+        .where((tree) => recommendedIds.contains(tree.recommendationTypeId))
+        .toList();
+    final recommendationReasons = await masterRepository.getMasters(
+      'Recommendation Reason',
+    );
+    final reasonById = <int, String>{
+      for (final item in recommendationReasons)
+        item['id'] as int:
+            item['kannadaName']?.toString().trim().isNotEmpty == true
+            ? item['kannadaName'].toString().trim()
+            : item['value']?.toString().trim() ?? '',
+    };
+    final uniqueReasons = <String>{};
+    for (final tree in recommendedTrees) {
+      for (final reasonId in tree.recommendationReasonIds) {
+        final reason = reasonById[reasonId]?.trim() ?? '';
+        if (reason.isNotEmpty) uniqueReasons.add(reason);
+      }
+    }
+    final treeStatusMasters =
+        await masterRepository.getMasters('Tree Status');
+    final statusById = <int, String>{
+      for (final item in treeStatusMasters)
+        item['id'] as int:
+            item['kannadaName']?.toString().trim().isNotEmpty == true
+            ? item['kannadaName'].toString().trim()
+            : item['value']?.toString().trim() ?? '',
+    };
+    final statusCounts = <String, int>{};
+    for (final tree in recommendedTrees) {
+      final name = tree.treeStatusId == null
+          ? ''
+          : statusById[tree.treeStatusId]?.trim() ?? '';
+      if (name.isNotEmpty) {
+        statusCounts[name] = (statusCounts[name] ?? 0) + 1;
+      }
+    }
+    final governmentAgencyKannada =
+        await _governmentAgencyKannadaFor(application);
+    final additionalTreeLocation = application.treeLocationSame
+        ? ''
+        : application.treeLocationAddress.trim();
+    final sandalRows = await _buildSandalTreeRows(application);
+
+    var master = await _loadRfoTemplate('RFO_APPROVED_SGL.txt');
+    final values = <String, String>{
+      '{{TREE_OFFICER_TO_ADDRESS}}': toAddress,
+      '{{TREE_LOCATION}}': _location(application),
+      '{{APPLICANT_NAME}}': application.applicantName,
+      '{{APPLICANT_ADDRESS}}': application.applicantAddress,
+      '{{ADDITIONAL_TREE_LOCATION}}': additionalTreeLocation,
+      '{{SANDAL_REFERENCES}}': references.join('\n'),
+      '{{STRUCTURE_TYPE_KANNADA}}': structureTypeKannada,
+      '{{PURPOSE_KANNADA}}': purposeKannada,
+      '{{WORK_NAME_TEXT}}': workNameText,
+      '{{WHY_REMOVING_KANNADA}}': whyRemovingKannada,
+      '{{SECTION}}': await _printSectionName(application),
+      '{{BEAT}}': await _printBeatName(application),
+      '{{RANGE_NAME}}': range,
+      '{{RANGE_LOCATION}}': location,
+      '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
+      '{{GOVERNMENT_AGENCY_KANNADA}}': governmentAgencyKannada,
+      '{{TOTAL_RECOMMENDED_TREES}}': sandalRows.length.toString(),
+      '{{TREE_STATUS_SUMMARY}}': _joinKannadaNames(statusCounts.entries
+          .map((entry) => '${entry.value} ಸಂಖ್ಯೆ ${entry.key}')
+          .toList()),
+      '{{UNIQUE_RECOMMENDATION_REASONS}}':
+          _joinKannadaNames(uniqueReasons.toList()),
+      '{{SANDAL_FROM_LOCATION}}': _safeText(application.treeLocationSame
+          ? application.applicantAddress.trim()
+          : application.treeLocationAddress.trim()),
+      '{{SANDAL_TO_LOCATION}}':
+          await _sandalDestinationKannada(application),
+    };
+    master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+      final value = values[match.group(0)];
+      if (value == null) {
+        throw StateError(
+            'Unknown sandal government approval template placeholder: ' +
+                match.group(0)!);
+      }
+      return value.trim().isEmpty ? '—' : value;
+    });
+    final pages = await _renderMasterToPng(master,
+        rfoLetterhead: _RfoLetterheadData(
+          letterNumber: application.officeNumber,
+          rangeName: range,
+          rangeLocation: location,
+          rangeOfficeAddress:
+              config?['rangeOfficeAddress']?.toString() ?? '',
+          rangeEmail: config?['rangeEmail']?.toString() ?? '',
+          logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',
+          approvalDate: _date(application.rfoApprovalDate),
+        ),
+        sandalTreeRows: sandalRows);
+    final pdf = pw.Document();
+    _appendRenderedPages(pdf, pages);
+    return await _savePdf(
+        officeNumber: application.officeNumber,
+        fileName: _safeFileName(application.officeNumber) +
+            '_RFO_APPROVED_SGL.pdf',
+        bytes: await pdf.save());
+  }
+
   Future<File?> generateRfoPrivateLandDecisionLetter(
     ApplicationModel application, RevenueReply reply, {PrivateLandOutcome? outcomeOverride}
   ) async {
@@ -5800,11 +5981,12 @@ class DrfoDocumentService {
 
     final applicationType = application.applicationType.trim().toUpperCase();
 
-    // Private Land uses its own Mahazar format; Sandal Private uses
+    // Private Land uses its own Mahazar format; sandal types use
     // the sandal variant without timber/pole/firewood produce.
     // Other application types temporarily continue
     // using the old template until their formats are supplied.
-    final usesSandalMahazar = applicationType == "SPL";
+    final usesSandalMahazar = applicationType == "SPL" ||
+        applicationType == "SGL";
 
     final usesCommonLandMahazar =
         !usesSandalMahazar &&
@@ -6358,7 +6540,7 @@ class DrfoDocumentService {
 
     final fileSuffix = isUpdated
         ? "_UPDATED_MAHAZAR.pdf"
-        : applicationType == "SPL"
+        : applicationType == "SPL" || applicationType == "SGL"
         ? "_SANDAL_MAHAZAR.pdf"
         : applicationType == "PL"
         ? "_PRIVATE_LAND_MAHAZAR.pdf"
@@ -6639,7 +6821,7 @@ class DrfoDocumentService {
   Future<File> generateTreeEnumeration(ApplicationModel application) async {
     final applicationType = application.applicationType.trim().toUpperCase();
 
-    if (applicationType == 'SPL') {
+    if (applicationType == 'SPL' || applicationType == 'SGL') {
       return await _generateSandalTreeEnumeration(application);
     }
 
