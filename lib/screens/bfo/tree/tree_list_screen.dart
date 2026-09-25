@@ -6,6 +6,7 @@ import '../../../models/application_model.dart';
 import '../../../models/tree_model.dart';
 
 import '../../../repositories/application_repository.dart';
+import '../../../repositories/master_repository.dart';
 import '../../../repositories/tree_repository.dart';
 
 import '../../../widgets/application_header_card.dart';
@@ -57,6 +58,13 @@ class _TreeListScreenState
 
   List<TreeModel> allTrees = [];
 
+  // Sandal transport destination (SPL/SGL only).
+  List<Map<String, dynamic>> sandalDestinations = [];
+  int? selectedSandalDestinationId;
+  bool sandalDestinationIsOther = false;
+  final TextEditingController sandalCustomController =
+      TextEditingController();
+
   List<TreeModel> filteredTrees = [];
 
   Map<int, String> speciesMap = {};
@@ -100,6 +108,7 @@ Map<int,String> recommendationReasonMap = {};
   void dispose() {
 
     searchController.dispose();
+    sandalCustomController.dispose();
 
     super.dispose();
 
@@ -117,6 +126,8 @@ Map<int,String> recommendationReasonMap = {};
 
     await _loadTrees();
 
+    await _loadSandalDestinations();
+
     if (mounted) {
 
       setState(() {
@@ -127,6 +138,54 @@ Map<int,String> recommendationReasonMap = {};
 
     }
 
+  }
+
+  bool get _isSandalApplication {
+    final type = application?.applicationType
+            .trim()
+            .toUpperCase() ??
+        "";
+    return type == "SPL" || type == "SGL";
+  }
+
+  Future<void> _loadSandalDestinations() async {
+    if (!_isSandalApplication || application == null) return;
+
+    final all = await MasterRepository().getMasters(
+      "Sandal Destination",
+    );
+
+    final type = application!.applicationType
+        .trim()
+        .toUpperCase();
+
+    sandalDestinations = all.where((item) {
+      if (item["isActive"] != 1 &&
+          item["id"] != application!.sandalDestinationId) {
+        return false;
+      }
+      final mapping =
+          item["parentCode"]?.toString().trim().toUpperCase() ?? "";
+      return mapping.isEmpty ||
+          mapping == "BOTH" ||
+          mapping == type;
+    }).toList();
+
+    if (application!.sandalDestinationId != null &&
+        sandalDestinations.any((item) =>
+            item["id"] ==
+            application!.sandalDestinationId)) {
+      selectedSandalDestinationId =
+          application!.sandalDestinationId;
+      sandalDestinationIsOther = false;
+    } else if ((application!.sandalDestinationCustom)
+        .trim()
+        .isNotEmpty) {
+      selectedSandalDestinationId = -1;
+      sandalDestinationIsOther = true;
+      sandalCustomController.text =
+          application!.sandalDestinationCustom;
+    }
   }
 
   //----------------------------------------------------------
@@ -561,6 +620,73 @@ if (result == true) {
   }
 
   //----------------------------------------------------------
+  // Sandal Destination Card
+  //----------------------------------------------------------
+
+  Widget _sandalDestinationCard() {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Send sandal to",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              value: sandalDestinations.any((item) =>
+                      item["id"] ==
+                      selectedSandalDestinationId)
+                  ? selectedSandalDestinationId
+                  : null,
+              decoration: const InputDecoration(
+                labelText: "Send sandal to",
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                ...sandalDestinations.map((item) {
+                  return DropdownMenuItem<int>(
+                    value: item["id"] as int,
+                    child: Text(
+                      item["value"]?.toString() ?? "",
+                    ),
+                  );
+                }),
+                const DropdownMenuItem<int>(
+                  value: -1,
+                  child: Text("Others"),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  selectedSandalDestinationId = value;
+                  sandalDestinationIsOther = value == -1;
+                });
+              },
+            ),
+            if (sandalDestinationIsOther) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: sandalCustomController,
+                decoration: const InputDecoration(
+                  labelText: "Type destination",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  //----------------------------------------------------------
   // Continue
   //----------------------------------------------------------
 
@@ -586,6 +712,44 @@ if (result == true) {
 
       return;
 
+    }
+
+    if (_isSandalApplication && application != null) {
+      if (selectedSandalDestinationId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Please select where to send the sandalwood.",
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (sandalDestinationIsOther &&
+          sandalCustomController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Please type the sandal destination.",
+            ),
+          ),
+        );
+        return;
+      }
+
+      application!.sandalDestinationId =
+          sandalDestinationIsOther
+              ? null
+              : selectedSandalDestinationId;
+      application!.sandalDestinationCustom =
+          sandalDestinationIsOther
+              ? sandalCustomController.text.trim()
+              : "";
+
+      await _applicationRepository.updateApplication(
+        application!,
+      );
     }
 
     Navigator.pop(
@@ -1347,6 +1511,13 @@ String _branchTwig(
                         child: _treeList(),
 
                       ),
+
+                      //------------------------------------------------
+                      // Sandal Destination (SPL/SGL only)
+                      //------------------------------------------------
+
+                      if (_isSandalApplication)
+                        _sandalDestinationCard(),
 
                       //------------------------------------------------
                       // Continue Button

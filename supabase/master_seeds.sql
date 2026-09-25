@@ -151,7 +151,10 @@ begin
       ('Mahazar Location','East','EAST','',1,'ಪೂರ್ವ'),
       ('Mahazar Location','West','WEST','',2,'ಪಶ್ಚಿಮ'),
       ('Mahazar Location','North','NORTH','',3,'ಉತ್ತರ'),
-      ('Mahazar Location','South','SOUTH','',4,'ದಕ್ಷಿಣ')
+      ('Mahazar Location','South','SOUTH','',4,'ದಕ್ಷಿಣ'),
+      ('Sandal Destination','Sandalwood Depot, Mysuru','MYSURU_DEPOT','BOTH',1,'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಮೈಸೂರು'),
+      ('Sandal Destination','Sandalwood Depot, Bengaluru','BENGALURU_DEPOT','BOTH',2,'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಬೆಂಗಳೂರು'),
+      ('Sandal Destination','Sandalwood Depot, Hunsur','HUNSUR_DEPOT','BOTH',3,'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಹುಣಸೂರು')
     ) as v("masterType", value, code, "parentCode", "displayOrder", "kannadaName")
   loop
     if not exists (

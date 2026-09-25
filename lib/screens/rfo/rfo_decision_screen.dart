@@ -246,6 +246,42 @@ bool get isMccApplication =>
         .toUpperCase() ==
     "MCC";
 
+bool get isSandalApplication {
+  final type = widget.application.applicationType
+      .trim()
+      .toUpperCase();
+  return type == "SPL" || type == "SGL";
+}
+
+String sandalDestinationText = "Not entered";
+
+Future<void> loadSandalDestinationText() async {
+  final custom =
+      widget.application.sandalDestinationCustom.trim();
+  final id = widget.application.sandalDestinationId;
+  if (id == null) {
+    sandalDestinationText =
+        custom.isEmpty ? "Not entered" : custom;
+    return;
+  }
+  final item = await masterRepository.getMasterById(id);
+  if (item == null) {
+    sandalDestinationText =
+        custom.isEmpty ? "Not entered" : custom;
+    return;
+  }
+  final kannada = item["kannadaName"]?.toString().trim() ?? "";
+  final value = item["value"]?.toString().trim() ?? "";
+  if (value.isNotEmpty && kannada.isNotEmpty) {
+    sandalDestinationText = "$value ($kannada)";
+  } else if (value.isNotEmpty) {
+    sandalDestinationText = value;
+  } else {
+    sandalDestinationText =
+        kannada.isEmpty ? "Not entered" : kannada;
+  }
+}
+
 bool get isGovernmentApplication {
   final type =
       widget.application.applicationType
@@ -344,6 +380,10 @@ String get applicationTypeDisplay {
 
   Future<void> _loadRfoDecisionData() async {
   await _loadApprovals();
+
+  if (!mounted) return;
+
+  await loadSandalDestinationText();
 
   if (!mounted) return;
 
@@ -1180,6 +1220,12 @@ List<String> _requiredApprovalKeys() {
   if (needsMahazar) {
     keys.add(
       _approvalMapKey("MAHAZAR"),
+    );
+  }
+
+  if (isSandalApplication) {
+    keys.add(
+      _approvalMapKey("SANDAL_DESTINATION"),
     );
   }
 
@@ -2436,12 +2482,21 @@ Widget _buildEvidenceApprovalPage() {
           widget.application.id!,
         );
 
+        await loadSandalDestinationText();
+
         if (mounted) {
           setState(() {});
         }
       },
     ),
   ),
+),
+      if (isSandalApplication)
+      _approvalCard(
+  itemKey: "SANDAL_DESTINATION",
+  title: "Send Sandal To",
+  value: sandalDestinationText,
+  reasons: applicationReasons,
 ),
     ],
   );

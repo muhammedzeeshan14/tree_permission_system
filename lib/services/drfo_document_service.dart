@@ -325,6 +325,33 @@ class DrfoDocumentService {
   }
 
   // ==========================================================
+  // SANDAL DESTINATION (Kannada master name or typed text)
+  // ==========================================================
+
+  Future<String> _sandalDestinationKannada(
+    ApplicationModel application,
+  ) async {
+    final custom =
+        application.sandalDestinationCustom.trim();
+    final id = application.sandalDestinationId;
+    if (id != null) {
+      try {
+        final item =
+            await MasterRepository().getMasterById(id);
+        final kannada =
+            item?['kannadaName']?.toString().trim() ?? '';
+        if (kannada.isNotEmpty) return _safeText(kannada);
+        final value =
+            item?['value']?.toString().trim() ?? '';
+        if (value.isNotEmpty) return _safeText(value);
+      } catch (_) {
+        // Fall through to custom text.
+      }
+    }
+    return _safeText(custom);
+  }
+
+  // ==========================================================
   // DATE FORMAT
   // ==========================================================
 
@@ -5102,6 +5129,11 @@ class DrfoDocumentService {
       '{{REVENUE_OPINION_REMARKS}}': revenueRemarks,
       '{{REVENUE_AUTHORITY}}': reply.answers['authority'] ?? '',
       '{{REVENUE_REPLY_DETAILS}}': replyDetails,
+      '{{SANDAL_FROM_LOCATION}}': _safeText(application.treeLocationSame
+          ? application.applicantAddress.trim()
+          : application.treeLocationAddress.trim()),
+      '{{SANDAL_TO_LOCATION}}':
+          await _sandalDestinationKannada(application),
     };
     master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
       final value = values[match.group(0)];

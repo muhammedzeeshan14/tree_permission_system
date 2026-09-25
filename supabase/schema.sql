@@ -238,6 +238,8 @@ create table if not exists public.applications (
   "createdBy" integer,
   "assignedBFO" integer,
   "assignedDRFO" integer,
+  "sandalDestinationId" integer,
+  "sandalDestinationCustom" text,
   "lastTreeNumber" integer default 0,
   "updatedAt" timestamptz not null default now()
 );
@@ -377,6 +379,9 @@ create table if not exists public.application_verifications (
   "documentsStatus" text,
   "deferredCorrect" integer,
   "deferredReason" text,
+  "sandalDestinationCorrect" integer,
+  "sandalDestinationReason" text,
+  "sandalDestinationStatus" text,
   "verifiedBy" text,
   "verifiedDate" text,
   "updatedAt" timestamptz not null default now()

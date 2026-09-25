@@ -38,7 +38,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 46,
+    version: 47,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -163,6 +163,10 @@ createdBy INTEGER,
 assignedBFO INTEGER,
 
 assignedDRFO INTEGER,
+
+sandalDestinationId INTEGER,
+
+sandalDestinationCustom TEXT,
 
 lastTreeNumber INTEGER DEFAULT 0
 
@@ -677,6 +681,12 @@ documentsStatus TEXT,
 deferredCorrect INTEGER,
 
 deferredReason TEXT,
+
+sandalDestinationCorrect INTEGER,
+
+sandalDestinationReason TEXT,
+
+sandalDestinationStatus TEXT,
 
 verifiedBy TEXT,
 
@@ -2157,9 +2167,22 @@ if (oldVersion < 44) {
   await _ensureSyncColumn(
       db, 'application_forward_references', 'sourceName', 'TEXT');
   await _ensureSyncColumn(
+      db, 'applications', 'sandalDestinationId', 'INTEGER');
+  await _ensureSyncColumn(
+      db, 'applications', 'sandalDestinationCustom', 'TEXT');
+  await _ensureSyncColumn(
       db, 'application_verifications', 'deferredCorrect', 'INTEGER');
   await _ensureSyncColumn(
       db, 'application_verifications', 'deferredReason', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'sandalDestinationCorrect',
+      'INTEGER');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'sandalDestinationReason',
+      'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'sandalDestinationStatus',
+      'TEXT');
 }
 
 // ============================================================
@@ -2201,6 +2224,55 @@ if (oldVersion < 46) {
       db, 'application_verifications', 'deferredCorrect', 'INTEGER');
   await _ensureSyncColumn(
       db, 'application_verifications', 'deferredReason', 'TEXT');
+}
+
+// ============================================================
+// VERSION 47
+// SANDAL TRANSPORT DESTINATION
+// ============================================================
+
+if (oldVersion < 47) {
+  await _ensureSyncColumn(
+      db, 'applications', 'sandalDestinationId', 'INTEGER');
+  await _ensureSyncColumn(
+      db, 'applications', 'sandalDestinationCustom', 'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'sandalDestinationCorrect',
+      'INTEGER');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'sandalDestinationReason',
+      'TEXT');
+  await _ensureSyncColumn(
+      db, 'application_verifications', 'sandalDestinationStatus',
+      'TEXT');
+
+  // Default sandal destinations (only when the type is empty).
+  const sandalDefaults = [
+    ['Sandalwood Depot, Mysuru', 'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಮೈಸೂರು', 'MYSURU_DEPOT', 1],
+    ['Sandalwood Depot, Bengaluru', 'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಬೆಂಗಳೂರು', 'BENGALURU_DEPOT', 2],
+    ['Sandalwood Depot, Hunsur', 'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಹುಣಸೂರು', 'HUNSUR_DEPOT', 3],
+  ];
+  final existingSandal = await db.query(
+    'master_data',
+    columns: ['id'],
+    where: 'masterType=?',
+    whereArgs: ['Sandal Destination'],
+    limit: 1,
+  );
+  if (existingSandal.isEmpty) {
+    for (final entry in sandalDefaults) {
+      await db.insert('master_data', {
+        'masterType': 'Sandal Destination',
+        'value': entry[0],
+        'code': entry[2],
+        'parentCode': 'BOTH',
+        'displayOrder': entry[3],
+        'remarks': '',
+        'kannadaName': entry[1],
+        'isActive': 1,
+      });
+    }
+  }
 }
 
 }

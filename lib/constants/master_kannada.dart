@@ -43,6 +43,13 @@ class MasterKannada {
     'Mahazar Location|West': 'ಪಶ್ಚಿಮ',
     'Mahazar Location|North': 'ಉತ್ತರ',
     'Mahazar Location|South': 'ದಕ್ಷಿಣ',
+    // Sandal Destination
+    'Sandal Destination|Sandalwood Depot, Mysuru':
+        'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಮೈಸೂರು',
+    'Sandal Destination|Sandalwood Depot, Bengaluru':
+        'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಬೆಂಗಳೂರು',
+    'Sandal Destination|Sandalwood Depot, Hunsur':
+        'ಶ್ರೀಗಂಧ ಡಿಪೋ, ಹುಣಸೂರು',
     // Purpose
     'Purpose|House Construction': 'ಮನೆ ನಿರ್ಮಾಣ',
     'Purpose|Agriculture': 'ಕೃಷಿ',

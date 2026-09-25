@@ -229,9 +229,20 @@ String? overallRemarkStatus;
 String? gpsStatus;
 String? photosStatus;
 String? documentsStatus;
+String? sandalDestinationStatus;
 
 bool? deferredCorrect;
 String? deferredReason;
+
+// Sandal transport destination (SPL/SGL only).
+bool? sandalDestinationCorrect;
+String? sandalDestinationReason;
+List<Map<String, dynamic>> sandalDestinationList = [];
+int? selectedSandalDestinationId;
+bool sandalDestinationIsOther = false;
+final TextEditingController sandalCustomController =
+    TextEditingController();
+List<String> sandalDestinationReasons = [];
 
 List<String> deferredReasons = [];
 
@@ -305,6 +316,7 @@ debugPrint(
 void dispose() {
   workNameController.dispose();
   gpsController.dispose();
+  sandalCustomController.dispose();
   super.dispose();
 }
 
@@ -313,6 +325,7 @@ Future<void> _initialize() async {
 
   await _loadVerificationReasons();
   await _loadAdditionalApplicationDetails();
+  await _loadSandalDestinations();
 
   selectedDeferredReasons =
       await deferredRepository.getReasons(
@@ -353,6 +366,11 @@ Future<void> _loadVerificationReasons() async {
     "DOCUMENT",
   );
 
+  sandalDestinationReasons =
+      await masterRepository.getVerificationReasons(
+    "SANDAL_DESTINATION",
+  );
+
 photos = await photoRepository.getPhotos(
   widget.application.id!,
 );
@@ -371,6 +389,85 @@ deferredReasons =
     setState(() {});
   }
 }
+
+  bool get isSandalApplication {
+    final type = widget.application.applicationType
+        .trim()
+        .toUpperCase();
+    return type == "SPL" || type == "SGL";
+  }
+
+  Future<void> _loadSandalDestinations() async {
+    sandalDestinationList = [];
+    selectedSandalDestinationId = null;
+    sandalDestinationIsOther = false;
+    if (!isSandalApplication) return;
+
+    final all = await masterRepository.getMasters(
+      "Sandal Destination",
+    );
+
+    final type = widget.application.applicationType
+        .trim()
+        .toUpperCase();
+
+    sandalDestinationList = all.where((item) {
+      if (item["isActive"] != 1 &&
+          item["id"] !=
+              widget.application.sandalDestinationId) {
+        return false;
+      }
+      final mapping =
+          item["parentCode"]?.toString().trim().toUpperCase() ?? "";
+      return mapping.isEmpty ||
+          mapping == "BOTH" ||
+          mapping == type;
+    }).toList();
+
+    if (widget.application.sandalDestinationId != null &&
+        sandalDestinationList.any((item) =>
+            item["id"] ==
+            widget.application.sandalDestinationId)) {
+      selectedSandalDestinationId =
+          widget.application.sandalDestinationId;
+    } else if (widget.application.sandalDestinationCustom
+        .trim()
+        .isNotEmpty) {
+      selectedSandalDestinationId = -1;
+      sandalDestinationIsOther = true;
+      sandalCustomController.text =
+          widget.application.sandalDestinationCustom;
+    }
+  }
+
+  String sandalDestinationDisplay() {
+    if (sandalDestinationIsOther ||
+        selectedSandalDestinationId == -1) {
+      final custom = sandalCustomController.text.trim().isNotEmpty
+          ? sandalCustomController.text.trim()
+          : widget.application.sandalDestinationCustom.trim();
+      return custom.isEmpty ? "Not entered" : custom;
+    }
+    final matches = sandalDestinationList.where(
+      (item) =>
+          item["id"] == selectedSandalDestinationId,
+    );
+    if (matches.isEmpty) {
+      return widget.application.sandalDestinationCustom
+              .trim()
+              .isNotEmpty
+          ? widget.application.sandalDestinationCustom.trim()
+          : "Not entered";
+    }
+    final item = matches.first;
+    final kannada =
+        item["kannadaName"]?.toString().trim() ?? "";
+    final value = item["value"]?.toString().trim() ?? "";
+    if (kannada.isNotEmpty && value.isNotEmpty) {
+      return "$value ($kannada)";
+    }
+    return value.isNotEmpty ? value : kannada;
+  }
 
 void _filterPurposeList() {
   final parentCode =
@@ -715,6 +812,12 @@ Future<void> _loadSavedVerification() async {
   deferredReason =
       readReason("deferredReason");
 
+  sandalDestinationCorrect =
+      readVerificationValue("sandalDestinationCorrect");
+
+  sandalDestinationReason =
+      readReason("sandalDestinationReason");
+
   applicationTypeStatus =
       readVerificationStatus(
     "applicationTypeStatus",
@@ -779,6 +882,12 @@ Future<void> _loadSavedVerification() async {
       readVerificationStatus(
     "documentsStatus",
     documentsCorrect,
+  );
+
+  sandalDestinationStatus =
+      readVerificationStatus(
+    "sandalDestinationStatus",
+    sandalDestinationCorrect,
   );
 
   if (mounted) {
@@ -856,6 +965,11 @@ Future<void> _saveVerification() async {
   documentsCorrect = statusToLegacyValue(
     documentsStatus,
     documentsCorrect,
+  );
+
+  sandalDestinationCorrect = statusToLegacyValue(
+    sandalDestinationStatus,
+    sandalDestinationCorrect,
   );
 
   await verificationRepository.saveVerification(
@@ -983,6 +1097,13 @@ Future<void> _saveVerification() async {
     deferredCorrect: isDeferred ? deferredCorrect : null,
     deferredReason: isDeferred ? deferredReason : null,
 
+    sandalDestinationCorrect:
+        isSandalApplication ? sandalDestinationCorrect : null,
+    sandalDestinationReason:
+        isSandalApplication ? sandalDestinationReason : null,
+    sandalDestinationStatus:
+        isSandalApplication ? sandalDestinationStatus : null,
+
     verifiedBy: SessionService.instance.name,
   );
 
@@ -1028,6 +1149,30 @@ Future<void> _saveCorrectedApplication() async {
   );
 
   await _loadAdditionalApplicationDetails();
+
+  if (mounted) {
+    setState(() {});
+  }
+}
+
+Future<void> _saveCorrectedSandalDestination() async {
+  if (sandalDestinationIsOther) {
+    if (sandalCustomController.text.trim().isEmpty) return;
+    widget.application.sandalDestinationId = null;
+    widget.application.sandalDestinationCustom =
+        sandalCustomController.text.trim();
+  } else {
+    if (selectedSandalDestinationId == null) return;
+    widget.application.sandalDestinationId =
+        selectedSandalDestinationId;
+    widget.application.sandalDestinationCustom = "";
+  }
+
+  await ApplicationRepository().updateApplication(
+    widget.application,
+  );
+
+  await _loadSandalDestinations();
 
   if (mounted) {
     setState(() {});
@@ -1476,6 +1621,15 @@ bool validateApplicationVerification() {
     return false;
   }
 
+  if (isSandalApplication &&
+      !validateItem(
+        status: sandalDestinationStatus,
+        title: "Send Sandal To",
+        reason: sandalDestinationReason,
+      )) {
+    return false;
+  }
+
   return true;
 }
 
@@ -1542,7 +1696,9 @@ bool hasApplicationReInspection() {
           overallRemarkStatus == "Re-inspect") ||
       gpsStatus == "Re-inspect" ||
       photosStatus == "Re-inspect" ||
-      documentsStatus == "Re-inspect";
+      documentsStatus == "Re-inspect" ||
+      (isSandalApplication &&
+          sandalDestinationStatus == "Re-inspect");
 }
 
 bool hasAnyReInspection() {
@@ -2766,6 +2922,117 @@ VerificationCard(
 
       await _saveCorrectedApplication();
     },
+  ),
+),
+
+const SizedBox(height: 8),
+
+if (isSandalApplication)
+VerificationCard(
+  title: "Send Sandal To",
+  value: sandalDestinationDisplay(),
+  threeOptions: true,
+  verificationStatus: sandalDestinationStatus,
+  selectedReason: sandalDestinationReason,
+  reasons: sandalDestinationReasons,
+  onStatusChanged: (value) async {
+    await _changeVerificationStatus(
+      newStatus: value,
+      setStatus: (status) {
+        sandalDestinationStatus = status;
+      },
+      setLegacyValue: (correct) {
+        sandalDestinationCorrect = correct;
+      },
+      clearReason: () {
+        sandalDestinationReason = null;
+      },
+    );
+  },
+  onReasonChanged: (value) async {
+    setState(() {
+      sandalDestinationReason = value;
+    });
+
+    await _saveVerification();
+  },
+  modifyField: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      DropdownButtonFormField<int>(
+        value: sandalDestinationList.any(
+          (item) =>
+              item["id"] ==
+              selectedSandalDestinationId,
+        )
+            ? selectedSandalDestinationId
+            : null,
+        decoration: const InputDecoration(
+          labelText: "Correct Sandal Destination",
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: [
+          ...sandalDestinationList.map((item) {
+            return DropdownMenuItem<int>(
+              value: item["id"] as int,
+              child: Text(
+                item["value"]?.toString() ?? "",
+              ),
+            );
+          }),
+          const DropdownMenuItem<int>(
+            value: -1,
+            child: Text("Others"),
+          ),
+        ],
+        onChanged: (value) async {
+          if (value == null) return;
+          setState(() {
+            selectedSandalDestinationId = value;
+            sandalDestinationIsOther = value == -1;
+          });
+          if (!sandalDestinationIsOther) {
+            await _saveCorrectedSandalDestination();
+          }
+        },
+      ),
+      if (sandalDestinationIsOther) ...[
+        const SizedBox(height: 8),
+        TextField(
+          controller: sandalCustomController,
+          decoration: InputDecoration(
+            labelText: "Type destination",
+            border: const OutlineInputBorder(),
+            isDense: true,
+            suffixIcon: IconButton(
+              tooltip: "Save corrected destination",
+              icon: const Icon(Icons.save),
+              onPressed: () async {
+                if (sandalCustomController.text
+                    .trim()
+                    .isEmpty) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "Please type the destination.",
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                await _saveCorrectedSandalDestination();
+              },
+            ),
+          ),
+          onSubmitted: (value) async {
+            if (value.trim().isEmpty) return;
+            await _saveCorrectedSandalDestination();
+          },
+        ),
+      ],
+    ],
   ),
 ),
 

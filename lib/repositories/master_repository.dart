@@ -956,6 +956,12 @@ await add("Beat","Beat-2","B2","",2);
   await add("Mahazar Location","North","NORTH","",3);
   await add("Mahazar Location","South","SOUTH","",4);
 
+  // SANDAL DESTINATION (parentCode maps SPL / SGL / BOTH)
+
+  await add("Sandal Destination","Sandalwood Depot, Mysuru","MYSURU_DEPOT","BOTH",1);
+  await add("Sandal Destination","Sandalwood Depot, Bengaluru","BENGALURU_DEPOT","BOTH",2);
+  await add("Sandal Destination","Sandalwood Depot, Hunsur","HUNSUR_DEPOT","BOTH",3);
+
   // SPECIES
 
   await add("Species","Neem","NEEM","",1);

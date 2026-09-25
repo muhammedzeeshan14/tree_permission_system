@@ -85,6 +85,12 @@ class ApplicationRepository {
       "assignedDRFO":
           application.assignedDRFOId,
 
+      "sandalDestinationId":
+          application.sandalDestinationId,
+
+      "sandalDestinationCustom":
+          application.sandalDestinationCustom,
+
       // PURPOSE
 
      "purposeId":
@@ -366,6 +372,12 @@ return id;
 
 "inspectionMode":
     application.inspectionMode,
+
+"sandalDestinationId":
+    application.sandalDestinationId,
+
+"sandalDestinationCustom":
+    application.sandalDestinationCustom,
 
 "updatedAt": DateTime.now().toIso8601String(),
 };
@@ -839,6 +851,12 @@ createdBy:
 
     assignedDRFOId:
         row["assignedDRFO"] as int?,
+
+    sandalDestinationId:
+        (row["sandalDestinationId"] as num?)?.toInt(),
+
+    sandalDestinationCustom:
+        row["sandalDestinationCustom"]?.toString() ?? "",
 
     section:
     row["sectionName"]?.toString() ?? "",

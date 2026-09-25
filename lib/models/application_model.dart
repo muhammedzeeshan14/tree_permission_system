@@ -142,6 +142,10 @@ String rfoOverallRemarks;
 
   List<TreeModel> trees;
 
+  int? sandalDestinationId;
+
+  String sandalDestinationCustom;
+
   // ===========================
   // STATUS
   // ===========================
@@ -255,6 +259,10 @@ required this.rfoOverallRemarks,
     required this.returnedDate,
 
     required this.trees,
+
+    this.sandalDestinationId,
+
+    this.sandalDestinationCustom = "",
 
     required this.status,
 

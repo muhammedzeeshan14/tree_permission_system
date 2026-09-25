@@ -46,6 +46,10 @@ String? overallRemarkReason,
     bool? deferredCorrect,
     String? deferredReason,
 
+    bool? sandalDestinationCorrect,
+    String? sandalDestinationReason,
+    String? sandalDestinationStatus,
+
     String? applicationTypeStatus,
 String? governmentAgencyStatus,
 String? urbanRuralStatus,
@@ -143,6 +147,14 @@ String? documentsStatus,
                   ? 1
                   : 0,
           "deferredReason": deferredReason,
+          "sandalDestinationCorrect":
+              sandalDestinationCorrect == null
+                  ? null
+                  : sandalDestinationCorrect
+                      ? 1
+                      : 0,
+          "sandalDestinationReason": sandalDestinationReason,
+          "sandalDestinationStatus": sandalDestinationStatus,
           "applicationTypeStatus": applicationTypeStatus,
           "governmentAgencyStatus": governmentAgencyStatus,
           "urbanRuralStatus": urbanRuralStatus,
@@ -278,6 +290,15 @@ String? documentsStatus,
         ? 1
         : 0,
         "deferredReason": deferredReason,
+
+        "sandalDestinationCorrect":
+            sandalDestinationCorrect == null
+                ? null
+                : sandalDestinationCorrect
+                    ? 1
+                    : 0,
+        "sandalDestinationReason": sandalDestinationReason,
+        "sandalDestinationStatus": sandalDestinationStatus,
 
         "applicationTypeStatus":
     applicationTypeStatus,

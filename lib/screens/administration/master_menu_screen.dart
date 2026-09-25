@@ -14,6 +14,7 @@ import '../../master/revenue_opinion_master_screen.dart';
 import '../../repositories/revenue_opinion_repository.dart';
 import 'species_master_screen.dart';
 import 'pole_rate_master_screen.dart';
+import 'sandal_destination_master_screen.dart';
 
 class MasterMenuScreen extends StatelessWidget {
   const MasterMenuScreen({super.key});
@@ -381,6 +382,24 @@ masterTile(
   context,
   "Workflow Status",
   "Workflow Status",
+),
+
+Card(
+  child: ListTile(
+    leading: const Icon(Icons.local_shipping),
+    title: const Text("Sandal Destinations"),
+    subtitle: const Text("Send sandal to locations"),
+    trailing: const Icon(Icons.arrow_forward_ios),
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              const SandalDestinationMasterScreen(),
+        ),
+      );
+    },
+  ),
 ),
                ],
       ),
