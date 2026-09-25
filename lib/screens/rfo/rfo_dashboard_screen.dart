@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../administration/administration_screen.dart';
 import '../tree_permission/application_list_screen.dart';
+import 'rfo_reports_screen.dart';
 import '../../services/session_service.dart';
 import '../login/login_screen.dart';
 import '../../repositories/application_repository.dart';
@@ -170,13 +171,15 @@ subtitle: const Text(
 
               onTap: () {
 
-                ScaffoldMessenger.of(context).showSnackBar(
+                Navigator.push(
 
-                  const SnackBar(
+                  context,
 
-                    content: Text(
-                      "Reports module coming soon.",
-                    ),
+                  MaterialPageRoute(
+
+                    builder: (_) =>
+
+                        const RfoReportsScreen(),
 
                   ),
 
