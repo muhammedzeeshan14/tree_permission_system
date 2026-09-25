@@ -229,16 +229,25 @@ class _RevenueReplyWorkflowScreenState
           requestCycle: current.cycle + 1,
         );
       } else {
-        file = await documents.generateRfoPrivateLandDecisionLetter(
-          widget.application,
-          current,
-        );
-        // Applicant has not applied online: one more letter asking
-        // them to apply online (saved + listed with the rest).
-        if (current.answers['nature'] == RevenueReply.satisfied &&
+        // Single letter per outcome (never multiple):
+        // - felling required (tree-officer outcome) + online NOT
+        //   applied -> ONLY the apply-online letter; the case stays
+        //   open until the caseworker refills the online number.
+        // - all other satisfied cases -> the normal decision letter.
+        final holdingForOnlineNumber = current.answers['nature'] ==
+                RevenueReply.satisfied &&
             current.answers['onlineApplicationStatus'] ==
-                RevenueReply.onlineNotApplied) {
-          await documents.generateRfoApplyOnlineLetter(
+                RevenueReply.onlineNotApplied &&
+            (await TreeOfficerRepository().getCompletionOutcome(
+                    widget.application.id!)) ==
+                PrivateLandOutcome.treeOfficerLetter;
+        if (holdingForOnlineNumber) {
+          file = await documents.generateRfoApplyOnlineLetter(
+            widget.application,
+            current,
+          );
+        } else {
+          file = await documents.generateRfoPrivateLandDecisionLetter(
             widget.application,
             current,
           );
@@ -360,6 +369,10 @@ class _RevenueReplyWorkflowScreenState
         case PrivateLandOutcome.applicantLetter:
           return 'Final Approval generates the RFO PL approval applicant letter and completes the application.';
         case PrivateLandOutcome.treeOfficerLetter:
+          if (reply?.answers['onlineApplicationStatus'] ==
+              RevenueReply.onlineNotApplied) {
+            return 'Online application is not applied. Final Approval generates only the apply-online letter; the case stays open until the online number is entered.';
+          }
           return 'Final Approval generates the RFO PL approval letter addressed to the selected Tree Officer and completes the application.';
       }
     } catch (e) { return e.toString().replaceFirst('Bad state: ', ''); }
