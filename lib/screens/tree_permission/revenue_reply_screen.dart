@@ -45,10 +45,25 @@ class _PendingRevenueOpinionScreenState
     final all = await ApplicationRepository().getApplications();
     final result = <ApplicationModel>[];
     for (final app in all) {
-      if (app.createdBy == SessionService.instance.userId &&
-          app.status == WorkflowStatus.pendingRevenueOpinion &&
-          (await RevenueReplyRepository().current(app.id!))?.stage == 'pending')
+      if (app.createdBy != SessionService.instance.userId) continue;
+      final current =
+          await RevenueReplyRepository().current(app.id!);
+      if (app.status == WorkflowStatus.pendingRevenueOpinion &&
+          current?.stage == 'pending') {
         result.add(app);
+        continue;
+      }
+      // Completed but applicant never applied online: stay visible
+      // so the caseworker can reopen and enter the number later.
+      if (app.status == WorkflowStatus.completed &&
+          current?.stage == 'completed' &&
+          current!.answers['onlineApplicationStatus'] ==
+              RevenueReply.onlineNotApplied &&
+          (current.answers['onlineApplicationNumber'] ?? '')
+              .trim()
+              .isEmpty) {
+        result.add(app);
+      }
     }
     return result;
   }
@@ -218,6 +233,16 @@ class _RevenueReplyWorkflowScreenState
           widget.application,
           current,
         );
+        // Applicant has not applied online: one more letter asking
+        // them to apply online (saved + listed with the rest).
+        if (current.answers['nature'] == RevenueReply.satisfied &&
+            current.answers['onlineApplicationStatus'] ==
+                RevenueReply.onlineNotApplied) {
+          await documents.generateRfoApplyOnlineLetter(
+            widget.application,
+            current,
+          );
+        }
       }
       await repository.finalize(current, file?.path ?? '', now);
       widget.application.status =
@@ -611,6 +636,26 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
             ? null
             : (value) {
                 controllers[field]!.text = value ?? '';
+                _changed();
+              },
+      );
+    if (field == 'onlineApplicationStatus')
+      return DropdownButtonFormField<String>(
+        initialValue: RevenueReply.onlineStatuses
+                .contains(controllers[field]!.text)
+            ? controllers[field]!.text
+            : null,
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+        items: RevenueReply.onlineStatuses
+            .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+            .toList(),
+        onChanged: busy
+            ? null
+            : (value) {
+                controllers[field]!.text = value ?? '';
+                if (value != RevenueReply.onlineApplied) {
+                  controllers['onlineApplicationNumber']!.text = '';
+                }
                 _changed();
               },
       );

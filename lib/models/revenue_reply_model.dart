@@ -5,6 +5,9 @@ class RevenueReply {
   static const notSatisfied = 'Not satisfied';
   static const wrongAuthority = 'Wrong authority';
   static const natures = [satisfied, notSatisfied, wrongAuthority];
+  static const onlineApplied = 'Applied';
+  static const onlineNotApplied = 'Not applied';
+  static const onlineStatuses = [onlineApplied, onlineNotApplied];
   static const requiredFields = [
     'authority',
     'letterNumber',
@@ -25,7 +28,8 @@ class RevenueReply {
     'extra': 'Extra details (optional)',
     'unsatisfiedDetails': '10. Enter details (optional)',
     'wrongAuthorityDetails': '11. Enter details (optional)',
-    'onlineApplicationNumber': '12. Enter online application No. (optional)',
+    'onlineApplicationStatus': '12. Online application status',
+    'onlineApplicationNumber': '13. Enter online application No. (optional)',
   };
   final int id, applicationId, cycle, revision;
   final String requestedAt,
@@ -71,7 +75,9 @@ class RevenueReply {
     ],
     if (answers['nature'] == notSatisfied) 'unsatisfiedDetails',
     if (answers['nature'] == wrongAuthority) 'wrongAuthorityDetails',
-    'onlineApplicationNumber',
+    'onlineApplicationStatus',
+    if (answers['onlineApplicationStatus'] == onlineApplied)
+      'onlineApplicationNumber',
   ];
 
   static Map<String, String> activeAnswers(Map<String, String> answers) => {
@@ -81,6 +87,8 @@ class RevenueReply {
   static String? validate(Map<String, String> answers) {
     if (!natures.contains(answers['nature']))
       return 'Select the revenue opinion nature.';
+    if (!onlineStatuses.contains(answers['onlineApplicationStatus']))
+      return 'Select online application status (Applied / Not applied).';
     for (final key in requiredFields) {
       if ((answers[key] ?? '').trim().isEmpty) {
         return 'Enter ' + questions[key]! + '.';

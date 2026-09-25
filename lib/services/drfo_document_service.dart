@@ -4765,6 +4765,62 @@ class DrfoDocumentService {
     };
   }
 
+  /// Extra applicant letter generated at final approval when the
+  /// applicant has not applied online. Editable template
+  /// RFO_APPLY_ONLINE_PL.txt (user supplies final wording, keeping
+  /// the {{PLACEHOLDERS}}).
+  Future<File> generateRfoApplyOnlineLetter(
+    ApplicationModel application,
+    RevenueReply reply,
+  ) async {
+    await _loadFlutterKannadaFont();
+    final config = await OfficeConfigurationRepository().getConfiguration();
+    final range = config?['rangeName']?.toString() ?? '';
+    final location = config?['rangeLocation']?.toString() ?? range;
+    var master = await _loadRfoTemplate('RFO_APPLY_ONLINE_PL.txt');
+    final values = <String, String>{
+      '{{OFFICE_NUMBER}}': application.officeNumber,
+      '{{APPLICATION_DATE}}': _date(application.applicationDate),
+      '{{APPLICANT_NAME}}': application.applicantName,
+      '{{APPLICANT_ADDRESS}}': application.applicantAddress,
+      '{{RECEIVED_DATE}}': _date(application.receivedDate),
+      '{{SECTION}}': await _printSectionName(application),
+      '{{BEAT}}': await _printBeatName(application),
+      '{{RANGE_NAME}}': range,
+      '{{RANGE_LOCATION}}': location,
+      '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
+    };
+    master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+      final value = values[match.group(0)];
+      if (value == null) {
+        throw StateError(
+            'Unknown apply-online template placeholder: ' +
+                match.group(0)!);
+      }
+      return value.trim().isEmpty ? '—' : value;
+    });
+    final pages = await _renderMasterToPng(master,
+        rfoLetterhead: _RfoLetterheadData(
+          letterNumber: application.officeNumber,
+          rangeName: range,
+          rangeLocation: location,
+          rangeOfficeAddress:
+              config?['rangeOfficeAddress']?.toString() ?? '',
+          rangeEmail: config?['rangeEmail']?.toString() ?? '',
+          logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',
+          approvalDate: _date(application.rfoApprovalDate),
+        ));
+    final pdf = pw.Document();
+    _appendRenderedPages(pdf, pages);
+    return await _savePdf(
+        officeNumber: application.officeNumber,
+        fileName: _safeFileName(application.officeNumber) +
+            '_RFO_APPLY_ONLINE_CYCLE_' +
+            reply.cycle.toString() +
+            '.pdf',
+        bytes: await pdf.save());
+  }
+
   Future<File?> generateRfoPrivateLandDecisionLetter(
     ApplicationModel application, RevenueReply reply, {PrivateLandOutcome? outcomeOverride}
   ) async {
