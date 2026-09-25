@@ -65,6 +65,9 @@ final sandalPrivateRfoLetterNumberController =
 final sandalGovernmentRfoLetterNumberController =
     TextEditingController();
 
+final mccRfoLetterNumberController =
+    TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -133,6 +136,9 @@ sandalPrivateRfoLetterNumberController.text =
 
 sandalGovernmentRfoLetterNumberController.text =
     rfoLetterNumbers["SGL"] ?? "";
+
+mccRfoLetterNumberController.text =
+    rfoLetterNumbers["MCC"] ?? "";
 
 setState(() {});
   }
@@ -429,6 +435,11 @@ field(
   sandalGovernmentRfoLetterNumberController,
 ),
 
+field(
+  "MCC RFO Letter Number",
+  mccRfoLetterNumberController,
+),
+
 const SizedBox(height: 20),
 
             SizedBox(
@@ -516,6 +527,12 @@ await Future.wait([
     applicationTypeCode: "SGL",
     letterNumber:
         sandalGovernmentRfoLetterNumberController.text,
+  ),
+  rfoLetterConfigurationRepository
+      .saveLetterNumber(
+    applicationTypeCode: "MCC",
+    letterNumber:
+        mccRfoLetterNumberController.text,
   ),
 ]);
 

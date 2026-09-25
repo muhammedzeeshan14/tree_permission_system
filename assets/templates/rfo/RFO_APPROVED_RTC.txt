@@ -1,5 +1,6 @@
 ರವರಿಗೆ,
 {{FORWARDED_REFERENCE_OFFICER}}
+[CENTER]{{DCF_COPY_LINE}}[/CENTER]
 
 ಮಾನ್ಯರೆ,
 ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಆರ್.ಟಿ.ಸಿಯಲ್ಲಿ ಮರಗಳನ್ನು ನಮೂದು ಮಾಡಲು ತಾಂತ್ರಿಕ ವರದಿ ಕೋರಿರುವ ಬಗ್ಗೆ.

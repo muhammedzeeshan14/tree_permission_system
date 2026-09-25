@@ -1,5 +1,6 @@
 ರವರಿಗೆ,
 {{TO_ADDRESS}}
+[CENTER]{{DCF_COPY_LINE}}[/CENTER]
 
 ಮಾನ್ಯರೆ,
 

@@ -29,6 +29,7 @@ import '../repositories/tree_count_site_repository.dart';
 import '../repositories/master_repository.dart';
 import '../repositories/inspection_defer_reason_repository.dart';
 import '../repositories/office_configuration_repository.dart';
+import '../repositories/rfo_letter_configuration_repository.dart';
 import '../repositories/pole_rate_repository.dart';
 import '../repositories/application_revenue_opinion_repository.dart';
 import '../repositories/revenue_opinion_repository.dart';
@@ -406,6 +407,54 @@ class DrfoDocumentService {
       MasterRepository(),
       application.governmentAgencyId,
     );
+  }
+
+  /// Centered ACF designation + office address line shown below the
+  /// To address (before ಮಾನ್ಯರೇ) in every RFO letter except the DO
+  /// letter, whenever the To address is the DCF officer.
+  Future<String> _dcfCopyLine() async {
+    try {
+      final directory = await OfficerRepository().getAll();
+      final acf = directory.where((row) =>
+          (row['role']?.toString() ?? '').trim().toUpperCase() ==
+          'ACF').toList();
+      if (acf.isEmpty) return '';
+      return OfficerRepository.formatAddress(acf.single,
+          copyTo: true);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// True when a kind/id recipient resolves to the DCF officer.
+  Future<bool> _isDcfRecipient({
+    required String kind,
+    required int? sourceId,
+    required String fallback,
+  }) async {
+    final normalizedKind = kind.trim().toUpperCase();
+    if (sourceId == null) return false;
+    if (normalizedKind == 'OFFICER') {
+      try {
+        final directory = await OfficerRepository().getAll();
+        final match = directory.where(
+            (row) => (row['id'] as num?)?.toInt() == sourceId);
+        if (match.isEmpty) return false;
+        return (match.single['role']?.toString() ?? '')
+                .trim()
+                .toUpperCase() ==
+            'DCF';
+      } catch (_) {
+        return false;
+      }
+    }
+    try {
+      return await OfficerRepository()
+              .sourceRole(sourceId, fallback) ==
+          'DCF';
+    } catch (_) {
+      return false;
+    }
   }
 
   /// "(ಈ ಕಛೇರಿ ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: <date>)" suffix for references
@@ -1499,6 +1548,21 @@ class DrfoDocumentService {
 
     final references = await _buildRfoRtcReferences(application);
 
+    final firstRef = application.forwardingReferences.where((reference) {
+      return reference.forwardedBy.trim().isNotEmpty ||
+          reference.referenceNumber.trim().isNotEmpty ||
+          reference.referenceDate.trim().isNotEmpty;
+    }).toList();
+    final toIsDcf = firstRef.isNotEmpty &&
+        await _isDcfRecipient(
+          kind: firstRef.first.sourceKind,
+          sourceId: firstRef.first.sourceId,
+          fallback: firstRef.first.forwardedBy,
+        );
+
+    template = _replace(template, '{{DCF_COPY_LINE}}',
+        toIsDcf ? await _dcfCopyLine() : '');
+
     template = _replace(
       template,
       "{{FORWARDED_REFERENCE_OFFICER}}",
@@ -1522,6 +1586,21 @@ class DrfoDocumentService {
     final recipient = await _rfoForwardedRecipientAddress(application);
 
     final references = await _buildRfoRtcReferences(application);
+
+    final firstRef = application.forwardingReferences.where((reference) {
+      return reference.forwardedBy.trim().isNotEmpty ||
+          reference.referenceNumber.trim().isNotEmpty ||
+          reference.referenceDate.trim().isNotEmpty;
+    }).toList();
+    final toIsDcf = firstRef.isNotEmpty &&
+        await _isDcfRecipient(
+          kind: firstRef.first.sourceKind,
+          sourceId: firstRef.first.sourceId,
+          fallback: firstRef.first.forwardedBy,
+        );
+
+    template = _replace(template, '{{DCF_COPY_LINE}}',
+        toIsDcf ? await _dcfCopyLine() : '');
 
     final deferredReasons = await _buildDeferredReasons(application);
 
@@ -1561,6 +1640,15 @@ class DrfoDocumentService {
       application: application,
       primaryRecipient: primaryRecipient,
     );
+
+    final toIsDcf = await _isDcfRecipient(
+      kind: primaryRecipient.sourceKind,
+      sourceId: primaryRecipient.sourceId,
+      fallback: primaryRecipient.recipientText,
+    );
+
+    template = _replace(template, '{{DCF_COPY_LINE}}',
+        toIsDcf ? await _dcfCopyLine() : '');
 
     final governmentAgencyKannada =
         await _governmentAgencyKannadaFor(application);
@@ -1700,6 +1788,9 @@ class DrfoDocumentService {
         : kannadaTo.isNotEmpty
             ? kannadaTo
             : [officeName, officeAddress].where((value) => value.isNotEmpty).join("\n");
+
+    template = _replace(template, '{{DCF_COPY_LINE}}',
+        recipientRole == 'DCF' ? await _dcfCopyLine() : '');
 
     if (toAddress.isEmpty) {
       throw Exception("Revenue Opinion office name/address is missing.");
@@ -3011,13 +3102,14 @@ class DrfoDocumentService {
       );
 
       // Second head line (range + location) is bold like the first.
+      // Right-box line spacing is 125% of the standard spacing.
       final rightRangeParagraph = await _buildParagraph(
         text: rightBodyLines.isNotEmpty ? rightBodyLines.first : "",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
         alignment: ui.TextAlign.center,
         bold: true,
-        lineHeight: 1.18,
+        lineHeight: 1.48,
       );
 
       final rightBodyParagraph = await _buildParagraph(
@@ -3028,7 +3120,7 @@ class DrfoDocumentService {
         fontSize: defaultFontSize * _scale,
         alignment: ui.TextAlign.center,
         bold: false,
-        lineHeight: 1.18,
+        lineHeight: 1.48,
       );
 
       final rightDateParagraph = await _buildParagraph(
@@ -3037,10 +3129,10 @@ class DrfoDocumentService {
         fontSize: defaultFontSize * _scale,
         alignment: ui.TextAlign.center,
         bold: false,
-        lineHeight: 1.1,
+        lineHeight: 1.38,
       );
 
-      final double dateTopGap = 7 * _scale;
+      final double dateTopGap = 9 * _scale;
 
       final rightHeaderHeight =
           rightTitleParagraph.height +
@@ -3135,7 +3227,13 @@ class DrfoDocumentService {
               logoImage,
               sourceRect,
               destinationRect,
-              ui.Paint(),
+              // Slight darkening so light logos print visibly.
+              ui.Paint()
+                ..colorFilter =
+                    const ui.ColorFilter.mode(
+                  ui.Color(0x26000000),
+                  ui.BlendMode.srcATop,
+                ),
             );
 
             logoHeight = drawHeight;
@@ -3256,6 +3354,39 @@ class DrfoDocumentService {
 
       if (trimmed == '[/RIGHT]') {
         right = false;
+        continue;
+      }
+
+      // Single-line inline center, e.g. [CENTER]text[/CENTER].
+      // Empty inner text renders nothing, so non-DCF letters keep
+      // their original spacing.
+      if (trimmed.startsWith('[CENTER]') &&
+          trimmed.endsWith('[/CENTER]')) {
+        final inner = trimmed
+            .substring(
+              '[CENTER]'.length,
+              trimmed.length - '[/CENTER]'.length,
+            )
+            .trim();
+        if (inner.isEmpty) {
+          continue;
+        }
+        final inlineCenter = await _buildParagraph(
+          text: _safeText(inner),
+          width: contentWidth,
+          fontSize:
+              (bold ? boldFontSize : defaultFontSize) * _scale,
+          alignment: ui.TextAlign.center,
+          bold: bold,
+        );
+        y =
+            _drawFlowParagraph(
+              canvas,
+              inlineCenter,
+              bodyX,
+              y,
+            ) +
+            (9 * _scale);
         continue;
       }
 
@@ -3924,6 +4055,49 @@ class DrfoDocumentService {
   }
 
   // ==========================================================
+  // RFO LETTER NUMBER
+  // <type file number>/<application running number>/<FY>.
+  // Falls back to the office number when the type file number
+  // is not configured.
+  // ==========================================================
+
+  Future<String> _rfoLetterNumber(
+    ApplicationModel application,
+  ) async {
+    try {
+      final type = application.applicationType
+          .trim()
+          .toUpperCase();
+      final fileNumber =
+          await RfoLetterConfigurationRepository()
+              .getLetterNumber(type);
+      if (fileNumber.isEmpty) {
+        return application.officeNumber;
+      }
+      final serial = application.officeNumber
+          .split(RegExp(r'[/\\]'))
+          .last
+          .trim();
+      String financialYear = '';
+      try {
+        final config =
+            await OfficeConfigurationRepository()
+                .getConfiguration();
+        financialYear =
+            config?['financialYear']?.toString().trim() ?? '';
+      } catch (_) {
+        // Financial year is optional.
+      }
+      final parts = <String>[fileNumber];
+      if (serial.isNotEmpty) parts.add(serial);
+      if (financialYear.isNotEmpty) parts.add(financialYear);
+      return parts.join('/');
+    } catch (_) {
+      return application.officeNumber;
+    }
+  }
+
+  // ==========================================================
   // GENERATED DOCUMENT FOLDER
   // ==========================================================
 
@@ -4333,7 +4507,7 @@ class DrfoDocumentService {
     final letterhead = _RfoLetterheadData(
       // For now use the application number,
       // as instructed.
-      letterNumber: application.officeNumber,
+      letterNumber: await _rfoLetterNumber(application),
       rangeName: rangeName,
       rangeLocation: rangeLocation,
       rangeOfficeAddress: rangeOfficeAddress,
@@ -4467,7 +4641,7 @@ class DrfoDocumentService {
         officeConfiguration?["rfoOfficeLogoPath"]?.toString().trim() ?? "";
 
     final letterhead = _RfoLetterheadData(
-      letterNumber: application.officeNumber,
+      letterNumber: await _rfoLetterNumber(application),
       rangeName: rangeName,
       rangeLocation: rangeLocation,
       rangeOfficeAddress: rangeOfficeAddress,
@@ -4565,7 +4739,7 @@ class DrfoDocumentService {
         officeConfiguration?["rfoOfficeLogoPath"]?.toString().trim() ?? "";
 
     final letterhead = _RfoLetterheadData(
-      letterNumber: application.officeNumber,
+      letterNumber: await _rfoLetterNumber(application),
       rangeName: rangeName,
       rangeLocation: rangeLocation,
       rangeOfficeAddress: rangeOfficeAddress,
@@ -4735,6 +4909,7 @@ class DrfoDocumentService {
     final request = !auction && approval.khataGiven == false && !afterReply;
     final templates = auction ? ['RFO_GL_DO.txt', 'RFO_GL_TAGGU_BELE_PATTI.txt'] : [request ? 'RFO_GL_DOCUMENT_REQUEST.txt' : 'RFO_GL_VALUATION.txt'];
     String officerAddress = '';
+    bool valuationToIsDcf = false;
     if (!request) {
       final officers = await TreeOfficerRepository().getAll();
       final selected = officers.where((row) => row['id'] == approval.treeOfficerId).toList();
@@ -4742,6 +4917,9 @@ class DrfoDocumentService {
       // Designation + posting address only (officer names print
       // in To address in the DO letter alone).
       officerAddress = await OfficerRepository().addressForRole(selected.single['code'].toString());
+      valuationToIsDcf =
+          selected.single['code'].toString().trim().toUpperCase() ==
+              'DCF';
     }
     String? senderName;
     String senderAddress = '';
@@ -4798,6 +4976,8 @@ class DrfoDocumentService {
       '{{RANGE_NAME}}': range, '{{RANGE_LOCATION}}': location,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
       '{{TREE_OFFICER_TO_ADDRESS}}': officerAddress,
+      '{{DCF_COPY_LINE}}':
+          valuationToIsDcf ? await _dcfCopyLine() : '',
       '{{TOTAL_RECOMMENDED_TREES}}': rows.length.toString(),
       '{{GRAND_TOTAL_VALUE}}': money.format(total),
       '{{APPLICANT_REPLY_REFERENCE}}': replyReference,
@@ -4825,7 +5005,7 @@ class DrfoDocumentService {
       });
       final pages = isPatti ? await _renderTagguBelePatti(master, rows) : await _renderMasterToPng(master, glTreeEnumerationRows: rows, rfoLetterhead: _RfoLetterheadData(
         doSenderName: isDo ? senderName : null, doSenderAddress: isDo ? senderAddress : '',
-        letterNumber: application.officeNumber, rangeName: range, rangeLocation: location,
+        letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
         rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '', rangeEmail: config?['rangeEmail']?.toString() ?? '',
         logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '', approvalDate: _date(application.rfoApprovalDate),
       ));
@@ -4892,7 +5072,7 @@ class DrfoDocumentService {
       return value.trim().isEmpty ? '—' : value;
     });
     final pages = await _renderMasterToPng(master, rfoLetterhead: _RfoLetterheadData(
-      letterNumber: application.officeNumber, rangeName: range, rangeLocation: location,
+      letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
       rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '',
       rangeEmail: config?['rangeEmail']?.toString() ?? '',
       logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',
@@ -4970,6 +5150,9 @@ class DrfoDocumentService {
     }
     return {
       '{{TREE_OFFICER_TO_ADDRESS}}': treeOfficerToAddress,
+      '{{DCF_COPY_LINE}}': selected.first['code'].toString().trim().toUpperCase() == 'DCF'
+          ? await _dcfCopyLine()
+          : '',
       '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
       '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
       '{{RECEIVED_DATE}}': _date(application.receivedDate),
@@ -5018,7 +5201,7 @@ class DrfoDocumentService {
     });
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
-          letterNumber: application.officeNumber,
+          letterNumber: await _rfoLetterNumber(application),
           rangeName: range,
           rangeLocation: location,
           rangeOfficeAddress:
@@ -5115,6 +5298,7 @@ class DrfoDocumentService {
     var master = await _loadRfoTemplate('RFO_APPROVED_SPL.txt');
     final values = <String, String>{
       '{{TREE_OFFICER_TO_ADDRESS}}': toAddress,
+      '{{DCF_COPY_LINE}}': await _dcfCopyLine(),
       '{{APPLICANT_NAME}}': application.applicantName,
       '{{APPLICANT_ADDRESS}}': application.applicantAddress,
       '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
@@ -5148,7 +5332,7 @@ class DrfoDocumentService {
     final sandalRows = await _buildSandalTreeRows(application);
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
-          letterNumber: application.officeNumber,
+          letterNumber: await _rfoLetterNumber(application),
           rangeName: range,
           rangeLocation: location,
           rangeOfficeAddress:
@@ -5292,6 +5476,7 @@ class DrfoDocumentService {
     var master = await _loadRfoTemplate('RFO_APPROVED_SGL.txt');
     final values = <String, String>{
       '{{TREE_OFFICER_TO_ADDRESS}}': toAddress,
+      '{{DCF_COPY_LINE}}': await _dcfCopyLine(),
       '{{TREE_LOCATION}}': _location(application),
       '{{APPLICANT_NAME}}': application.applicantName,
       '{{APPLICANT_ADDRESS}}': application.applicantAddress,
@@ -5330,7 +5515,7 @@ class DrfoDocumentService {
     });
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
-          letterNumber: application.officeNumber,
+          letterNumber: await _rfoLetterNumber(application),
           rangeName: range,
           rangeLocation: location,
           rangeOfficeAddress:
@@ -5422,7 +5607,7 @@ class DrfoDocumentService {
         return value.trim().isEmpty ? '—' : value;
       });
     final pages = await _renderMasterToPng(master, rfoLetterhead: _RfoLetterheadData(
-      letterNumber: application.officeNumber, rangeName: range, rangeLocation: location,
+      letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
       rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '',
       rangeEmail: config?['rangeEmail']?.toString() ?? '',
       logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',

@@ -1,5 +1,6 @@
 ರವರಿಗೆ,
 {{TREE_OFFICER_TO_ADDRESS}}
+[CENTER]{{DCF_COPY_LINE}}[/CENTER]
 
 ಮಾನ್ಯರೆ,
 ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ {{TREE_LOCATION_SUBJECT_PHRASE}} ಖಾಸಗಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿ ನೀಡುವ ಬಗ್ಗೆ.
