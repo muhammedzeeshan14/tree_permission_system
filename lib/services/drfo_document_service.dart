@@ -1461,6 +1461,12 @@ class DrfoDocumentService {
       forwardedReference,
     );
 
+    template = _replace(
+      template,
+      '{{MCC_DRFO_REFERENCES}}',
+      await _buildMccDrfoReferences(application),
+    );
+
     final inspectionDate = application.bfoVerificationDate.trim().isNotEmpty
         ? application.bfoVerificationDate
         : application.drfoInspectionDate;
@@ -5269,7 +5275,19 @@ class DrfoDocumentService {
   /// MCC valuation references: applicant request (dates printed
   /// only when entered), forwarded references one below the other,
   /// DRFO inspection report last.
-  Future<String> _buildMccValuationReferences(ApplicationModel application) async {
+  Future<String> _buildMccValuationReferences(
+      ApplicationModel application) =>
+      _buildMccReferences(application, drfoOrderLast: false);
+
+  /// MCC DRFO references: same as valuation, except the last
+  /// reference is the RFO order date on which the application was
+  /// forwarded to the DRFO for assignment.
+  Future<String> _buildMccDrfoReferences(
+      ApplicationModel application) =>
+      _buildMccReferences(application, drfoOrderLast: true);
+
+  Future<String> _buildMccReferences(ApplicationModel application,
+      {required bool drfoOrderLast}) async {
     final appDate = _date(application.applicationDate);
     final appReceived = _date(application.receivedDate);
     var first =
@@ -5301,6 +5319,14 @@ class DrfoDocumentService {
       references.add(line);
     }
     final drfoDate = _date(application.drfoInspectionDate);
+    if (drfoOrderLast) {
+      final orderDate = _date(application.drfoAssignmentDate);
+      var last = (references.length + 1).toString() + '. ತಮ್ಮ ಆದೇಶ';
+      if (orderDate.isNotEmpty) last += ' ದಿನಾಂಕ: ' + orderDate;
+      last += '.';
+      references.add(last);
+      return references.join('\n');
+    }
     var last = (references.length + 1).toString() +
         '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
         await _printSectionName(application) +

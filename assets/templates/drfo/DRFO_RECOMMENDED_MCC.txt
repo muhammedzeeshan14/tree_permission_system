@@ -6,19 +6,16 @@
 {{RANGE_NAME}} ವಲಯ, {{RANGE_LOCATION}}.
 
 ಮಾನ್ಯರೆ,
-ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು ಸರ್ಕಾರಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಿಕೊಡಲು ಕೋರಿ ಸಲ್ಲಿಸಿದ ಅರ್ಜಿಗೆ ವರದಿಯನ್ನು ಸಲ್ಲಿಸುವ ಬಗ್ಗೆ.
+ವಿಷಯ: {{GOVERNMENT_AGENCY_KANNADA}} ವ್ಯಾಪ್ತಿಯ ರಸ್ತೆ ಬದಿಯಲ್ಲಿರುವ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಕೋರಿ ಸಲ್ಲಿಸಿದ ಅರ್ಜಿಗೆ ಅನುಮತಿಯನ್ನು ನೀಡುವ ಬಗ್ಗೆ.
 ಉಲ್ಲೇಖ:
-1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಅರ್ಜಿ ದಿನಾಂಕ: {{APPLICATION_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ {{RECEIVED_DATE}}).
-{{FORWARDED_REFERENCE}}
+{{MCC_DRFO_REFERENCES}}
 [CENTER]
 ---
 [/CENTER]
 [JUSTIFY]
-ಈ ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು {{ADDITIONAL_TREE_LOCATION}} ಸರ್ಕಾರಿ ಜಾಗದಲ್ಲಿರುವ ಮರ/ಮರಗಳನ್ನು {{STRUCTURE_TYPE_KANNADA}}ಯ {{PURPOSE_KANNADA}} {{WORK_NAME_TEXT}} {{WHY_REMOVING_KANNADA}} ಕಾರಣ ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿಯನ್ನು ಉಲ್ಲೇಖಿತ ಪತ್ರದಲ್ಲಿ ಕೋರಿದ ಮೇರೆಗೆ ಸ್ಥಳ ಪರಿಶೀಲಿಸಿ ವರದಿಯನ್ನು ಸಲ್ಲಿಸಲು ತಾವು ಆದೇಶವನ್ನು ಮಾಡಿರುತ್ತೀರಿ.
+ಈ ಮೇಲ್ಕಂಡ ವಿಷಯಕ್ಕೆ ಸಂಬಂಧಿಸಿದಂತೆ {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು {{ADDITIONAL_TREE_LOCATION}} ಮರ/ಮರಗಳನ್ನು {{STRUCTURE_TYPE_KANNADA}}ಯ {{PURPOSE_KANNADA}} {{WORK_NAME_TEXT}} {{WHY_REMOVING_KANNADA}} ಕಾರಣ ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿಯನ್ನು ಉಲ್ಲೇಖಿತ ಪತ್ರದಲ್ಲಿ ಕೋರಿದ ಮೇರೆಗೆ ಸ್ಥಳ ಪರಿಶೀಲಿಸಿ ವರದಿಯನ್ನು ಸಲ್ಲಿಸಲು ತಾವು ಆದೇಶವನ್ನು ಮಾಡಿರುತ್ತೀರಿ.
 
-ಅದರಂತೆ ನಾನು ಮತ್ತು ಸಿಬ್ಬಂದಿಗಳು ಅರ್ಜಿದಾರರ ಸ್ಥಳಕ್ಕೆ ಹೋಗಿ ಪರಿಶೀಲಿಸಿ ನೋಡಲಾಗಿ ಸದರಿ ಜಾಗವು {{GOVERNMENT_AGENCY_KANNADA}} ಅಧೀನದ ಸರ್ಕಾರಿ ಜಾಗವಾಗಿರುತ್ತದೆ. ಸದರಿ ಸ್ಥಳದಲ್ಲಿ {{RECOMMENDED_SPECIES_SUMMARY}} ಮರ/ಮರಗಳು ಇದ್ದು, ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರ/ಮರಗಳು ಇರುತ್ತವೆ. ಪರಿಶೀಲಿಸಲಾಗಿ {{TREE_STATUS_SUMMARY}} ಮರ/ಮರಗಳಿಂದ {{UNIQUE_RECOMMENDATION_REASONS}} ಕಂಡುಬರುತ್ತದೆ.
-
-ಆದ್ದರಿಂದ ಅರ್ಜಿಯನ್ನು ಪರಿಗಣಿಸಿ ಬಹಿರಂಗ ಹರಾಜಿನ ಮೂಲಕ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಪಂಚರ ಸಮಕ್ಷಮ ಮಹಜರು ಕ್ರಮವನ್ನು ಜರುಗಿಸಿ, ಮರಗಳ ಎಣಿಕೆ ಪಟ್ಟಿಯೊಂದಿಗೆ ಅನುಮತಿಯನ್ನು ನೀಡಬಹುದೆಂಬ ಅಭಿಪ್ರಾಯದೊಂದಿಗೆ ಈ ವರದಿಯನ್ನು ತಮ್ಮ ಅವಗಾಹನೆಗೆ ಗೌರವಪೂರಕವಾಗಿ ಸಲ್ಲಿಸಿದೆ.
+ಅದರಂತೆ ನಾನು ಮತ್ತು ಸಿಬ್ಬಂದಿಗಳು ಅರ್ಜಿದಾರರ ಸ್ಥಳಕ್ಕೆ ಹೋಗಿ ಪರಿಶೀಲಿಸಿ ನೋಡಲಾಗಿ ಮರಗಳು {{GOVERNMENT_AGENCY_KANNADA}} ವ್ಯಾಪ್ತಿಯ ರಸ್ತೆ ಬದಿ ಮರಗಳಾಗಿದ್ದು ಸದರಿ ಸ್ಥಳದಲ್ಲಿ {{RECOMMENDED_SPECIES_SUMMARY}} ಮರ/ಮರಗಳು ಇದ್ದು, ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರ/ಮರಗಳು ಇರುತ್ತವೆ. ಪರಿಶೀಲಿಸಲಾಗಿ {{TREE_STATUS_SUMMARY}} ಮರ/ಮರಗಳಿಂದ {{UNIQUE_RECOMMENDATION_REASONS}} ಕಂಡುಬರುತ್ತದೆ. ಆದ್ದರಿಂದ ಅರ್ಜಿಯನ್ನು ಪರಿಗಣಿಸಿ ಅಪಾಯಕಾರಿಯಾಗಿರುವ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು {{GOVERNMENT_AGENCY_KANNADA}}ಗೆ ಅನುಮತಿಯನ್ನು ನೀಡಬಹುದೆಂಬ ಅಭಿಪ್ರಾಯದೊಂದಿಗೆ ಈ ವರದಿಯನ್ನು ತಮ್ಮ ಅವಗಾಹನೆಗೆ ಗೌರವಪೂರಕವಾಗಿ ಸಲ್ಲಿಸಿದೆ.
 [/JUSTIFY]
 [CENTER]
 ವಂದನೆಗಳೊಂದಿಗೆ,
