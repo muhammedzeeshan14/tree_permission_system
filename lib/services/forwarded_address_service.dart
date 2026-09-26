@@ -99,6 +99,18 @@ class ForwardedAddressService {
     return OfficerRepository().sourceAddress(sourceId, fallback);
   }
 
+  /// Copy-To lines must each print as ONE line:
+  /// applicant/officer designation/reference name + address/office
+  /// postal address, all comma-separated. Any multi-line fallback
+  /// text is collapsed so a copy entry never splits into 2 lines.
+  static String _oneLine(String value) {
+    return value
+        .split(RegExp(r'[\r\n]+'))
+        .map((s) => s.replaceAll(RegExp(r'\s+'), ' ').trim())
+        .where((s) => s.isNotEmpty)
+        .join(', ');
+  }
+
   /// Single-line comma Copy-To address.
   static Future<String> copyToAddress({
     required String kind,
@@ -106,10 +118,10 @@ class ForwardedAddressService {
     required String fallback,
   }) async {
     final normalizedKind = kind.trim().toUpperCase();
-    if (sourceId == null) return fallback;
+    if (sourceId == null) return _oneLine(fallback);
     if (normalizedKind == 'AGENCY') {
       final row = await _row('revenue_opinion_master', sourceId);
-      if (row == null) return fallback;
+      if (row == null) return _oneLine(fallback);
       final name =
           row['kannadaName']?.toString().trim() ?? '';
       final designation =
@@ -120,22 +132,22 @@ class ForwardedAddressService {
           .where((s) => s.isNotEmpty)
           .join(', ');
       if (parts.isNotEmpty) return parts;
-      return OfficerRepository()
-          .sourceAddress(sourceId, fallback, copyTo: true);
+      return _oneLine(await OfficerRepository()
+          .sourceAddress(sourceId, fallback, copyTo: true));
     }
     if (normalizedKind == 'OFFICER') {
       final row = await _row('officer_directory', sourceId);
-      if (row == null) return fallback;
+      if (row == null) return _oneLine(fallback);
       try {
         return OfficerRepository.formatAddress(
           row,
           copyTo: true,
         );
       } catch (_) {
-        return fallback;
+        return _oneLine(fallback);
       }
     }
-    return OfficerRepository()
-        .sourceAddress(sourceId, fallback, copyTo: true);
+    return _oneLine(await OfficerRepository()
+        .sourceAddress(sourceId, fallback, copyTo: true));
   }
 }

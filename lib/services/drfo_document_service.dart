@@ -402,6 +402,23 @@ class DrfoDocumentService {
       final kannada =
           await ApplicationTypeRepository().getKannadaName('MCC');
       if (kannada.isNotEmpty) return kannada;
+      // Never leave a blank/dash agency: fall back to the MCC type
+      // display name. Fill the Kannada name in Application Type
+      // Master for a fully-Kannada letter.
+      try {
+        final types = await ApplicationTypeRepository().getAll();
+        for (final row in types) {
+          if ((row['shortCode']?.toString() ?? '')
+                  .trim()
+                  .toUpperCase() ==
+              'MCC') {
+            final display =
+                (row['applicationType']?.toString() ?? '').trim();
+            if (display.isNotEmpty) return display;
+          }
+        }
+      } catch (_) {}
+      return 'MCC';
     }
     return _masterKannadaName(
       MasterRepository(),
@@ -409,9 +426,11 @@ class DrfoDocumentService {
     );
   }
 
-  /// Centered ACF designation + office address line shown below the
-  /// To address (before ಮಾನ್ಯರೇ) in every RFO letter except the DO
-  /// letter, whenever the To address is the DCF officer.
+  /// Centered routing line below the To address (before ಮಾನ್ಯರೇ)
+  /// in every RFO letter except the DO letter, whenever the To
+  /// address is the DCF officer: ACF designation, office postal
+  /// address (one comma line from the officer master) followed by
+  /// ರವರ ಮುಖಾಂತರ.
   Future<String> _dcfCopyLine() async {
     try {
       final directory = await OfficerRepository().getAll();
@@ -419,8 +438,10 @@ class DrfoDocumentService {
           (row['role']?.toString() ?? '').trim().toUpperCase() ==
           'ACF').toList();
       if (acf.isEmpty) return '';
-      return OfficerRepository.formatAddress(acf.single,
+      final line = OfficerRepository.formatAddress(acf.single,
           copyTo: true);
+      if (line.trim().isEmpty) return '';
+      return '$line ರವರ ಮುಖಾಂತರ';
     } catch (_) {
       return '';
     }
@@ -1288,6 +1309,7 @@ class DrfoDocumentService {
     if ((applicationType == 'GL' ||
             applicationType == 'STGL' ||
             applicationType == 'CGL' ||
+            applicationType == 'MCC' ||
             applicationType == 'PL' ||
             applicationType == 'SPL') &&
         application.id != null) {
