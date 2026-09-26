@@ -46,6 +46,16 @@ class InspectionDeferredReasonRepository {
             },
           );
         }
+        // Mirror to local so reads work even before the
+        // background sync uploads local rows (or when a later
+        // read falls back offline). A mirror failure must never
+        // break the already-successful cloud save.
+        try {
+          await _saveLocal(
+            applicationId: applicationId,
+            reasons: reasons,
+          );
+        } catch (_) {}
         return;
       } catch (e) {
         debugPrint('online saveReasons inspection_deferred_reasons failed, falling back to local: $e');
@@ -53,7 +63,23 @@ class InspectionDeferredReasonRepository {
     }
     final db = await _db;
 
-    await db.delete(
+    await _saveLocal(
+      applicationId: applicationId,
+      reasons: reasons,
+      db: db,
+    );
+  }
+
+  /// Local delete + insert shared by the online mirror and the
+  /// offline path. Looks up display names from the local masters.
+  Future<void> _saveLocal({
+    required int applicationId,
+    required List<Map<String, dynamic>> reasons,
+    DatabaseExecutor? db,
+  }) async {
+    final database = db ?? await _db;
+
+    await database.delete(
       "inspection_deferred_reasons",
       where: "applicationId=?",
       whereArgs: [applicationId],
@@ -61,7 +87,7 @@ class InspectionDeferredReasonRepository {
 
     for (int i = 0; i < reasons.length; i++) {
 
-  final master = await db.query(
+  final master = await database.query(
     "master_data",
     where: "id=?",
     whereArgs: [reasons[i]["id"]],
@@ -75,7 +101,7 @@ class InspectionDeferredReasonRepository {
         master.first["value"]?.toString() ?? "";
   }
 
-  await db.insert(
+  await database.insert(
     "inspection_deferred_reasons",
     {
       "applicationId": applicationId,
@@ -98,9 +124,13 @@ class InspectionDeferredReasonRepository {
         );
         rows.sort((a, b) => ((a['displayOrder'] as num?)?.toInt() ?? 0)
             .compareTo((b['displayOrder'] as num?)?.toInt() ?? 0));
-        return rows
-            .map((e) => (e["reasonId"] as num?)?.toInt() ?? 0)
-            .toList();
+        // Empty cloud result falls through to local: reasons may
+        // have been saved offline and not synced yet.
+        if (rows.isNotEmpty) {
+          return rows
+              .map((e) => (e["reasonId"] as num?)?.toInt() ?? 0)
+              .toList();
+        }
       } catch (e) {
         debugPrint('online getReasonIds inspection_deferred_reasons failed, falling back to local: $e');
       }
@@ -130,32 +160,46 @@ class InspectionDeferredReasonRepository {
       );
       saved.sort((a, b) => ((a['displayOrder'] as num?)?.toInt() ?? 0)
           .compareTo((b['displayOrder'] as num?)?.toInt() ?? 0));
-      final masters = await OnlineDatabase.select("master_data");
-      final kannadaById = <int, String>{
-        for (final m in masters)
-          if ((m['id'] as num?) != null)
-            (m['id'] as num).toInt():
-                (m['kannadaName']?.toString() ?? ''),
-      };
-      return [
-        for (final row in saved)
-          {
-            ...row,
-            'documentReasonName': (() {
-              final kannada = (kannadaById[(row['reasonId'] as num?)?.toInt()] ?? '').trim();
-              if (kannada.isNotEmpty) return kannada;
-              return row['reasonName']?.toString() ?? '';
-            })(),
-          },
-      ];
+      // Empty cloud result falls through to local: reasons may
+      // have been saved offline and not synced yet.
+      if (saved.isNotEmpty) {
+        final masters = await OnlineDatabase.select("master_data");
+        final kannadaById = <int, String>{
+          for (final m in masters)
+            if ((m['id'] as num?) != null)
+              (m['id'] as num).toInt():
+                  (m['kannadaName']?.toString() ?? ''),
+        };
+        return [
+          for (final row in saved)
+            {
+              ...row,
+              'documentReasonName': (() {
+                final kannada = (kannadaById[(row['reasonId'] as num?)?.toInt()] ?? '').trim();
+                if (kannada.isNotEmpty) return kannada;
+                return row['reasonName']?.toString() ?? '';
+              })(),
+            },
+        ];
+      }
     } catch (e) {
       debugPrint('online getReasons inspection_deferred_reasons failed, falling back to local: $e');
     }
   }
   final db = await _db;
 
-  return await db.rawQuery(
-    '''
+  return await _localReasons(db, applicationId);
+}
+
+  /// Local read shared by the offline path and the online
+  /// empty-result fallback. Prefers the master Kannada name so
+  /// letters print Kannada.
+  Future<List<Map<String, dynamic>>> _localReasons(
+    DatabaseExecutor db,
+    int applicationId,
+  ) async {
+    return await db.rawQuery(
+      '''
     SELECT
       saved.*,
       CASE
@@ -169,9 +213,9 @@ class InspectionDeferredReasonRepository {
     WHERE saved.applicationId = ?
     ORDER BY saved.displayOrder
     ''',
-    [applicationId],
-  );
-}
+      [applicationId],
+    );
+  }
 
   Future<void> deleteReasons(
       int applicationId) async {
@@ -182,6 +226,16 @@ class InspectionDeferredReasonRepository {
           column: "applicationId",
           value: applicationId,
         );
+        // Also clear local: with the empty-result local fallback
+        // above, stale local rows would otherwise resurface.
+        try {
+          final db = await _db;
+          await db.delete(
+            "inspection_deferred_reasons",
+            where: "applicationId=?",
+            whereArgs: [applicationId],
+          );
+        } catch (_) {}
         return;
       } catch (e) {
         debugPrint('online deleteReasons inspection_deferred_reasons failed, falling back to local: $e');
