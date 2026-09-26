@@ -113,7 +113,7 @@ Future<void> showBeatDialog({
 
                     DropdownButtonFormField<int>(
 
-                      initialValue: selectedSectionId,
+                      value: selectedSectionId,
 
                       decoration: const InputDecoration(
 

@@ -408,7 +408,7 @@ String? _validateMinute(String? value) {
       SizedBox(
         width: 110,
         child: DropdownButtonFormField<String>(
-          initialValue: period,
+          value: period,
           decoration: const InputDecoration(
             labelText: "AM/PM",
             border: OutlineInputBorder(),
@@ -461,7 +461,7 @@ String? _validateMinute(String? value) {
             flex: 2,
             child:
                 DropdownButtonFormField<int>(
-              initialValue: locationList.any(
+              value: locationList.any(
                 (item) =>
                     item["id"] ==
                     selectedLocationId,

@@ -59,7 +59,7 @@ class _TreeOfficerMasterScreenState extends State<TreeOfficerMasterScreen> {
                 validator:(v)=>v==null || v.trim().isEmpty ? 'Enter officer name' : null)),
               const SizedBox(width:16),
               Expanded(flex:2,child:DropdownButtonFormField<int>(
-                initialValue:rows[i]['requiresFellingPermission'] as int?,isExpanded:true,
+                value:rows[i]['requiresFellingPermission'] as int?,isExpanded:true,
                 decoration:const InputDecoration(labelText:'Felling permission',border:OutlineInputBorder()),
                 items:const [
                   DropdownMenuItem(value:1,child:Text('Require felling permission')),

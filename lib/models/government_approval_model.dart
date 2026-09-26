@@ -27,7 +27,7 @@ class GovernmentApproval {
       finalPaths=List<String>.from(jsonDecode(row['finalPaths'] as String? ?? '[]'));
   static bool isGovernment(String type)=>{'STGL','CGL','GL','MCC'}.contains(type.trim().toUpperCase());
   static String? validateAnswers(Map<String,String> answers) {
-    for(final key in questions.keys) {if((answers[key]??'').trim().isEmpty)return 'Enter ${questions[key]!}.';}
+    for(final key in questions.keys) {if((answers[key]??'').trim().isEmpty)return 'Enter '+questions[key]!+'.';}
     if(!natures.contains(answers['nature']))return 'Select reply nature.';
     final date=DateTime.tryParse(answers['letterDate']??'');final received=DateTime.tryParse(answers['receivedDate']??'');
     if(date==null||received==null)return 'Select valid letter dates.';

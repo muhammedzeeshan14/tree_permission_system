@@ -1766,7 +1766,7 @@ Widget _buildTreeOfficerSelection() {
       const Text('Select Tree officer'),
       const SizedBox(width: 16),
       Expanded(child: DropdownButtonFormField<int>(
-        initialValue: selectedTreeOfficerId,
+        value: selectedTreeOfficerId,
         isExpanded: true,
         decoration: const InputDecoration(hintText:'Select officer',border:OutlineInputBorder()),
         items: treeOfficerOptions.map((row)=>DropdownMenuItem<int>(
@@ -1779,7 +1779,7 @@ Widget _buildTreeOfficerSelection() {
             await treeOfficerRepository.saveSelection(widget.application.id!, value);
             if(mounted) setState(()=>selectedTreeOfficerId=value);
           } catch(e) {
-            if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not save tree officer: $e')));
+            if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Could not save tree officer: ' + e.toString())));
           } finally { if(mounted) setState(()=>savingTreeOfficer=false); }
         },
       )),
@@ -1814,7 +1814,7 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: applicationTypeOptions
+    value: applicationTypeOptions
             .where(
               (item) {
                 final currentType =
@@ -1936,7 +1936,7 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: governmentAgencyOptions.any(
+    value: governmentAgencyOptions.any(
       (item) =>
           item["id"] ==
           widget.application
@@ -1982,7 +1982,7 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: urbanRuralOptions.any(
+    value: urbanRuralOptions.any(
       (item) =>
           item["id"] ==
           widget.application
@@ -2026,7 +2026,7 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: whyRemovingOptions.any(
+    value: whyRemovingOptions.any(
       (item) =>
           item["id"] ==
           widget.application
@@ -2075,7 +2075,7 @@ _approvalCard(
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: purposeOptions.any(
+    value: purposeOptions.any(
       (item) =>
           item["id"] ==
           widget.application.purposeId,
@@ -2128,7 +2128,7 @@ _approvalCard(
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: structureTypeOptions.any(
+    value: structureTypeOptions.any(
       (item) =>
           item["id"] ==
           widget.application
@@ -2731,7 +2731,7 @@ Widget _buildRevenueOpinionApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: revenueOpinionOptions.any(
+    value: revenueOpinionOptions.any(
       (option) =>
           option.id ==
           selectedRevenueOpinion?.id,
@@ -3054,7 +3054,7 @@ Widget _buildOverallRemarksApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
-    initialValue: overallRemarkOptions.any(
+    value: overallRemarkOptions.any(
       (item) =>
           item["id"] ==
           widget.application
@@ -3218,7 +3218,7 @@ Widget _buildRfoFinalDecisionPage() {
                 )
               else
                 DropdownButtonFormField<String>(
-                  initialValue: selectedDeferredRfoToKey,
+                  value: selectedDeferredRfoToKey,
                   decoration:
                       const InputDecoration(
                     labelText: "To",
@@ -3270,7 +3270,7 @@ Widget _buildRfoFinalDecisionPage() {
     "rfo_copy_${selectedDeferredRfoToKey ?? 'none'}_"
     "${selectedDeferredRfoCopyKeys.join('_')}",
   ),
-  initialValue: null,
+  value: null,
                     decoration:
                         const InputDecoration(
                       labelText: "Add Copy To",

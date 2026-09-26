@@ -42,7 +42,7 @@ class OfficerRepository {
         final duplicates = existing.where(
           (row) => ((row['id'] as num?)?.toInt() ?? -999) != (id ?? -1),
         ).toList();
-        if(duplicates.isNotEmpty) throw StateError('An officer is already mapped to $role. Edit that entry.');
+        if(duplicates.isNotEmpty) throw StateError('An officer is already mapped to '+role+'. Edit that entry.');
         final row={'name':name.trim(),'designation':designation.trim(),'postingAddress':postingAddress.trim(),'role':role};
         if(id==null) {
           await OnlineDatabase.insert('officer_directory',row);
@@ -64,7 +64,7 @@ class OfficerRepository {
     final db=await _db;
     await db.transaction((tx) async {
       final duplicates=await tx.query('officer_directory',where:'role=? AND id<>?',whereArgs:[role,id??-1]);
-      if(duplicates.isNotEmpty) throw StateError('An officer is already mapped to $role. Edit that entry.');
+      if(duplicates.isNotEmpty) throw StateError('An officer is already mapped to '+role+'. Edit that entry.');
       final row={'name':name.trim(),'designation':designation.trim(),'postingAddress':postingAddress.trim(),'role':role};
       if(id==null) {await tx.insert('officer_directory',row);} else {
         if(await tx.update('officer_directory',row,where:'id=?',whereArgs:[id])!=1) throw StateError('Officer not found.');
@@ -79,7 +79,7 @@ class OfficerRepository {
   }
   Future<String> addressForRole(String role,{bool copyTo=false}) async {
     final rows=await (await _db).query('officer_directory',where:'role=?',whereArgs:[role]);
-    if(rows.isEmpty) throw StateError('Add the $role officer in Administration > Officers before generating or printing this letter.');
+    if(rows.isEmpty) throw StateError('Add the '+role+' officer in Administration > Officers before generating or printing this letter.');
     return formatAddress(rows.single,copyTo:copyTo);
   }
   Future<String?> sourceRole(int? sourceId,String fallback) async {

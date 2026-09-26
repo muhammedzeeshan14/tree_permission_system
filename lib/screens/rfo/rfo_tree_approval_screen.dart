@@ -195,7 +195,7 @@ Future<String?> _showReinspectDialog(
 
         content: DropdownButtonFormField<String>(
 
-          initialValue: treeVerificationReasons.contains(
+          value: treeVerificationReasons.contains(
                   selectedReason)
               ? selectedReason
               : null,

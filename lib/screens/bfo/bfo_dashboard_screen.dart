@@ -335,7 +335,7 @@ class _BFODashboardScreenState
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: applications.length,
-      separatorBuilder: (_, _) =>
+      separatorBuilder: (_, __) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final application = applications[index];

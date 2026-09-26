@@ -83,7 +83,7 @@ class _UserMasterScreenState
     if (selectedSectionId != null) {
 
       beats = await beatRepository.getBySection(
-        selectedSectionId,
+        selectedSectionId!,
       );
 
     }

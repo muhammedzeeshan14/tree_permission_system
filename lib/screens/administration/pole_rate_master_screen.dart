@@ -158,7 +158,7 @@ class _PoleRateMasterScreenState
                     children: [
 
                       DropdownButtonFormField<int>(
-  initialValue: selectedSpeciesId,
+  value: selectedSpeciesId,
 
   decoration: const InputDecoration(
     labelText: "Species",

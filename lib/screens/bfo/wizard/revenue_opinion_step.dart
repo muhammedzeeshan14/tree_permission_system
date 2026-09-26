@@ -143,7 +143,7 @@ if (mounted) {
 
             DropdownButtonFormField<int>(
 
-              initialValue:selectedOpinionId,
+              value:selectedOpinionId,
 
               decoration:
                   const InputDecoration(
@@ -159,10 +159,10 @@ if (mounted) {
               items: opinions.map((item){
 
                 return DropdownMenuItem<int>(
-  value: item.id,
+  value: item!.id,
 
                   child: Text(
-  item.revenueOpinion,
+  item!.revenueOpinion,
 ),
 
                 );

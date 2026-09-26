@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'office_configuration_screen.dart';
 import 'officer_directory_screen.dart';
 import 'application_type_master_screen.dart';
+import 'generic_master_screen.dart';
 import 'master_menu_screen.dart';
+import 'section_master_screen.dart';
 import 'storage_management_screen.dart';
 import '../../services/session_service.dart';
 

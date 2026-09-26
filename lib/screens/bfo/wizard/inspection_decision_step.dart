@@ -282,7 +282,7 @@ Widget build(BuildContext context) {
 
                                 child: DropdownButtonFormField<int>(
 
-                                  initialValue:
+                                  value:
                                       selectedReasonIds[index],
 
                                   decoration:

@@ -534,7 +534,7 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
-                        initialValue: isGovernmentCategory
+                        value: isGovernmentCategory
                             ? selectedGovernmentAgencyId
                             : selectedUrbanRuralId,
                         decoration: InputDecoration(
@@ -581,7 +581,7 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
-                        initialValue:
+                        value:
                             selectedWhyRemovingId,
                         decoration:
                             const InputDecoration(
@@ -631,7 +631,7 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
-                        initialValue: selectedPurposeId,
+                        value: selectedPurposeId,
                         decoration:
                             const InputDecoration(
                           labelText:
@@ -667,7 +667,7 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
-                        initialValue:
+                        value:
                             selectedStructureTypeId,
                         decoration:
                             const InputDecoration(

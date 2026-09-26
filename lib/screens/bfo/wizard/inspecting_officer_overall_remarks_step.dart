@@ -180,7 +180,7 @@ class _InspectingOfficerOverallRemarksStepState
                           const EdgeInsets.all(20),
                       child:
                           DropdownButtonFormField<int>(
-                        initialValue: selectedRemarkId,
+                        value: selectedRemarkId,
                         isExpanded: true,
                         decoration:
                             const InputDecoration(

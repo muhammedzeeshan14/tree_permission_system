@@ -173,7 +173,7 @@ if (opinion != null) {
           content:
               DropdownButtonFormField<String>(
 
-            initialValue: selectedReason,
+            value: selectedReason,
 
             decoration:
                 const InputDecoration(

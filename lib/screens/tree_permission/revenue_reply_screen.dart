@@ -18,7 +18,11 @@ String revenueDate(String value) {
   final date = DateTime.tryParse(value);
   return date == null
       ? value.replaceAll('/', '-')
-      : '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}';
+      : date.day.toString().padLeft(2, '0') +
+            '-' +
+            date.month.toString().padLeft(2, '0') +
+            '-' +
+            date.year.toString();
 }
 
 class PendingRevenueOpinionScreen extends StatefulWidget {
@@ -70,21 +74,18 @@ class _PendingRevenueOpinionScreenState
     body: FutureBuilder<List<ApplicationModel>>(
       future: applications,
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
+        if (snapshot.hasError)
           return Center(
             child: Text(
-              'Unable to load applications: ${snapshot.error}',
+              'Unable to load applications: ' + snapshot.error.toString(),
             ),
           );
-        }
-        if (!snapshot.hasData) {
+        if (!snapshot.hasData)
           return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.data!.isEmpty) {
+        if (snapshot.data!.isEmpty)
           return const Center(
             child: Text('No applications awaiting revenue opinion.'),
           );
-        }
         return ListView(
           children: snapshot.data!
               .map(
@@ -190,11 +191,10 @@ class _RevenueReplyWorkflowScreenState
     try {
       await action();
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -231,9 +231,8 @@ class _RevenueReplyWorkflowScreenState
       final documents = DrfoDocumentService();
       final File? file;
       if (current.answers['nature'] == RevenueReply.wrongAuthority) {
-        if (current.nextAuthorityId == null) {
+        if (current.nextAuthorityId == null)
           throw StateError('Select the new revenue opinion giving authority.');
-        }
         file = await documents.generateRfoRevenueOpinionRequestLetter(
           widget.application,
           authorityId: current.nextAuthorityId,
@@ -429,7 +428,7 @@ class _RevenueReplyWorkflowScreenState
       ),
       const SizedBox(height: 18),
       Text(
-        '${reply!.answers['nature'] ?? ''} Revenue Opinion',
+        (reply!.answers['nature'] ?? '') + ' Revenue Opinion',
         style: const TextStyle(fontSize: 20),
       ),
       const SizedBox(height: 18),
@@ -450,12 +449,10 @@ class _RevenueReplyWorkflowScreenState
                 value: row['id'] as int, child: Text('$label ($code)'));
           }).toList(),
           onChanged: busy ? null : (id) {
-            if (id != null) {
-              _run(() async {
+            if (id != null) _run(() async {
               await TreeOfficerRepository().saveSelection(widget.application.id!, id);
               selectedTreeOfficerId = id;
             });
-            }
           },
         ),
         const SizedBox(height: 18),
@@ -476,18 +473,17 @@ class _RevenueReplyWorkflowScreenState
               .map(
                 (a) => DropdownMenuItem(
                   value: a.id,
-                  child: Text('${a.officeName} — ${a.officeAddress}'),
+                  child: Text(a.officeName + ' — ' + a.officeAddress),
                 ),
               )
               .toList(),
           onChanged: busy
               ? null
               : (id) {
-                  if (id != null) {
+                  if (id != null)
                     _run(() async {
                       reply = await repository.saveAuthority(reply!, id);
                     });
-                  }
                 },
         ),
         const SizedBox(height: 12),
@@ -504,20 +500,18 @@ class _RevenueReplyWorkflowScreenState
   );
   @override
   Widget build(BuildContext context) {
-    if (error != null) {
+    if (error != null)
       return Scaffold(
         appBar: AppBar(title: const Text('Revenue Opinion')),
         body: Center(child: Text(error!)),
       );
-    }
-    if (reply == null) {
+    if (reply == null)
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
     return PopScope(
       canPop: !busy,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('${widget.application.officeNumber} — Revenue Opinion'),
+          title: Text(widget.application.officeNumber + ' — Revenue Opinion'),
         ),
         body: Column(
           children: [
@@ -643,12 +637,11 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
     final operation = queue.then((_) async {
       reply = await repository.saveAnswers(reply, values,
           rfo: true, includeOnline: !isSandal);
-      if (mounted) {
+      if (mounted)
         setState(() => saveStatus = 'Changes saved. Review the answers again.');
-      }
     });
     queue = operation.catchError((Object e) {
-      if (mounted) setState(() => saveStatus = 'Save failed: $e');
+      if (mounted) setState(() => saveStatus = 'Save failed: ' + e.toString());
     });
     return operation;
   }
@@ -671,11 +664,10 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
         if (mounted) Navigator.pop(context, submit ? true : reply);
       });
     } catch (e) {
-      if (mounted) {
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -696,7 +688,7 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
   }
 
   Widget _answer(String field) {
-    if (field == 'nature') {
+    if (field == 'nature')
       return DropdownButtonFormField<String>(
         initialValue: RevenueReply.natures.contains(controllers[field]!.text)
             ? controllers[field]!.text
@@ -712,8 +704,7 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
                 _changed();
               },
       );
-    }
-    if (field == 'onlineApplicationStatus') {
+    if (field == 'onlineApplicationStatus')
       return DropdownButtonFormField<String>(
         initialValue: RevenueReply.onlineStatuses
                 .contains(controllers[field]!.text)
@@ -733,8 +724,7 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
                 _changed();
               },
       );
-    }
-    if (field.endsWith('Date')) {
+    if (field.endsWith('Date'))
       return OutlinedButton.icon(
         onPressed: busy ? null : () => _date(field),
         icon: const Icon(Icons.calendar_today),
@@ -744,7 +734,6 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
               : revenueDate(controllers[field]!.text),
         ),
       );
-    }
     return TextField(
       controller: controllers[field],
       enabled: !busy,

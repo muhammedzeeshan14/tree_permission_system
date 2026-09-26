@@ -183,6 +183,11 @@ await loadApplicationTypes();
   await loadSections();
   await loadForwardedSources();
 
+  // The awaits above can outlive this screen (back navigation,
+  // hot restart). Touching disposed controllers corrupts the
+  // element tree and red-screens the app.
+  if (!mounted) return;
+
   if (isEdit) {
 
     applicationDateController.text =
@@ -851,7 +856,7 @@ TextFormField(
             const SizedBox(height: 15),
 
             DropdownButtonFormField<String>(
-  initialValue: applicationTypeList.any(
+  value: applicationTypeList.any(
           (e) => e["shortCode"] == applicationType)
       ? applicationType
       : null,
@@ -920,7 +925,7 @@ if (isGovernmentCategory && !isMcc) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
-    initialValue: governmentAgencyList.any(
+    value: governmentAgencyList.any(
       (item) => item["id"] == governmentAgencyId,
     )
         ? governmentAgencyId
@@ -949,7 +954,7 @@ if (isPrivateCategory) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
-    initialValue: urbanRuralList.any(
+    value: urbanRuralList.any(
       (item) => item["id"] == urbanRuralId,
     )
         ? urbanRuralId
@@ -978,7 +983,7 @@ if (requiresWhyRemovingAndPurpose) ...[
   const SizedBox(height: 15),
 
 DropdownButtonFormField<int>(
-  initialValue: whyRemovingList.any(
+  value: whyRemovingList.any(
     (item) => item["id"] == whyRemovingId,
   )
       ? whyRemovingId
@@ -1021,7 +1026,7 @@ DropdownButtonFormField<int>(
 const SizedBox(height: 15),
 
 DropdownButtonFormField<int>(
-  initialValue: purposeList.any(
+  value: purposeList.any(
     (item) => item["id"] == purposeId,
   )
       ? purposeId
@@ -1069,7 +1074,7 @@ if (showsAdditionalWorkDetails) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
-    initialValue: structureTypeList.any(
+    value: structureTypeList.any(
       (item) => item["id"] == structureTypeId,
     )
         ? structureTypeId
@@ -1111,7 +1116,7 @@ if (showsAdditionalWorkDetails) ...[
 
 DropdownButtonFormField<String>(
 
-  initialValue: sectionList.any(
+  value: sectionList.any(
         (e) => e["sectionName"] == section)
     ? section
     : null,
@@ -1157,7 +1162,7 @@ const SizedBox(height: 15),
 
 DropdownButtonFormField<String>(
 
-  initialValue: beatList.any(
+  value: beatList.any(
         (e) => e["beatName"] == beat)
     ? beat
     : null,

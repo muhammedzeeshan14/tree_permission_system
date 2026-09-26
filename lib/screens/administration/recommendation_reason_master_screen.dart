@@ -109,7 +109,7 @@ class _RecommendationReasonMasterScreenState
 
                     DropdownButtonFormField<String>(
 
-                      initialValue: selectedType,
+                      value: selectedType,
 
                       decoration:
                           const InputDecoration(
