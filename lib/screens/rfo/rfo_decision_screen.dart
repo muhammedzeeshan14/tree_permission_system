@@ -1175,7 +1175,9 @@ List<String> _requiredApprovalKeys() {
   ];
 
   if (!isRtcApplication) {
-    if (isGovernmentApplication) {
+    // MCC hides the agency section (no card rendered), so it must
+    // not be a required approval item either.
+    if (isGovernmentApplication && !isMccApplication) {
       keys.add(
         _approvalMapKey("GOVERNMENT_AGENCY"),
       );
