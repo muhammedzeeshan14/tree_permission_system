@@ -183,6 +183,11 @@ await loadApplicationTypes();
   await loadSections();
   await loadForwardedSources();
 
+  // The awaits above can outlive this screen (back navigation,
+  // hot restart). Touching disposed controllers corrupts the
+  // element tree and red-screens the app.
+  if (!mounted) return;
+
   if (isEdit) {
 
     applicationDateController.text =

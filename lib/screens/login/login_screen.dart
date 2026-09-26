@@ -165,6 +165,7 @@ switch (user["role"]) {
 }
 await MasterDataService.instance
     .loadMasters();
+if (!mounted) return;
 Navigator.pushReplacementNamed(
 
   context,

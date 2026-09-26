@@ -59,13 +59,18 @@ class TPMSDrawer extends StatelessWidget {
 
             onTap: () {
 
-              Navigator.pop(context);
+              // The drawer route is popped first, so the drawer's
+              // own context is deactivated. Use the Navigator's
+              // context (stays mounted) for the dialog.
+              final navigator = Navigator.of(context);
+
+              navigator.pop();
 
               showDialog(
 
-                context: context,
+                context: navigator.context,
 
-                builder: (_) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
 
                   title: const Text("My Profile"),
 
@@ -100,7 +105,7 @@ class TPMSDrawer extends StatelessWidget {
 
                       onPressed: () {
 
-                        Navigator.pop(context);
+                        Navigator.pop(dialogContext);
 
                       },
 
