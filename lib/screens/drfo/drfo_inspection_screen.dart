@@ -1108,10 +1108,17 @@ Future<void> _saveVerification() async {
   );
 
   // Save deferred inspection reasons.
+  // Entries loaded from the database carry the saved-row id;
+  // normalize to master reason ids so re-saving during
+  // verification never corrupts the stored reasons.
   if (isDeferred) {
     await deferredRepository.saveReasons(
       applicationId: widget.application.id!,
-      reasons: selectedDeferredReasons,
+      reasons: selectedDeferredReasons
+          .map((e) => <String, dynamic>{
+                'id': e['reasonId'] ?? e['id'],
+              })
+          .toList(),
     );
   }
 }

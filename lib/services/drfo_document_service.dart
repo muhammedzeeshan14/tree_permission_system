@@ -4421,6 +4421,9 @@ class DrfoDocumentService {
     final applicationType = application.applicationType.trim().toUpperCase();
 
     final isRtcApplication = applicationType == 'RTC';
+    // MCC recommended cases use an exclusive MCC letter whose
+    // content starts identical to the GL recommended letter.
+    final isMccApplication = applicationType == 'MCC';
     final isGovernmentLand =
         applicationType == 'GL' ||
         applicationType == 'STGL' ||
@@ -4443,6 +4446,8 @@ class DrfoDocumentService {
           ? 'DRFO_RECOMMENDED_RTC.txt'
           : isNotRecommended
           ? 'DRFO_NOT_RECOMMENDED.txt'
+          : isMccApplication
+          ? 'DRFO_RECOMMENDED_MCC.txt'
           : isGovernmentLand
           ? 'DRFO_RECOMMENDED_GL.txt'
           : isPrivateLand
@@ -4936,7 +4941,11 @@ class DrfoDocumentService {
     await _loadFlutterKannadaFont();
     final auction = approval.permissionType == 'Auction' || (afterReply && approval.answers['nature'] == 'Not satisfied');
     final request = !auction && approval.khataGiven == false && !afterReply;
-    final templates = auction ? ['RFO_GL_DO.txt', 'RFO_GL_TAGGU_BELE_PATTI.txt'] : [request ? 'RFO_GL_DOCUMENT_REQUEST.txt' : 'RFO_GL_VALUATION.txt'];
+    // MCC approvals use an exclusive MCC valuation letter whose
+    // content starts identical to the GL valuation letter.
+    final isMcc = application.applicationType.trim().toUpperCase() == 'MCC';
+    final valuationTemplate = isMcc ? 'RFO_MCC_VALUATION.txt' : 'RFO_GL_VALUATION.txt';
+    final templates = auction ? ['RFO_GL_DO.txt', 'RFO_GL_TAGGU_BELE_PATTI.txt'] : [request ? 'RFO_GL_DOCUMENT_REQUEST.txt' : valuationTemplate];
     String officerAddress = '';
     bool valuationToIsDcf = false;
     if (!request) {
@@ -5021,7 +5030,8 @@ class DrfoDocumentService {
       var master = await _loadRfoTemplate(templateName);
       final isDo = templateName == 'RFO_GL_DO.txt';
       final isPatti = templateName == 'RFO_GL_TAGGU_BELE_PATTI.txt';
-      final isValuation = templateName == 'RFO_GL_VALUATION.txt';
+      final isValuation = templateName == 'RFO_GL_VALUATION.txt' ||
+          templateName == 'RFO_MCC_VALUATION.txt';
       // Resolve the saved approval date before the shared report's current-date fallback.
       master = master.replaceAll('{{LETTER_DATE}}', _date(application.rfoApprovalDate));
       if (isDo || isPatti || isValuation || request) master = await _buildRecommendedReportMaster(master, application, rfoApprovedOnly: auction || isValuation);
@@ -5042,7 +5052,7 @@ class DrfoDocumentService {
       files.add(await _savePdf(officeNumber: application.officeNumber,
         fileName: _safeFileName(application.officeNumber) + '_' + templateName.replaceAll('.txt', '.pdf'), bytes: await pdf.save()));
       if (auction) await File(files.last.path + '.auction-layout').writeAsString(await _auctionLayoutFingerprint());
-      if (isValuation) await File(files.last.path + '.valuation-layout').writeAsString(await _loadRfoTemplate('RFO_GL_VALUATION.txt'));
+      if (isValuation) await File(files.last.path + '.valuation-layout').writeAsString(await _loadRfoTemplate(templateName));
       if (request) await File(files.last.path + '.request-layout').writeAsString(await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'));
     }
     return files;
@@ -5848,7 +5858,9 @@ class DrfoDocumentService {
     final governmentPatti = name.contains('_RFO_GL_TAGGU_BELE_PATTI.');
     final governmentDo = name.contains('_RFO_GL_DO.');
     final governmentAuction = governmentDo || governmentPatti;
-    final governmentValuation = name.contains('_RFO_GL_VALUATION');
+    final governmentValuation = name.contains('_RFO_GL_VALUATION') ||
+        name.contains('_RFO_MCC_VALUATION');
+    final mccValuation = name.contains('_RFO_MCC_VALUATION');
     if (!rtc && !nonRtc && !privateApproval && !revenueRequest && !governmentValuation && !governmentAuction && !governmentRequest && !privateRejected) return;
     final officers = OfficerRepository();
     final fingerprint = await officers.fingerprint();
@@ -5860,7 +5872,7 @@ class DrfoDocumentService {
     final layoutCurrent = (!privateRejected || (await rejectionMarker.exists() && await rejectionMarker.readAsString() == await _loadRfoTemplate('RFO_REJECTED_PL.txt'))) &&
         (!governmentRequest || (await requestMarker.exists() && await requestMarker.readAsString() == await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'))) &&
         (!governmentAuction || (await layoutMarker.exists() && await layoutMarker.readAsString() == await _auctionLayoutFingerprint())) &&
-        (!governmentValuation || (await valuationMarker.exists() && await valuationMarker.readAsString() == await _loadRfoTemplate('RFO_GL_VALUATION.txt')));
+        (!governmentValuation || (await valuationMarker.exists() && await valuationMarker.readAsString() == await _loadRfoTemplate(mccValuation ? 'RFO_MCC_VALUATION.txt' : 'RFO_GL_VALUATION.txt')));
     if (layoutCurrent && await marker.exists() && await marker.readAsString() == fingerprint) return;
     var app = application;
     if (app == null) {

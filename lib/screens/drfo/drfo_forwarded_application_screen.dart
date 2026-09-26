@@ -118,6 +118,7 @@ final files = widget.rfoApprovedOnly
         .last
         .toUpperCase();
 
+if (fileName.contains('RFO_MCC_VALUATION')) return 'RFO MCC Valuation Letter';
 if (fileName.contains('RFO_GL_VALUATION')) return 'RFO GL Valuation Letter';
 if (fileName.contains('RFO_GL_DOCUMENT_REQUEST')) return 'RFO Government Valuation Document Request';
 if (fileName.contains('RFO_GL_TAGGU_BELE_PATTI')) return 'RFO Taggu Bele Patti';

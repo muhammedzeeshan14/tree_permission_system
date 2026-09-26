@@ -46,6 +46,7 @@ flutter:
     - assets/templates/drfo/DRFO_DEFERRED_RTC.txt
     - assets/templates/drfo/DRFO_RECOMMENDED.txt
     - assets/templates/drfo/DRFO_RECOMMENDED_GL.txt
+    - assets/templates/drfo/DRFO_RECOMMENDED_MCC.txt
     - assets/templates/drfo/DRFO_RECOMMENDED_PL.txt
     - assets/templates/drfo/DRFO_BRANCH_PERMISSION_PL.txt
     - assets/templates/drfo/TREE_ENUMERATION_GL.txt
@@ -58,6 +59,7 @@ flutter:
     - assets/templates/rfo/RFO_APPROVED_RTC.txt
     - assets/templates/rfo/RFO_APPROVED_PL.txt
     - assets/templates/rfo/RFO_GL_VALUATION.txt
+    - assets/templates/rfo/RFO_MCC_VALUATION.txt
     - assets/templates/rfo/RFO_GL_DOCUMENT_REQUEST.txt
     - assets/templates/rfo/RFO_GL_DO.txt
     - assets/templates/rfo/RFO_GL_TAGGU_BELE_PATTI.txt
