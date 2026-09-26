@@ -13,8 +13,15 @@
 
 ಅದರಂತೆ ಪರಿಶೀಲಿಸಲಾಗಿ ಸದರಿ ಸ್ಥಳದಲ್ಲಿ {{RECOMMENDED_SPECIES_SUMMARY}} ಮರ/ಮರಗಳು ಇದ್ದು, ಒಟ್ಟು {{TOTAL_RECOMMENDED_TREES}} ಮರ/ಮರಗಳು ಇದ್ದು, {{TREE_STATUS_SUMMARY}} ಮರ/ಮರಗಳಿಂದ {{UNIQUE_RECOMMENDATION_REASONS}} ಕಂಡುಬರುತ್ತದೆ. ಆದ್ದರಿಂದ ಅಪಾಯಕಾರಿಯಾಗಿರುವ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳಿಗೆ ಈ ಕೆಳಕಂಡಂತೆ ತೆರವುಗೊಳಿಸಲು {{GOVERNMENT_AGENCY_KANNADA}}ಗೆ ಮೌಲ್ಯವನ್ನು ನಿಗಧಿಪಡಿಸಿ ಅನುಮತಿಯನ್ನು ನೀಡಬಹುದೆಂಬ ಅಭಿಪ್ರಾಯದೊಂದಿಗೆ ಶಿಫಾರಸ್ಸು ಮಾಡುತ್ತ ತಮ್ಮ ಅವಗಾಹನೆಗೆ ಸಲ್ಲಿಸಿದೆ.
 [/JUSTIFY]
-
+[CENTER]
+ವಂದನೆಗಳೊಂದಿಗೆ,
+[/CENTER]
 [RIGHT]
+ತಮ್ಮ ನಂಬುಗೆಯ,
+[BOLD]
+
+
 ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ
+[/BOLD]
 {{RANGE_NAME}}, {{RANGE_LOCATION}}
 [/RIGHT]
