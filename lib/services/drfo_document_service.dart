@@ -108,6 +108,11 @@ class _GlTreeEnumerationRow {
   final String firewoodValue;
   final String totalValue;
 
+  /// Applicable seigniorage rate adopted in the recommendation
+  /// (timber rate per cubic meter, pole rate, or firewood rate).
+  /// Printed as the RFO recommended rate in the MCC table.
+  final String rfoRecommendedRate;
+
   final String recommendationDetails;
   final String recommendationReason;
 
@@ -134,6 +139,7 @@ class _GlTreeEnumerationRow {
     required this.poleValue,
     required this.firewoodValue,
     required this.totalValue,
+    required this.rfoRecommendedRate,
     required this.recommendationDetails,
     this.recommendationReason = '',
     required this.timberVolumeNumber,
@@ -1133,6 +1139,19 @@ class DrfoDocumentService {
 
       final totalValue = timberValue + poleValue + firewoodValue;
 
+      // Applicable rate adopted in the recommendation: pole rate
+      // for poles, timber rate for full timber trees, otherwise
+      // the firewood rate.
+      final double applicableRate;
+      if (isPole) {
+        applicableRate =
+            (matchingPoleRate!['rate'] as num?)?.toDouble() ?? 0.0;
+      } else if (recommendationCode == 'FULL' && !tree.notFitForTimber) {
+        applicableRate = timberRate;
+      } else {
+        applicableRate = commonFirewoodRate;
+      }
+
       final recommendationLines = <String>[
         if (reasonText.isNotEmpty && reasonText != '—') reasonText,
         if (recommendationKannadaName.isNotEmpty) recommendationKannadaName,
@@ -1167,6 +1186,10 @@ class DrfoDocumentService {
           firewoodValue: isPole ? '—' : moneyFormat.format(firewoodValue),
 
           totalValue: moneyFormat.format(totalValue),
+
+          rfoRecommendedRate: applicableRate > 0
+              ? moneyFormat.format(applicableRate)
+              : '—',
 
           recommendationDetails: recommendationLines.join('\n'),
           recommendationReason: reasonText,
@@ -2998,6 +3021,327 @@ class DrfoDocumentService {
     return y + totalRowHeight;
   }
 
+  // ==========================================================
+  // MCC VALUATION TABLE (RFO MCC approved letter)
+  //
+  // Columns: sl no | tree no | applicant name+address | species |
+  // girth (m) | height (m) | volume group [timber (cubic m) |
+  // pole (count) | est. firewood (ton)] | seigniorage value Rs |
+  // RFO recommended rate | remarks (reasons + timber fitness).
+  // ==========================================================
+
+  Future<double> _drawMccValuationTable({
+    required ui.Canvas canvas,
+    required double y,
+    required double contentWidth,
+    required List<_GlTreeEnumerationRow> rows,
+    required String applicant,
+  }) async {
+    final borderPaint = ui.Paint()
+      ..color = const ui.Color(0xFF000000)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 0.6 * _scale;
+
+    final headerPaint = ui.Paint()
+      ..color = const ui.Color(0xFFF2F2F2)
+      ..style = ui.PaintingStyle.fill;
+
+    // Relative widths, scaled to the available page width.
+    final relativeWidths = <double>[
+      20, // 0: Serial number
+      28, // 1: Tree number
+      58, // 2: Applicant name + address
+      42, // 3: Species
+      30, // 4: Girth (m)
+      30, // 5: Height (m)
+      34, // 6: Timber volume
+      28, // 7: Pole quantity
+      36, // 8: Estimated firewood
+      42, // 9: Seigniorage value
+      42, // 10: RFO recommended rate
+      62, // 11: Remarks
+    ];
+
+    final totalRelativeWidth = relativeWidths.reduce((a, b) => a + b);
+
+    final widths = relativeWidths
+        .map((width) => contentWidth * width / totalRelativeWidth)
+        .toList();
+
+    final xPositions = <double>[_leftMargin * _scale];
+
+    for (final width in widths) {
+      xPositions.add(xPositions.last + width);
+    }
+
+    void drawBox({
+      required double left,
+      required double top,
+      required double width,
+      required double height,
+      bool header = false,
+    }) {
+      final rect = ui.Rect.fromLTWH(left, top, width, height);
+
+      if (header) {
+        canvas.drawRect(rect, headerPaint);
+      }
+
+      canvas.drawRect(rect, borderPaint);
+    }
+
+    Future<ui.Paragraph> cellParagraph({
+      required String text,
+      required double width,
+      double fontSize = 7.0,
+      ui.TextAlign alignment = ui.TextAlign.center,
+      bool bold = false,
+    }) {
+      return _buildParagraph(
+        text: _safeText(text),
+        width: width - (4 * _scale),
+        fontSize: fontSize * _scale,
+        alignment: alignment,
+        bold: bold,
+      );
+    }
+
+    void drawParagraphInBox({
+      required ui.Paragraph paragraph,
+      required double left,
+      required double top,
+      required double width,
+      required double height,
+    }) {
+      canvas.drawParagraph(
+        paragraph,
+        ui.Offset(left + (2 * _scale), top + ((height - paragraph.height) / 2)),
+      );
+    }
+
+    // ========================================================
+    // GROUPED TABLE HEADER
+    // ========================================================
+
+    final topHeaderHeight = 22 * _scale;
+    final bottomHeaderHeight = 40 * _scale;
+    final completeHeaderHeight = topHeaderHeight + bottomHeaderHeight;
+
+    Future<void> drawHeader() async {
+      final rowSpanHeaders = <int, String>{
+        0: 'ಕ್ರ\nಸಂಖ್ಯೆ',
+        1: 'ಮರ\nಸಂಖ್ಯೆ',
+        2: 'ಅರ್ಜಿದಾರರ ಹೆಸರು\nಮತ್ತು ವಿಳಾಸ',
+        3: 'ಮರದ\nಜಾತಿ',
+        4: 'ಸುತ್ತಳತೆ\n(ಮೀ)',
+        5: 'ಎತ್ತರ\n(ಮೀ)',
+        9: 'ಸಿನಿಯರೇಜ್ ದರದಂತೆ\nಮೌಲ್ಯ ರೂ.',
+        10: 'ವ.ಅ.ಅ ರವರ\nಶಿಫಾರಸ್ಸಿನ ದರ',
+        11: 'ಷರಾ',
+      };
+
+      for (final entry in rowSpanHeaders.entries) {
+        final column = entry.key;
+
+        drawBox(
+          left: xPositions[column],
+          top: y,
+          width: widths[column],
+          height: completeHeaderHeight,
+          header: true,
+        );
+
+        final paragraph = await cellParagraph(
+          text: entry.value,
+          width: widths[column],
+          bold: true,
+        );
+
+        drawParagraphInBox(
+          paragraph: paragraph,
+          left: xPositions[column],
+          top: y,
+          width: widths[column],
+          height: completeHeaderHeight,
+        );
+      }
+
+      // Volume group: columns 6, 7 and 8.
+      final volumeGroupWidth = widths[6] + widths[7] + widths[8];
+
+      drawBox(
+        left: xPositions[6],
+        top: y,
+        width: volumeGroupWidth,
+        height: topHeaderHeight,
+        header: true,
+      );
+
+      final volumeGroupParagraph = await cellParagraph(
+        text: 'ಪರಿಮಾಣ',
+        width: volumeGroupWidth,
+        bold: true,
+      );
+
+      drawParagraphInBox(
+        paragraph: volumeGroupParagraph,
+        left: xPositions[6],
+        top: y,
+        width: volumeGroupWidth,
+        height: topHeaderHeight,
+      );
+
+      final bottomHeaders = <int, String>{
+        6: 'ನಾಟ\n(ಘ.ಮೀ)',
+        7: 'ಪೋಲ್\n(ಸಂಖ್ಯೆ)',
+        8: 'ಅಂದಾಜು ಸೌದೆ\n(ಟನ್)',
+      };
+
+      for (final entry in bottomHeaders.entries) {
+        final column = entry.key;
+
+        drawBox(
+          left: xPositions[column],
+          top: y + topHeaderHeight,
+          width: widths[column],
+          height: bottomHeaderHeight,
+          header: true,
+        );
+
+        final paragraph = await cellParagraph(
+          text: entry.value,
+          width: widths[column],
+          bold: true,
+        );
+
+        drawParagraphInBox(
+          paragraph: paragraph,
+          left: xPositions[column],
+          top: y + topHeaderHeight,
+          width: widths[column],
+          height: bottomHeaderHeight,
+        );
+      }
+    }
+
+    y = _pagePosition(y, completeHeaderHeight);
+    await drawHeader();
+    y += completeHeaderHeight;
+
+    // ========================================================
+    // TREE ROWS
+    // ========================================================
+
+    for (final row in rows) {
+      final normalTexts = <int, String>{
+        0: row.serialNumber.toString(),
+        1: row.treeNumber,
+        2: applicant,
+        3: row.speciesName,
+        6: row.timberVolume,
+        7: row.poleCount,
+        8: row.firewood,
+        9: row.totalValue,
+        10: row.rfoRecommendedRate,
+        11: row.recommendationDetails,
+      };
+
+      if (!row.mergeGbhAndHeight) {
+        normalTexts[4] = row.gbh;
+        normalTexts[5] = row.height;
+      }
+
+      final paragraphs = <int, ui.Paragraph>{};
+
+      double rowHeight = 30 * _scale;
+
+      for (final entry in normalTexts.entries) {
+        final paragraph = await cellParagraph(
+          text: entry.value,
+          width: widths[entry.key],
+          fontSize: entry.key == 2 || entry.key == 11 ? 6.7 : 7.0,
+        );
+
+        paragraphs[entry.key] = paragraph;
+
+        final requiredHeight = paragraph.height + (8 * _scale);
+
+        if (requiredHeight > rowHeight) {
+          rowHeight = requiredHeight;
+        }
+      }
+
+      ui.Paragraph? mergedParagraph;
+
+      if (row.mergeGbhAndHeight) {
+        mergedParagraph = await cellParagraph(
+          text: row.mergedMeasurement,
+          width: widths[4] + widths[5],
+        );
+
+        final requiredHeight = mergedParagraph.height + (8 * _scale);
+
+        if (requiredHeight > rowHeight) {
+          rowHeight = requiredHeight;
+        }
+      }
+
+      final rowY = _pagePosition(y, rowHeight);
+      if (rowY != y) {
+        y = _pagePosition(rowY, completeHeaderHeight + rowHeight);
+        await drawHeader();
+        y += completeHeaderHeight;
+      }
+      for (int column = 0; column < widths.length; column++) {
+        if (row.mergeGbhAndHeight && (column == 4 || column == 5)) {
+          continue;
+        }
+
+        drawBox(
+          left: xPositions[column],
+          top: y,
+          width: widths[column],
+          height: rowHeight,
+        );
+
+        final paragraph = paragraphs[column];
+
+        if (paragraph != null) {
+          drawParagraphInBox(
+            paragraph: paragraph,
+            left: xPositions[column],
+            top: y,
+            width: widths[column],
+            height: rowHeight,
+          );
+        }
+      }
+
+      if (row.mergeGbhAndHeight && mergedParagraph != null) {
+        final mergedWidth = widths[4] + widths[5];
+
+        drawBox(
+          left: xPositions[4],
+          top: y,
+          width: mergedWidth,
+          height: rowHeight,
+        );
+
+        drawParagraphInBox(
+          paragraph: mergedParagraph,
+          left: xPositions[4],
+          top: y,
+          width: mergedWidth,
+          height: rowHeight,
+        );
+      }
+
+      y += rowHeight;
+    }
+
+    return y;
+  }
+
   double _pagePosition(double y, double blockHeight) {
     final pageHeight = (_pageHeight * _scale).round().toDouble();
     final top = _topMargin * _scale;
@@ -3053,6 +3397,7 @@ class DrfoDocumentService {
     List<_NotRecommendedTreeTableRow> notRecommendedTreeRows = const [],
     List<_GlTreeEnumerationRow> glTreeEnumerationRows = const [],
     List<_SandalTreeTableRow> sandalTreeRows = const [],
+    String mccValuationApplicant = '',
   }) async {
     final width = (_pageWidth * _scale).round();
     final height = (_pageHeight * _scale).round();
@@ -3484,6 +3829,19 @@ class DrfoDocumentService {
           y: y,
           contentWidth: contentWidth,
           rows: glTreeEnumerationRows,
+        );
+
+        y += 12 * _scale;
+        continue;
+      }
+
+      if (trimmed == '{{MCC_VALUATION_TABLE}}') {
+        y = await _drawMccValuationTable(
+          canvas: canvas,
+          y: y,
+          contentWidth: contentWidth,
+          rows: glTreeEnumerationRows,
+          applicant: mccValuationApplicant,
         );
 
         y += 12 * _scale;
@@ -4048,6 +4406,7 @@ class DrfoDocumentService {
     List<_NotRecommendedTreeTableRow> notRecommendedTreeRows = const [],
     List<_GlTreeEnumerationRow> glTreeEnumerationRows = const [],
     List<_SandalTreeTableRow> sandalTreeRows = const [],
+    String mccValuationApplicant = '',
   }) async {
     final lines = master.trimRight().split('\n');
 
@@ -4058,6 +4417,7 @@ class DrfoDocumentService {
       notRecommendedTreeRows: notRecommendedTreeRows,
       glTreeEnumerationRows: glTreeEnumerationRows,
       sandalTreeRows: sandalTreeRows,
+      mccValuationApplicant: mccValuationApplicant,
     );
   }
 
@@ -4928,6 +5288,51 @@ class DrfoDocumentService {
     return references.join('\n');
   }
 
+  /// MCC valuation references: applicant request (dates printed
+  /// only when entered), forwarded references one below the other,
+  /// DRFO inspection report last.
+  Future<String> _buildMccValuationReferences(ApplicationModel application) async {
+    final appDate = _date(application.applicationDate);
+    final appReceived = _date(application.receivedDate);
+    var first =
+        '1. ' + application.applicantName + ', ' + application.applicantAddress + ' ರವರ ಮನವಿ';
+    if (appDate.isNotEmpty) {
+      first += ' ದಿನಾಂಕ: ' + appDate;
+      if (appReceived.isNotEmpty) {
+        first += ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + appReceived + ')';
+      }
+      first += '.';
+    } else if (appReceived.isNotEmpty) {
+      first += ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ' + appReceived + ').';
+    } else {
+      first += '.';
+    }
+    final references = <String>[first];
+    for (final reference in application.forwardingReferences) {
+      final by = reference.forwardedBy.trim();
+      final number = reference.referenceNumber.trim();
+      final date = _date(reference.referenceDate);
+      if (by.isEmpty && number.isEmpty && date.isEmpty) continue;
+      var line = (references.length + 1).toString() + '. ';
+      if (by.isNotEmpty) line += by + ' ರವರ ';
+      if (number.isNotEmpty) line += 'ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
+      if (date.isNotEmpty) {
+        line += (number.isNotEmpty ? ', ' : '') + 'ದಿನಾಂಕ: ' + date;
+      }
+      line += _receivedSuffix(reference) + '.';
+      references.add(line);
+    }
+    final drfoDate = _date(application.drfoInspectionDate);
+    var last = (references.length + 1).toString() +
+        '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
+        await _printSectionName(application) +
+        ' ಶಾಖೆ ರವರ ವರದಿ';
+    if (drfoDate.isNotEmpty) last += ' ದಿನಾಂಕ: ' + drfoDate;
+    last += '.';
+    references.add(last);
+    return references.join('\n');
+  }
+
   Future<String> _auctionLayoutFingerprint() async =>
       'taggu-landscape-v1\n' + await _loadRfoTemplate('RFO_GL_DO.txt') +
       '\n' + await _loadRfoTemplate('RFO_GL_TAGGU_BELE_PATTI.txt');
@@ -4997,6 +5402,7 @@ class DrfoDocumentService {
     final values = <String,String>{
       '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ' + application.applicantLetterNumber.trim(),
       '{{VALUATION_REFERENCES}}': valuationReferences,
+      '{{MCC_VALUATION_REFERENCES}}': await _buildMccValuationReferences(application),
       '{{RFO_NAME}}': senderName ?? '',
       '{{DO_REFERENCES}}': await _buildGovernmentDoReferences(application),
       '{{TREE_OFFICER_NAME}}': recipientName,
@@ -5037,12 +5443,12 @@ class DrfoDocumentService {
       if (isDo || isPatti || isValuation || request) master = await _buildRecommendedReportMaster(master, application, rfoApprovedOnly: auction || isValuation);
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
         final key = match.group(0)!;
-        if (key == '{{GL_TREE_ENUMERATION_TABLE}}' || key == '{{TAGGU_BELE_TABLE}}') return key;
+        if (key == '{{GL_TREE_ENUMERATION_TABLE}}' || key == '{{MCC_VALUATION_TABLE}}' || key == '{{TAGGU_BELE_TABLE}}') return key;
         if (!values.containsKey(key)) throw StateError('Unknown government template placeholder: ' + key);
         if (key == '{{APPLICANT_REPLY_REFERENCE}}' || key == '{{APPLICANT_LETTER_NUMBER_PHRASE}}') return values[key]!;
         return values[key]!.trim().isEmpty ? '—' : values[key]!;
       });
-      final pages = isPatti ? await _renderTagguBelePatti(master, rows) : await _renderMasterToPng(master, glTreeEnumerationRows: rows, rfoLetterhead: _RfoLetterheadData(
+      final pages = isPatti ? await _renderTagguBelePatti(master, rows) : await _renderMasterToPng(master, glTreeEnumerationRows: rows, mccValuationApplicant: isMcc ? application.applicantName + '\n' + application.applicantAddress : '', rfoLetterhead: _RfoLetterheadData(
         doSenderName: isDo ? senderName : null, doSenderAddress: isDo ? senderAddress : '',
         letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
         rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '', rangeEmail: config?['rangeEmail']?.toString() ?? '',
