@@ -108,11 +108,6 @@ class _GlTreeEnumerationRow {
   final String firewoodValue;
   final String totalValue;
 
-  /// Applicable seigniorage rate adopted in the recommendation
-  /// (timber rate per cubic meter, pole rate, or firewood rate).
-  /// Printed as the RFO recommended rate in the MCC table.
-  final String rfoRecommendedRate;
-
   final String recommendationDetails;
   final String recommendationReason;
 
@@ -139,7 +134,6 @@ class _GlTreeEnumerationRow {
     required this.poleValue,
     required this.firewoodValue,
     required this.totalValue,
-    required this.rfoRecommendedRate,
     required this.recommendationDetails,
     this.recommendationReason = '',
     required this.timberVolumeNumber,
@@ -1139,19 +1133,6 @@ class DrfoDocumentService {
 
       final totalValue = timberValue + poleValue + firewoodValue;
 
-      // Applicable rate adopted in the recommendation: pole rate
-      // for poles, timber rate for full timber trees, otherwise
-      // the firewood rate.
-      final double applicableRate;
-      if (isPole) {
-        applicableRate =
-            (matchingPoleRate!['rate'] as num?)?.toDouble() ?? 0.0;
-      } else if (recommendationCode == 'FULL' && !tree.notFitForTimber) {
-        applicableRate = timberRate;
-      } else {
-        applicableRate = commonFirewoodRate;
-      }
-
       final recommendationLines = <String>[
         if (reasonText.isNotEmpty && reasonText != '—') reasonText,
         if (recommendationKannadaName.isNotEmpty) recommendationKannadaName,
@@ -1186,10 +1167,6 @@ class DrfoDocumentService {
           firewoodValue: isPole ? '—' : moneyFormat.format(firewoodValue),
 
           totalValue: moneyFormat.format(totalValue),
-
-          rfoRecommendedRate: applicableRate > 0
-              ? moneyFormat.format(applicableRate)
-              : '—',
 
           recommendationDetails: recommendationLines.join('\n'),
           recommendationReason: reasonText,
@@ -3242,7 +3219,8 @@ class DrfoDocumentService {
         7: row.poleCount,
         8: row.firewood,
         9: row.totalValue,
-        10: row.rfoRecommendedRate,
+        // RFO recommended rate column stays blank by design.
+        10: '',
         11: row.recommendationDetails,
       };
 
