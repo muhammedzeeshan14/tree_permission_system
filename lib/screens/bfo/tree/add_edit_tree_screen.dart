@@ -925,7 +925,7 @@ Widget _recommendationTypeDropdown() {
 
   return DropdownButtonFormField<int>(
 
-    value: recommendationTypeList.any(
+    initialValue: recommendationTypeList.any(
       (e) => e["id"] == selectedRecommendationTypeId,
     )
         ? selectedRecommendationTypeId
@@ -978,7 +978,7 @@ Widget _recommendationTypeDropdown() {
 
 Widget _treeStatusDropdown() {
   return DropdownButtonFormField<int>(
-    value: treeStatusList.any(
+    initialValue: treeStatusList.any(
       (item) =>
           item["id"] == selectedTreeStatusId,
     )

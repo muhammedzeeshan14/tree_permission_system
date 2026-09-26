@@ -9,10 +9,10 @@ class GovernmentApprovalHistoryCard extends StatelessWidget {
     final row=snapshot.data;if(row==null)return const SizedBox.shrink();
     return Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       const Text('Government Land Approval',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
-      Text('RFO permission type: '+row.permissionType),Text('Khata details given: '+(row.khataGiven==null?'—':row.khataGiven!?'Yes':'No')),
+      Text('RFO permission type: ${row.permissionType}'),Text('Khata details given: ${row.khataGiven==null?'—':row.khataGiven!?'Yes':'No'}'),
       if(row.stage=='completed'&&row.permissionType=='Valuation'&&row.answers['nature']=='Not satisfied')const Text('Final outcome: Auction — DO letter and Taggu Bele Patti'),
-      Text('Stage: '+row.stage),if(row.requestDate.isNotEmpty)Text('Documents requested: '+row.requestDate.split('T').first),
-      for(final item in GovernmentApproval.questions.entries)if((row.answers[item.key]??'').isNotEmpty)Text(item.value+': '+row.answers[item.key]!),
+      Text('Stage: ${row.stage}'),if(row.requestDate.isNotEmpty)Text('Documents requested: ${row.requestDate.split('T').first}'),
+      for(final item in GovernmentApproval.questions.entries)if((row.answers[item.key]??'').isNotEmpty)Text('${item.value}: ${row.answers[item.key]!}'),
     ])));
   });
 }

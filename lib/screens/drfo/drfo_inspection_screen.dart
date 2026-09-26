@@ -1900,7 +1900,7 @@ Widget _buildOverallRemarkVerificationPage() {
           },
           modifyField:
               DropdownButtonFormField<int>(
-            value: overallRemarkList.any(
+            initialValue: overallRemarkList.any(
               (item) =>
                   item["id"] ==
                   selectedOverallRemarkId,
@@ -2307,7 +2307,7 @@ VerificationCard(
     await _saveVerification();
   },
   modifyField: DropdownButtonFormField<int>(
-    value: applicationTypeList.any((item) {
+    initialValue: applicationTypeList.any((item) {
       final code = item["shortCode"]
               ?.toString()
               .trim()
@@ -2435,7 +2435,7 @@ if (showsGovernmentAgency) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
-      value: governmentAgencyList.any(
+      initialValue: governmentAgencyList.any(
         (item) =>
             item["id"] ==
             widget.application.governmentAgencyId,
@@ -2501,7 +2501,7 @@ if (isPrivateCategory) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
-      value: urbanRuralList.any(
+      initialValue: urbanRuralList.any(
         (item) =>
             item["id"] ==
             widget.application.urbanRuralId,
@@ -2567,7 +2567,7 @@ if (showsAdditionalDetails) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
-      value: whyRemovingList.any(
+      initialValue: whyRemovingList.any(
         (item) =>
             item["id"] ==
             widget.application.whyRemovingId,
@@ -2658,7 +2658,7 @@ if (showsAdditionalDetails) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
-      value: purposeList.any(
+      initialValue: purposeList.any(
         (item) =>
             item["id"] ==
             widget.application.purposeId,
@@ -2733,7 +2733,7 @@ if (showsAdditionalDetails) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
-      value: structureTypeList.any(
+      initialValue: structureTypeList.any(
         (item) =>
             item["id"] ==
             widget.application.structureTypeId,
@@ -2960,7 +2960,7 @@ VerificationCard(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       DropdownButtonFormField<int>(
-        value: sandalDestinationList.any(
+        initialValue: sandalDestinationList.any(
           (item) =>
               item["id"] ==
               selectedSandalDestinationId,

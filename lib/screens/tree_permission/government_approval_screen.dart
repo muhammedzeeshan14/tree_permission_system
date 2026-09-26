@@ -26,7 +26,7 @@ class _PendingGovernmentApprovalsScreenState extends State<PendingGovernmentAppr
       if(snapshot.hasError)return Center(child:Text(snapshot.error.toString()));
       if(!snapshot.hasData)return const Center(child:CircularProgressIndicator());
       if(snapshot.data!.isEmpty)return const Center(child:Text('No government applications pending documents.'));
-      return ListView(children:[for(final app in snapshot.data!)Card(child:ListTile(title:Text(app.officeNumber+' — '+app.applicantName),subtitle:const Text('View request letter / enter received documents'),trailing:const Icon(Icons.chevron_right),onTap:() async {
+      return ListView(children:[for(final app in snapshot.data!)Card(child:ListTile(title:Text('${app.officeNumber} — ${app.applicantName}'),subtitle:const Text('View request letter / enter received documents'),trailing:const Icon(Icons.chevron_right),onTap:() async {
         await Navigator.push(context,MaterialPageRoute(builder:(_)=>GovernmentApprovalScreen(application:app)));
         if(mounted)setState(()=>applications=load());
       }))]);
@@ -102,7 +102,7 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
   }
   Widget finalPage()=>ListView(padding:const EdgeInsets.all(20),children:[
     const Text('Government land — Final Approval',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),const SizedBox(height:16),
-    Text('Reply nature: '+(record!.answers['nature']??'')),const SizedBox(height:16),
+    Text('Reply nature: ${record!.answers['nature']??''}'),const SizedBox(height:16),
     if(GovernmentApproval.natures.contains(record!.answers['nature'])) ...[
       DropdownButtonFormField<int>(initialValue:record!.treeOfficerId,isExpanded:true,decoration:const InputDecoration(labelText:'Select Tree officer',border:OutlineInputBorder()),items:officers.map((r)=>DropdownMenuItem(value:r['id'] as int,child:Text(r['name'].toString()))).toList(),onChanged:busy?null:(id){if(id!=null)run(() async {record=await repository.saveReviewOfficer(record!,id);});}),
       const SizedBox(height:16),Text(record!.answers['nature']=='Not satisfied'?'Final Approval generates the auction DO letter and Taggu Bele Patti and completes the application.':'Final Approval generates the RFO GL valuation letter with the approved reply reference and completes the application.'),
@@ -112,13 +112,17 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
   Widget build(BuildContext context){
     if(error!=null)return Scaffold(appBar:AppBar(title:const Text('Government land approval')),body:Center(child:Text(error!)));
     if(record==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));
-    return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text(widget.application.officeNumber+' — Government land')),
+    return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text('${widget.application.officeNumber} — Government land')),
       body:Column(children:[
         if(!widget.rfo)Padding(padding:const EdgeInsets.all(8),child:OutlinedButton.icon(icon:const Icon(Icons.print),label:const Text('View / Print Request Letter'),onPressed:busy?null:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>DRFOForwardedApplicationScreen(application:widget.application,rfoApprovedOnly:true,screenTitle:'Government Documents Request'))))),
         Expanded(child:step==0?InspectionSummaryStep(application:widget.application,showNavigationButtons:false,onBack:(){},onNext:(){}):step==1?details():finalPage()),
         if(busy)const LinearProgressIndicator(),
         Padding(padding:const EdgeInsets.all(12),child:Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.end,children:[
-          OutlinedButton(onPressed:busy?null:(){if(step>0)setState(()=>step--);else Navigator.pop(context);},child:const Text('Back')),
+          OutlinedButton(onPressed:busy?null:(){if(step>0) {
+            setState(()=>step--);
+          } else {
+            Navigator.pop(context);
+          }},child:const Text('Back')),
           if(step>0)OutlinedButton(onPressed:busy?null:()=>run(() async {if(step==1)await save();if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Draft saved.')));}),child:const Text('Save Draft')),
           if(widget.rfo&&step>0)OutlinedButton(onPressed:busy?null:()=>run(() async {if(step==1)await save();await repository.returnForCorrection(record!);if(mounted)Navigator.pop(context,true);}),child:const Text('Return for correction')),
           if(step==0)FilledButton(onPressed:busy?null:()=>setState(()=>step=1),child:Text(widget.rfo?'Review document details':'Enter document details')),

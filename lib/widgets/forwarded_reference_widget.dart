@@ -136,7 +136,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
         DropdownButtonFormField<String>(
 
-          value: applicationSource,
+          initialValue: applicationSource,
 
           decoration: const InputDecoration(
 
@@ -251,7 +251,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
                       child:
                           DropdownButtonFormField<String>(
 
-                        value: ref.sourceId == null
+                        initialValue: ref.sourceId == null
                             ? null
                             : ref.key,
 

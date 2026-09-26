@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
-import 'online_database.dart';
 import 'online_mode.dart';
 import 'supabase_service.dart';
 

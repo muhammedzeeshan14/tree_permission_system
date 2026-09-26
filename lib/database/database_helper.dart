@@ -2206,7 +2206,7 @@ if (oldVersion < 45) {
     'applications',
     {
       'permissionType': 'Tree Count',
-      if (treeCountId != null) 'permissionTypeId': treeCountId,
+      'permissionTypeId': ?treeCountId,
     },
     where:
         "TRIM(UPPER(applicationType))='RTC' AND "

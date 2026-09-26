@@ -1085,7 +1085,7 @@ class DrfoDocumentService {
       final poleCount = isPole ? 1 : 0;
 
       final poleValue = isPole
-          ? (matchingPoleRate!['rate'] as num?)?.toDouble() ?? 0.0
+          ? (matchingPoleRate['rate'] as num?)?.toDouble() ?? 0.0
           : 0.0;
 
       double timberVolume = 0;
@@ -3085,7 +3085,7 @@ class DrfoDocumentService {
           "e-mail: ${rfoLetterhead.rangeEmail}",
       ];
       final leftParagraph = await _buildParagraph(
-        text: rfoLetterhead.doSenderName == null ? leftHeader : rfoLetterhead.doSenderAddress + "\nಪತ್ರ ಸಂಖ್ಯೆ: " + rfoLetterhead.letterNumber,
+        text: rfoLetterhead.doSenderName == null ? leftHeader : "${rfoLetterhead.doSenderAddress}\nಪತ್ರ ಸಂಖ್ಯೆ: ${rfoLetterhead.letterNumber}",
         width: leftColumnWidth,
         lineHeight: rfoLetterhead.doSenderName == null ? 1.45 : 1.1,
         fontSize: defaultFontSize * _scale,
@@ -3950,15 +3950,15 @@ class DrfoDocumentService {
 
         if (isDateLine) {
           if (drfoDateY != null) {
-            drawY = drfoDateY!;
+            drawY = drfoDateY;
           } else if (signatureY != null) {
-            drawY = signatureY!;
+            drawY = signatureY;
           }
         } else if (isPlaceLine) {
           if (drfoPlaceY != null) {
-            drawY = drfoPlaceY!;
+            drawY = drfoPlaceY;
           } else if (signatureY != null) {
-            drawY = signatureY! + paragraphHeight + (4 * _scale);
+            drawY = signatureY + paragraphHeight + (4 * _scale);
           }
         }
 
@@ -4132,7 +4132,7 @@ class DrfoDocumentService {
     final file = File('${folder.path}/$fileName');
 
     await file.writeAsBytes(bytes);
-    await File(file.path + '.officer-addresses').writeAsString(await OfficerRepository().fingerprint());
+    await File('${file.path}.officer-addresses').writeAsString(await OfficerRepository().fingerprint());
 
     // Cloud: generated PDFs travel to other devices.
     CloudFileService.uploadGenerated(officeNumber, file);
@@ -4397,6 +4397,7 @@ class DrfoDocumentService {
         applicationType == 'GL' ||
         applicationType == 'STGL' ||
         applicationType == 'CGL' ||
+        applicationType == 'MCC' ||
         applicationType == 'SGL';
 
     final isPrivateLand = applicationType == 'PL' ||
@@ -4770,15 +4771,15 @@ class DrfoDocumentService {
       officeNumber: application.officeNumber,
       fileName:
           "${_safeFileName(application.officeNumber)}"
-          "_RFO_REVENUE_OPINION_REQUEST" + (requestCycle == null ? '' : '_CYCLE_' + requestCycle.toString()) + '.pdf',
+          "_RFO_REVENUE_OPINION_REQUEST" + (requestCycle == null ? '' : '_CYCLE_$requestCycle') + '.pdf',
       bytes: bytes,
     );
   }
 
   Future<List<Uint8List>> _renderTagguBelePatti(String template, List<_GlTreeEnumerationRow> rows) async {
     String block(String tag) {
-      final match = RegExp('\\[' + tag + '\\]([\\s\\S]*?)\\[/' + tag + '\\]').firstMatch(template);
-      if (match == null) throw StateError('Missing [' + tag + '] block in Taggu Bele Patti template.');
+      final match = RegExp('\\[$tag\\]([\\s\\S]*?)\\[/$tag\\]').firstMatch(template);
+      if (match == null) throw StateError('Missing [$tag] block in Taggu Bele Patti template.');
       return match.group(1)!.trim();
     }
     final title = block('TITLE');
@@ -4881,22 +4882,18 @@ class DrfoDocumentService {
   Future<String> _buildGovernmentDoReferences(ApplicationModel application) async {
     final appReceived = _date(application.receivedDate);
     final references = <String>[
-      '1. ' + application.applicantName + ' ರವರ ಮನವಿ ದಿನಾಂಕ: ' + _date(application.applicationDate) +
-        (appReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $appReceived).'),
+      '1. ${application.applicantName} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}${appReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $appReceived).'}',
     ];
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty && reference.referenceNumber.trim().isEmpty && reference.referenceDate.trim().isEmpty) continue;
-      references.add((references.length + 1).toString() + '. ' + reference.forwardedBy.trim() +
-        ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + reference.referenceNumber.trim() + ', ದಿನಾಂಕ: ' + _date(reference.referenceDate) + _receivedSuffix(reference) + '.');
+      references.add('${references.length + 1}. ${reference.forwardedBy.trim()} ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ${reference.referenceNumber.trim()}, ದಿನಾಂಕ: ${_date(reference.referenceDate)}${_receivedSuffix(reference)}.');
     }
-    references.add((references.length + 1).toString() + '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
-      await _printSectionName(application) + ' ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ' + _date(application.drfoInspectionDate) + '.');
+    references.add('${references.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.');
     return references.join('\n');
   }
 
   Future<String> _auctionLayoutFingerprint() async =>
-      'taggu-landscape-v1\n' + await _loadRfoTemplate('RFO_GL_DO.txt') +
-      '\n' + await _loadRfoTemplate('RFO_GL_TAGGU_BELE_PATTI.txt');
+      'taggu-landscape-v1\n${await _loadRfoTemplate('RFO_GL_DO.txt')}\n${await _loadRfoTemplate('RFO_GL_TAGGU_BELE_PATTI.txt')}';
 
   Future<List<File>> generateGovernmentLandLetters(ApplicationModel application, GovernmentApproval approval, {bool afterReply = false}) async {
     if (!GovernmentApproval.isGovernment(application.applicationType) || approval.applicationId != application.id) throw StateError('Government application is required.');
@@ -4945,19 +4942,16 @@ class DrfoDocumentService {
     final answers = approval.answers;
     final replyReceived = _date(answers['receivedDate'] ?? '');
     final replyReference = afterReply
-        ? '3. ' + application.applicantName + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') + ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') + (replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).')
+        ? '3. ${application.applicantName} ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ${answers['letterNumber'] ?? ''}, ದಿನಾಂಕ: ${_date(answers['letterDate'] ?? '')}${replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).'}'
         : '';
     var valuationReferences = await _buildGovernmentDoReferences(application);
     if (afterReply) {
       final forwardedCount = application.forwardingReferences.where((reference) =>
           reference.forwardedBy.trim().isNotEmpty || reference.referenceNumber.trim().isNotEmpty || reference.referenceDate.trim().isNotEmpty).length;
-      valuationReferences += '\n' + (forwardedCount + 3).toString() + '. ' +
-          (answers['authority'] ?? '') + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') +
-          ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') +
-          (replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).');
+      valuationReferences += '\n${forwardedCount + 3}. ${answers['authority'] ?? ''} ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ${answers['letterNumber'] ?? ''}, ದಿನಾಂಕ: ${_date(answers['letterDate'] ?? '')}${replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).'}';
     }
     final values = <String,String>{
-      '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ' + application.applicantLetterNumber.trim(),
+      '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ${application.applicantLetterNumber.trim()}',
       '{{VALUATION_REFERENCES}}': valuationReferences,
       '{{RFO_NAME}}': senderName ?? '',
       '{{DO_REFERENCES}}': await _buildGovernmentDoReferences(application),
@@ -4999,7 +4993,7 @@ class DrfoDocumentService {
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
         final key = match.group(0)!;
         if (key == '{{GL_TREE_ENUMERATION_TABLE}}' || key == '{{TAGGU_BELE_TABLE}}') return key;
-        if (!values.containsKey(key)) throw StateError('Unknown government template placeholder: ' + key);
+        if (!values.containsKey(key)) throw StateError('Unknown government template placeholder: $key');
         if (key == '{{APPLICANT_REPLY_REFERENCE}}' || key == '{{APPLICANT_LETTER_NUMBER_PHRASE}}') return values[key]!;
         return values[key]!.trim().isEmpty ? '—' : values[key]!;
       });
@@ -5011,10 +5005,10 @@ class DrfoDocumentService {
       ));
       final pdf = pw.Document(); _appendRenderedPages(pdf, pages, landscape: isPatti);
       files.add(await _savePdf(officeNumber: application.officeNumber,
-        fileName: _safeFileName(application.officeNumber) + '_' + templateName.replaceAll('.txt', '.pdf'), bytes: await pdf.save()));
-      if (auction) await File(files.last.path + '.auction-layout').writeAsString(await _auctionLayoutFingerprint());
-      if (isValuation) await File(files.last.path + '.valuation-layout').writeAsString(await _loadRfoTemplate('RFO_GL_VALUATION.txt'));
-      if (request) await File(files.last.path + '.request-layout').writeAsString(await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'));
+        fileName: '${_safeFileName(application.officeNumber)}_${templateName.replaceAll('.txt', '.pdf')}', bytes: await pdf.save()));
+      if (auction) await File('${files.last.path}.auction-layout').writeAsString(await _auctionLayoutFingerprint());
+      if (isValuation) await File('${files.last.path}.valuation-layout').writeAsString(await _loadRfoTemplate('RFO_GL_VALUATION.txt'));
+      if (request) await File('${files.last.path}.request-layout').writeAsString(await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'));
     }
     return files;
   }
@@ -5048,10 +5042,9 @@ class DrfoDocumentService {
     });
     final details = permittedTrees.map((tree) {
       final code = codes[tree.recommendationTypeId];
-      final quantity = code == 'BRANCH' ? ' / ಕೊಂಬೆಗಳ ಸಂಖ್ಯೆ: ' + (tree.numberOfBranches ?? 0).toString()
-          : code == 'TWIG' ? ' / ಸಣ್ಣ ತುದಿಗಳ ಸಂಖ್ಯೆ: ' + (tree.numberOfTwigs ?? 0).toString() : '';
-      return tree.treeNumber + '. ' + (speciesNames[tree.speciesId] ?? '—') + ' — ' +
-          (recommendationNames[tree.recommendationTypeId] ?? '—') + quantity;
+      final quantity = code == 'BRANCH' ? ' / ಕೊಂಬೆಗಳ ಸಂಖ್ಯೆ: ${tree.numberOfBranches ?? 0}'
+          : code == 'TWIG' ? ' / ಸಣ್ಣ ತುದಿಗಳ ಸಂಖ್ಯೆ: ${tree.numberOfTwigs ?? 0}' : '';
+      return '${tree.treeNumber}. ${speciesNames[tree.speciesId] ?? '—'} — ${recommendationNames[tree.recommendationTypeId] ?? '—'}$quantity';
     }).join('\n');
     final values = <String, String>{
       '{{OFFICE_NUMBER}}': application.officeNumber,
@@ -5068,7 +5061,7 @@ class DrfoDocumentService {
     final template = await _loadRfoTemplate('RFO_BRANCH_PERMISSION_PL.txt');
     final master = template.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
       final value = values[match.group(0)];
-      if (value == null) throw StateError('Unknown branch permission placeholder: ' + match.group(0)!);
+      if (value == null) throw StateError('Unknown branch permission placeholder: ${match.group(0)!}');
       return value.trim().isEmpty ? '—' : value;
     });
     final pages = await _renderMasterToPng(master, rfoLetterhead: _RfoLetterheadData(
@@ -5081,7 +5074,7 @@ class DrfoDocumentService {
     final pdf = pw.Document();
     _appendRenderedPages(pdf, pages);
     return _savePdf(officeNumber: application.officeNumber,
-      fileName: _safeFileName(application.officeNumber) + '_RFO_PRIVATE_LAND_BRANCH_PERMISSION.pdf',
+      fileName: '${_safeFileName(application.officeNumber)}_RFO_PRIVATE_LAND_BRANCH_PERMISSION.pdf',
       bytes: await pdf.save());
   }
 
@@ -5194,8 +5187,7 @@ class DrfoDocumentService {
       final value = values[match.group(0)];
       if (value == null) {
         throw StateError(
-            'Unknown apply-online template placeholder: ' +
-                match.group(0)!);
+            'Unknown apply-online template placeholder: ${match.group(0)!}');
       }
       return value.trim().isEmpty ? '—' : value;
     });
@@ -5214,10 +5206,7 @@ class DrfoDocumentService {
     _appendRenderedPages(pdf, pages);
     return await _savePdf(
         officeNumber: application.officeNumber,
-        fileName: _safeFileName(application.officeNumber) +
-            '_RFO_APPLY_ONLINE_CYCLE_' +
-            reply.cycle.toString() +
-            '.pdf',
+        fileName: '${_safeFileName(application.officeNumber)}_RFO_APPLY_ONLINE_CYCLE_${reply.cycle}.pdf',
         bytes: await pdf.save());
   }
 
@@ -5247,15 +5236,13 @@ class DrfoDocumentService {
     final applicantReceived = _date(application.receivedDate);
     final revenueReceived = _date(reply.answers['receivedDate'] ?? '');
     final references = <String>[
-      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}' +
-          (applicantReceived.isEmpty
+      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}${applicantReceived.isEmpty
               ? '.'
-              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'),
+              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'}',
       '2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.',
-      '3. ${reply.answers['authority'] ?? ''} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}, ದಿನಾಂಕ: ${_date(reply.answers['letterDate'] ?? '')}' +
-          (revenueReceived.isEmpty
+      '3. ${reply.answers['authority'] ?? ''} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}, ದಿನಾಂಕ: ${_date(reply.answers['letterDate'] ?? '')}${revenueReceived.isEmpty
               ? '.'
-              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $revenueReceived).'),
+              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $revenueReceived).'}',
     ];
 
     // To is always the DCF officer from the officer master.
@@ -5324,8 +5311,7 @@ class DrfoDocumentService {
       final value = values[match.group(0)];
       if (value == null) {
         throw StateError(
-            'Unknown sandal approval template placeholder: ' +
-                match.group(0)!);
+            'Unknown sandal approval template placeholder: ${match.group(0)!}');
       }
       return value.trim().isEmpty ? '—' : value;
     });
@@ -5346,10 +5332,7 @@ class DrfoDocumentService {
     _appendRenderedPages(pdf, pages);
     return await _savePdf(
         officeNumber: application.officeNumber,
-        fileName: _safeFileName(application.officeNumber) +
-            '_RFO_APPROVED_SPL_CYCLE_' +
-            reply.cycle.toString() +
-            '.pdf',
+        fileName: '${_safeFileName(application.officeNumber)}_RFO_APPROVED_SPL_CYCLE_${reply.cycle}.pdf',
         bytes: await pdf.save());
   }
 
@@ -5374,10 +5357,9 @@ class DrfoDocumentService {
 
     final applicantReceived = _date(application.receivedDate);
     final references = <String>[
-      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}' +
-          (applicantReceived.isEmpty
+      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}${applicantReceived.isEmpty
               ? '.'
-              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'),
+              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'}',
     ];
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty &&
@@ -5508,8 +5490,7 @@ class DrfoDocumentService {
       final value = values[match.group(0)];
       if (value == null) {
         throw StateError(
-            'Unknown sandal government approval template placeholder: ' +
-                match.group(0)!);
+            'Unknown sandal government approval template placeholder: ${match.group(0)!}');
       }
       return value.trim().isEmpty ? '—' : value;
     });
@@ -5529,8 +5510,7 @@ class DrfoDocumentService {
     _appendRenderedPages(pdf, pages);
     return await _savePdf(
         officeNumber: application.officeNumber,
-        fileName: _safeFileName(application.officeNumber) +
-            '_RFO_APPROVED_SGL.pdf',
+        fileName: '${_safeFileName(application.officeNumber)}_RFO_APPROVED_SGL.pdf',
         bytes: await pdf.save());
   }
 
@@ -5554,7 +5534,7 @@ class DrfoDocumentService {
           : 'RFO_APPROVED_PL.txt',
     );
       final values = <String, String>{
-        '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ' + application.applicantLetterNumber.trim(),
+        '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ${application.applicantLetterNumber.trim()}',
         '{{OFFICE_NUMBER}}': application.officeNumber,
         '{{APPLICATION_DATE}}': _date(application.applicationDate),
         '{{APPLICANT_NAME}}': application.applicantName,
@@ -5602,7 +5582,7 @@ class DrfoDocumentService {
       // Substitute once so values containing placeholder-like text stay literal.
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
         final value = values[match.group(0)];
-        if (value == null) throw StateError('Unknown private-land decision template placeholder: ' + match.group(0)!);
+        if (value == null) throw StateError('Unknown private-land decision template placeholder: ${match.group(0)!}');
         if (match.group(0) == '{{APPLICANT_LETTER_NUMBER_PHRASE}}' || match.group(0) == '{{TREE_LOCATION_SUBJECT_PHRASE}}' || match.group(0) == '{{TREE_LOCATION_BODY_PHRASE}}') return value;
         return value.trim().isEmpty ? '—' : value;
       });
@@ -5616,13 +5596,11 @@ class DrfoDocumentService {
     final pdf = pw.Document();
     _appendRenderedPages(pdf, pages);
     final file = await _savePdf(officeNumber: application.officeNumber,
-      fileName: _safeFileName(application.officeNumber) +
-          (approved ? (outcome == PrivateLandOutcome.applicantLetter
+      fileName: '${_safeFileName(application.officeNumber)}${approved ? (outcome == PrivateLandOutcome.applicantLetter
               ? '_RFO_PRIVATE_LAND_APPROVED_APPLICANT' : '_RFO_PRIVATE_LAND_APPROVED')
-              : '_RFO_PRIVATE_LAND_REJECTED') +
-          '_CYCLE_' + reply.cycle.toString() + '.pdf',
+              : '_RFO_PRIVATE_LAND_REJECTED'}_CYCLE_${reply.cycle}.pdf',
       bytes: await pdf.save());
-    if (!approved) await File(file.path + '.rejection-layout').writeAsString(await _loadRfoTemplate('RFO_REJECTED_PL.txt'));
+    if (!approved) await File('${file.path}.rejection-layout').writeAsString(await _loadRfoTemplate('RFO_REJECTED_PL.txt'));
     return file;
   }
 
@@ -5823,11 +5801,11 @@ class DrfoDocumentService {
     if (!rtc && !nonRtc && !privateApproval && !revenueRequest && !governmentValuation && !governmentAuction && !governmentRequest && !privateRejected) return;
     final officers = OfficerRepository();
     final fingerprint = await officers.fingerprint();
-    final marker = File(file.path + '.officer-addresses');
-    final layoutMarker = File(file.path + '.auction-layout');
-    final rejectionMarker = File(file.path + '.rejection-layout');
-    final requestMarker = File(file.path + '.request-layout');
-    final valuationMarker = File(file.path + '.valuation-layout');
+    final marker = File('${file.path}.officer-addresses');
+    final layoutMarker = File('${file.path}.auction-layout');
+    final rejectionMarker = File('${file.path}.rejection-layout');
+    final requestMarker = File('${file.path}.request-layout');
+    final valuationMarker = File('${file.path}.valuation-layout');
     final layoutCurrent = (!privateRejected || (await rejectionMarker.exists() && await rejectionMarker.readAsString() == await _loadRfoTemplate('RFO_REJECTED_PL.txt'))) &&
         (!governmentRequest || (await requestMarker.exists() && await requestMarker.readAsString() == await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'))) &&
         (!governmentAuction || (await layoutMarker.exists() && await layoutMarker.readAsString() == await _auctionLayoutFingerprint())) &&
@@ -5887,7 +5865,7 @@ class DrfoDocumentService {
       affected = authority != null && {'ACF','DCF'}.contains(authority.code.trim().toUpperCase());
     }
     if (affected) {
-      final backup = File(file.path + '.before-officer-address-update');
+      final backup = File('${file.path}.before-officer-address-update');
       if (!await backup.exists()) await file.copy(backup.path);
       File? regenerated;
       if (governmentValuation || governmentAuction || governmentRequest) {
@@ -6178,7 +6156,8 @@ class DrfoDocumentService {
         (applicationType == "PL" ||
         applicationType == "GL" ||
         applicationType == "STGL" ||
-        applicationType == "CGL");
+        applicationType == "CGL" ||
+        applicationType == "MCC");
 
     final templateFile = usesSandalMahazar
         ? "SANDAL_MAHAZAR.txt"
@@ -7013,6 +6992,7 @@ class DrfoDocumentService {
     if (applicationType == 'GL' ||
         applicationType == 'STGL' ||
         applicationType == 'CGL' ||
+        applicationType == 'MCC' ||
         applicationType == 'PL' ||
         applicationType == 'SGL' ||
         applicationType == 'SPL') {

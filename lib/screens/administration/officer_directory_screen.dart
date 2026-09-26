@@ -56,7 +56,7 @@ class _OfficerDirectoryScreenState extends State<OfficerDirectoryScreen> {
       const SizedBox(height:12),
       if(officers.isEmpty)const Text('No officers added yet.'),
       for(final officer in officers)Card(child:ListTile(
-        title:Text(officer['name'].toString()+' — '+officer['role'].toString()),
+        title:Text('${officer['name']} — ${officer['role']}'),
         subtitle:Text(OfficerRepository.formatAddress(officer)),isThreeLine:true,
         trailing:IconButton(tooltip:'Edit officer',icon:const Icon(Icons.edit),onPressed:()=>edit(officer)),
         onTap:()=>edit(officer),

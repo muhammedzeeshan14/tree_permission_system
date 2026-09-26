@@ -142,7 +142,7 @@ class GovernmentApprovalRepository {
         if(!await _onlineHasApprovedTree(record.applicationId))throw StateError('At least one recommended tree must be approved by RFO.');
         await _onlineUpdate(record,pending?{'stage':'pending','requestDate':date,'requestLetterPath':paths.single}:{'stage':'completed','finalDate':date,'finalPaths':jsonEncode(paths)});
         await OnlineDatabase.update('applications',record.applicationId,{'status':pending?WorkflowStatus.pendingGovernmentLandApprovals:WorkflowStatus.completed,'rfoApprovalDate':date});
-        await _onlineAudit(record.applicationId,pending?'Government valuation documents requested':'Government '+record.permissionType+' approved; application completed');
+        await _onlineAudit(record.applicationId,pending?'Government valuation documents requested':'Government ${record.permissionType} approved; application completed');
         return;
       } catch (e) {
         if(e is StateError||e is ArgumentError)rethrow;
@@ -156,7 +156,7 @@ class GovernmentApprovalRepository {
       if(trees.isEmpty)throw StateError('At least one recommended tree must be approved by RFO.');
       await _update(tx,record,pending?{'stage':'pending','requestDate':date,'requestLetterPath':paths.single}:{'stage':'completed','finalDate':date,'finalPaths':jsonEncode(paths)});
       await tx.update('applications',{'status':pending?WorkflowStatus.pendingGovernmentLandApprovals:WorkflowStatus.completed,'rfoApprovalDate':date},where:'id=?',whereArgs:[record.applicationId]);
-      await _audit(tx,record.applicationId,pending?'Government valuation documents requested':'Government '+record.permissionType+' approved; application completed');
+      await _audit(tx,record.applicationId,pending?'Government valuation documents requested':'Government ${record.permissionType} approved; application completed');
     });
   }
   Future<GovernmentApproval> saveAnswers(GovernmentApproval record,Map<String,String> answers,{bool rfo=false,bool submit=false}) async {
@@ -193,7 +193,11 @@ class GovernmentApprovalRepository {
     if (OnlineMode.enabled) {
       try {
         await _onlineCheck(record,'RFO','review');final fields={...record.approvedFields};
-        if(approved)fields.add(field);else fields.remove(field);
+        if(approved) {
+          fields.add(field);
+        } else {
+          fields.remove(field);
+        }
         return _onlineUpdate(record,{'approvedFields':jsonEncode(fields.toList())});
       } catch (e) {
         if(e is StateError||e is ArgumentError)rethrow;
@@ -202,7 +206,11 @@ class GovernmentApprovalRepository {
     }
     return (await _db).transaction((tx) async {
       await _check(tx,record,'RFO','review');final fields={...record.approvedFields};
-      if(approved)fields.add(field);else fields.remove(field);
+      if(approved) {
+        fields.add(field);
+      } else {
+        fields.remove(field);
+      }
       return _update(tx,record,{'approvedFields':jsonEncode(fields.toList())});
     });
   }

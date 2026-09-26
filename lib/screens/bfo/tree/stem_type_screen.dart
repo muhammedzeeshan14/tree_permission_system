@@ -12,7 +12,6 @@ import '../../../widgets/tpms_app_bar.dart';
 import '../../../widgets/wizard_progress_card.dart';
 
 import 'add_edit_tree_screen.dart';
-import '../../../repositories/tree_repository.dart';
 
 class StemTypeScreen extends StatefulWidget {
   final int applicationId;

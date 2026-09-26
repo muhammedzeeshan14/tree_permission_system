@@ -22,10 +22,12 @@ class _RevenueReplyHistoryCardState extends State<RevenueReplyHistoryCard> {
   Widget build(BuildContext context) => FutureBuilder<List<RevenueReply>>(
     future: history,
     builder: (context, snapshot) {
-      if (snapshot.hasError)
+      if (snapshot.hasError) {
         return const Text('Revenue opinion history could not be loaded.');
-      if (!snapshot.hasData || snapshot.data!.isEmpty)
+      }
+      if (!snapshot.hasData || snapshot.data!.isEmpty) {
         return const SizedBox.shrink();
+      }
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -39,21 +41,19 @@ class _RevenueReplyHistoryCardState extends State<RevenueReplyHistoryCard> {
               for (final reply in snapshot.data!) ...[
                 const Divider(),
                 Text(
-                  'Request ' + reply.cycle.toString(),
+                  'Request ${reply.cycle}',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text('Sent to: ' + reply.requestAuthority),
+                Text('Sent to: ${reply.requestAuthority}'),
                 Text(
-                  'RFO request approval date: ' +
-                      reply.requestedAt.split('T').first,
+                  'RFO request approval date: ${reply.requestedAt.split('T').first}',
                 ),
                 Text(
-                  'Printed: ' +
-                      (reply.printedAt.isEmpty
+                  'Printed: ${reply.printedAt.isEmpty
                           ? 'Pending printing'
-                          : reply.printedAt.split('T').first),
+                          : reply.printedAt.split('T').first}',
                 ),
-                Text('Stage: ' + reply.stage),
+                Text('Stage: ${reply.stage}'),
                 if (reply.answers.isNotEmpty)
                   for (final field in RevenueReply.fields(
                       reply.answers,
@@ -77,7 +77,7 @@ class _RevenueReplyHistoryCardState extends State<RevenueReplyHistoryCard> {
                                       : '—') +
                                   (reply.decisions[field] == null
                                       ? ''
-                                      : ' [' + reply.decisions[field]! + ']'),
+                                      : ' [${reply.decisions[field]!}]'),
                             ),
                           ),
                         ],

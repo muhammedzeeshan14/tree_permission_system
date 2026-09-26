@@ -219,7 +219,7 @@ Card(
 
         DropdownButtonFormField<int>(
 
-          value: documentTypeId,
+          initialValue: documentTypeId,
 
           decoration: const InputDecoration(
 

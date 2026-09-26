@@ -93,7 +93,7 @@ Future<void> showMasterDialog({
       item?["parentCode"]?.toString();
 
   if (selectedWhyRemovingCode != null &&
-      selectedWhyRemovingCode!.trim().isEmpty) {
+      selectedWhyRemovingCode.trim().isEmpty) {
     selectedWhyRemovingCode = null;
   }
 
@@ -132,7 +132,7 @@ Future<void> showMasterDialog({
 
                     if (isPurposeMaster) ...[
                       DropdownButtonFormField<String>(
-                        value: whyRemovingMasters.any(
+                        initialValue: whyRemovingMasters.any(
                           (parent) =>
                               parent["code"]
                                   ?.toString() ==

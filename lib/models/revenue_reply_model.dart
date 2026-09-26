@@ -102,8 +102,9 @@ class RevenueReply {
     Map<String, String> answers, {
     bool includeOnline = true,
   }) {
-    if (!natures.contains(answers['nature']))
+    if (!natures.contains(answers['nature'])) {
       return 'Select the revenue opinion nature.';
+    }
     if (includeOnline &&
         !onlineStatuses.contains(
             answers['onlineApplicationStatus'])) {
@@ -111,15 +112,17 @@ class RevenueReply {
     }
     for (final key in requiredFields) {
       if ((answers[key] ?? '').trim().isEmpty) {
-        return 'Enter ' + questions[key]! + '.';
+        return 'Enter ${questions[key]!}.';
       }
     }
     final letter = DateTime.tryParse(answers['letterDate'] ?? '');
     final received = DateTime.tryParse(answers['receivedDate'] ?? '');
-    if (letter == null || received == null)
+    if (letter == null || received == null) {
       return 'Select valid letter and received dates.';
-    if (received.isBefore(letter))
+    }
+    if (received.isBefore(letter)) {
       return 'Received date cannot be before the letter date.';
+    }
     return null;
   }
 

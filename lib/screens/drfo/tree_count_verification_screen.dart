@@ -126,7 +126,7 @@ Future<String?> showReinspectDialog() async {
 
         content: DropdownButtonFormField<String>(
 
-          value: selectedReason,
+          initialValue: selectedReason,
 
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
@@ -202,6 +202,7 @@ Future<String?> showReinspectDialog() async {
       );
     },
   );
+  return null;
 }
 
   @override

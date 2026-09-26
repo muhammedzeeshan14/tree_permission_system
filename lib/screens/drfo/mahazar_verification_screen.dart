@@ -217,7 +217,7 @@ String get endTimeDisplay {
 
         content: DropdownButtonFormField<String>(
 
-          value: selectedReason,
+          initialValue: selectedReason,
 
           decoration: const InputDecoration(
             border: OutlineInputBorder(),

@@ -196,7 +196,7 @@ class _ApplicationPermissionMappingScreenState
 
                     child: DropdownButtonFormField<int>(
 
-                      value: selectedPermission[
+                      initialValue: selectedPermission[
                           app["id"]],
 
                       decoration:

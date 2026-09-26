@@ -640,7 +640,7 @@ if (result == true) {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: sandalDestinations.any((item) =>
+              initialValue: sandalDestinations.any((item) =>
                       item["id"] ==
                       selectedSandalDestinationId)
                   ? selectedSandalDestinationId
@@ -1058,7 +1058,7 @@ if (result == true) {
 
       itemCount: filteredTrees.length,
 
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const SizedBox(height: 10),
 
       itemBuilder: (context, index) {

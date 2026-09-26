@@ -246,7 +246,7 @@ if ((threeOptions || approvalOptions) &&
         verification == false)) ...[
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: selectedReason,
+                  initialValue: selectedReason,
                   decoration: const InputDecoration(
                     labelText: "Verification Reason",
                     border: OutlineInputBorder(),

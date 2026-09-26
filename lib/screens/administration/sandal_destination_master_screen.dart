@@ -88,7 +88,7 @@ class _SandalDestinationMasterScreenState
                   ),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
-                    value: mapping,
+                    initialValue: mapping,
                     decoration: const InputDecoration(
                       labelText: 'Applies To',
                       border: OutlineInputBorder(),

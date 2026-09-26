@@ -109,8 +109,9 @@ class RevenueReplyRepository {
     final status = stage == 'review'
         ? WorkflowStatus.pendingRFOApproval
         : WorkflowStatus.pendingRevenueOpinion;
-    if (app['status'] != status)
+    if (app['status'] != status) {
       throw StateError('Application has moved to another stage. Reopen it.');
+    }
     final rows = await tx.query(
       'revenue_reply_cycles',
       where: 'applicationId=?',
@@ -186,8 +187,9 @@ class RevenueReplyRepository {
     final status = stage == 'review'
         ? WorkflowStatus.pendingRFOApproval
         : WorkflowStatus.pendingRevenueOpinion;
-    if (app['status'] != status)
+    if (app['status'] != status) {
       throw StateError('Application has moved to another stage. Reopen it.');
+    }
     final rows = await OnlineDatabase.select(
       'revenue_reply_cycles',
       equals: {'applicationId': reply.applicationId},
@@ -243,14 +245,16 @@ class RevenueReplyRepository {
       'application_tree_officer',
       equals: {'applicationId': applicationId},
     );
-    if (links.isEmpty)
+    if (links.isEmpty) {
       throw StateError('Select Tree officer before final approval.');
+    }
     final officers = await OnlineDatabase.select(
       'tree_officer_master',
       equals: {'id': links.first['treeOfficerId']},
     );
-    if (officers.isEmpty)
+    if (officers.isEmpty) {
       throw StateError('Select Tree officer before final approval.');
+    }
     return TreeOfficerRepository.outcomeFor(officers.first);
   }
 
@@ -259,16 +263,18 @@ class RevenueReplyRepository {
       try {
         final app = await _onlineApplication(application.id!);
         _authorize(app, 'RFO');
-        if (app['status'] != WorkflowStatus.pendingRFOApproval)
+        if (app['status'] != WorkflowStatus.pendingRFOApproval) {
           throw StateError('Application is no longer pending RFO approval.');
+        }
         final existing = await OnlineDatabase.select(
           'revenue_reply_cycles',
           equals: {'applicationId': application.id},
         );
-        if (existing.isNotEmpty)
+        if (existing.isNotEmpty) {
           throw StateError(
             'A revenue request already exists. Open its review workflow.',
           );
+        }
         final authority = await _onlineRequestAuthority(application.id!);
         await OnlineDatabase.insert('revenue_reply_cycles', {
           'applicationId': application.id,
@@ -299,17 +305,19 @@ class RevenueReplyRepository {
     await db.transaction((tx) async {
       final app = await _application(tx, application.id!);
       _authorize(app, 'RFO');
-      if (app['status'] != WorkflowStatus.pendingRFOApproval)
+      if (app['status'] != WorkflowStatus.pendingRFOApproval) {
         throw StateError('Application is no longer pending RFO approval.');
+      }
       final existing = await tx.query(
         'revenue_reply_cycles',
         where: 'applicationId=?',
         whereArgs: [application.id],
       );
-      if (existing.isNotEmpty)
+      if (existing.isNotEmpty) {
         throw StateError(
           'A revenue request already exists. Open its review workflow.',
         );
+      }
       final selection = await tx.rawQuery(
         '''SELECT m.officeName, m.officeAddress FROM application_revenue_opinion s
         JOIN revenue_opinion_master m ON m.id=s.revenueOpinionId WHERE s.applicationId=?''',
@@ -344,8 +352,9 @@ class RevenueReplyRepository {
       try {
         final app = await _onlineApplication(application.id!);
         _authorize(app, 'Case Worker');
-        if (app['status'] != WorkflowStatus.pendingRevenueOpinion)
+        if (app['status'] != WorkflowStatus.pendingRevenueOpinion) {
           throw StateError('Application is not pending revenue opinion.');
+        }
         var rows = await OnlineDatabase.select(
           'revenue_reply_cycles',
           equals: {'applicationId': application.id},
@@ -380,8 +389,9 @@ class RevenueReplyRepository {
     return db.transaction((tx) async {
       final app = await _application(tx, application.id!);
       _authorize(app, 'Case Worker');
-      if (app['status'] != WorkflowStatus.pendingRevenueOpinion)
+      if (app['status'] != WorkflowStatus.pendingRevenueOpinion) {
         throw StateError('Application is not pending revenue opinion.');
+      }
       var rows = await tx.query(
         'revenue_reply_cycles',
         where: 'applicationId=?',
@@ -611,8 +621,9 @@ class RevenueReplyRepository {
     PrivateLandOutcome? outcomeOverride,
     bool includeOnline = true,
   }) async {
-    if (!reply.allApprovedFor(includeOnline: includeOnline))
+    if (!reply.allApprovedFor(includeOnline: includeOnline)) {
       throw StateError('Approve every answer before final approval.');
+    }
     if (OnlineMode.enabled) {
       try {
         await _onlineCheck(reply, 'RFO', 'review');
@@ -630,8 +641,9 @@ class RevenueReplyRepository {
           throw StateError('Generate the required letter before completing this application.');
         }
         if (resend) {
-          if (reply.nextAuthorityId == null)
+          if (reply.nextAuthorityId == null) {
             throw StateError('Choose an active revenue authority.');
+          }
           final authorities = await OnlineDatabase.select(
             'revenue_opinion_master',
             equals: {'id': reply.nextAuthorityId},
@@ -671,9 +683,7 @@ class RevenueReplyRepository {
               ? 'Revised revenue opinion requested by RFO'
               : onlinePermission
               ? 'Give online permission in Aranya website; application completed (no letter generated)'
-              : 'Revenue opinion ' +
-                    (reply.answers['nature'] ?? '') +
-                    '; application completed',
+              : 'Revenue opinion ${reply.answers['nature'] ?? ''}; application completed',
         );
         return;
       } catch (e) {
@@ -699,15 +709,17 @@ class RevenueReplyRepository {
         throw StateError('Generate the required letter before completing this application.');
       }
       if (resend) {
-        if (reply.nextAuthorityId == null)
+        if (reply.nextAuthorityId == null) {
           throw StateError('Choose an active revenue authority.');
+        }
         final authorities = await tx.query(
           'revenue_opinion_master',
           where: 'id=? AND isActive=1',
           whereArgs: [reply.nextAuthorityId],
         );
-        if (authorities.isEmpty)
+        if (authorities.isEmpty) {
           throw StateError('Choose an active revenue authority.');
+        }
         await tx.insert('revenue_reply_cycles', {
           'applicationId': reply.applicationId,
           'cycle': reply.cycle + 1,
@@ -739,9 +751,7 @@ class RevenueReplyRepository {
             ? 'Revised revenue opinion requested by RFO'
             : onlinePermission
             ? 'Give online permission in Aranya website; application completed (no letter generated)'
-            : 'Revenue opinion ' +
-                  (reply.answers['nature'] ?? '') +
-                  '; application completed',
+            : 'Revenue opinion ${reply.answers['nature'] ?? ''}; application completed',
       );
     });
   }
