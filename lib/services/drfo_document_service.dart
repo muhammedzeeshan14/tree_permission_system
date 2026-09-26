@@ -1970,7 +1970,13 @@ class DrfoDocumentService {
       forwardedReference,
     );
 
-    template = _replace(template, '{{DEFERRED_REASONS}}', deferredReasons);
+    template = _replace(
+      template,
+      '{{DEFERRED_REASONS}}',
+      deferredReasons.isEmpty
+          ? "ಸ್ಥಳ ಪರಿಶೀಲನೆ ಮುಂದೂಡಲು ಕಾರಣಗಳು ದಾಖಲಾಗಿರುವುದಿಲ್ಲ"
+          : deferredReasons,
+    );
 
     // ----------------------------------------------------------
     // DRFO REMARKS
