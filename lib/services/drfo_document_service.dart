@@ -2099,6 +2099,97 @@ class DrfoDocumentService {
   // DRAW ONE PAGE
   // ==========================================================
 
+  // ==========================================================
+  // MERGE REPEATED CELLS
+  //
+  // Applicant name/address/location columns repeat the same text
+  // in every row of one application. Consecutive rows with
+  // identical text are merged into a single tall cell so the name
+  // prints once; runs split on text change and on page breaks, so
+  // different values stay unmerged.
+  // ==========================================================
+
+  Future<void> _mergeRepeatedCells({
+    required ui.Canvas canvas,
+    required List<double> rowTops,
+    required List<double> rowHeights,
+    required List<String> texts,
+    required double xLeft,
+    required double colWidth,
+    required double strokeWidth,
+    required double xPadding,
+    required double fontSize,
+  }) async {
+    if (rowTops.length < 2) return;
+
+    final borderPaint = ui.Paint()
+      ..color = const ui.Color(0xFF000000)
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    final whitePaint = ui.Paint()
+      ..color = const ui.Color(0xFFFFFFFF)
+      ..style = ui.PaintingStyle.fill;
+
+    Future<void> drawRun(int start, int end, String text) async {
+      if (end - start < 1) return;
+      final top = rowTops[start];
+      double bottom = top;
+      for (int i = start; i <= end; i++) {
+        bottom = rowTops[i] + rowHeights[i];
+      }
+      final height = bottom - top;
+      canvas.drawRect(
+        ui.Rect.fromLTWH(xLeft, top, colWidth, height),
+        whitePaint,
+      );
+      canvas.drawLine(
+        ui.Offset(xLeft, top),
+        ui.Offset(xLeft, bottom),
+        borderPaint,
+      );
+      canvas.drawLine(
+        ui.Offset(xLeft + colWidth, top),
+        ui.Offset(xLeft + colWidth, bottom),
+        borderPaint,
+      );
+      canvas.drawLine(
+        ui.Offset(xLeft, top),
+        ui.Offset(xLeft + colWidth, top),
+        borderPaint,
+      );
+      canvas.drawLine(
+        ui.Offset(xLeft, bottom),
+        ui.Offset(xLeft + colWidth, bottom),
+        borderPaint,
+      );
+      final paragraph = await _buildParagraph(
+        text: _safeText(text),
+        width: colWidth - (xPadding * 2),
+        fontSize: fontSize,
+        alignment: ui.TextAlign.center,
+      );
+      canvas.drawParagraph(
+        paragraph,
+        ui.Offset(
+          xLeft + xPadding,
+          top + ((height - paragraph.height) / 2),
+        ),
+      );
+    }
+
+    int runStart = 0;
+    for (int i = 1; i < rowTops.length; i++) {
+      final pageBreak =
+          rowTops[i] < rowTops[i - 1] + rowHeights[i - 1] - _scale;
+      if (pageBreak || texts[i].trim() != texts[runStart].trim()) {
+        await drawRun(runStart, i - 1, texts[runStart]);
+        runStart = i;
+      }
+    }
+    await drawRun(runStart, rowTops.length - 1, texts[runStart]);
+  }
+
   Future<double> _drawRtcTreeTable({
     required ui.Canvas canvas,
     required double y,
@@ -2217,6 +2308,12 @@ class DrfoDocumentService {
 
     y += headerHeight;
 
+    // Recorded to merge repeated applicant/site cells afterwards.
+    final rtcRowTops = <double>[];
+    final rtcRowHeights = <double>[];
+    final rtcApplicants = <String>[];
+    final rtcSites = <String>[];
+
     for (final row in rows) {
       final species = row.speciesNames.isEmpty
           ? '—'
@@ -2250,8 +2347,38 @@ class DrfoDocumentService {
       drawRowBorders(y, rowHeight);
       drawCells(rowCells, y, rowHeight);
 
+      rtcRowTops.add(y);
+      rtcRowHeights.add(rowHeight);
+      rtcApplicants.add(row.applicantName);
+      rtcSites.add(row.siteDetails);
+
       y += rowHeight;
     }
+
+    // Applicant name repeats in every row: print once per run.
+    // Site cells merge only for consecutive identical sites.
+    await _mergeRepeatedCells(
+      canvas: canvas,
+      rowTops: rtcRowTops,
+      rowHeights: rtcRowHeights,
+      texts: rtcApplicants,
+      xLeft: tableX + columnWidths[0],
+      colWidth: columnWidths[1],
+      strokeWidth: 0.7 * _scale,
+      xPadding: padding,
+      fontSize: 10 * _scale,
+    );
+    await _mergeRepeatedCells(
+      canvas: canvas,
+      rowTops: rtcRowTops,
+      rowHeights: rtcRowHeights,
+      texts: rtcSites,
+      xLeft: tableX + columnWidths[0] + columnWidths[1],
+      colWidth: columnWidths[2],
+      strokeWidth: 0.7 * _scale,
+      xPadding: padding,
+      fontSize: 10 * _scale,
+    );
 
     return y;
   }
@@ -2523,6 +2650,10 @@ class DrfoDocumentService {
 
     y += headerHeight;
 
+    final notRecRowTops = <double>[];
+    final notRecRowHeights = <double>[];
+    final notRecApplicants = <String>[];
+
     for (final row in rows) {
       final rowCells = await buildCells([
         row.serialNumber.toString(),
@@ -2547,8 +2678,25 @@ class DrfoDocumentService {
       drawRowBorders(y, rowHeight);
       drawCells(rowCells, y, rowHeight);
 
+      notRecRowTops.add(y);
+      notRecRowHeights.add(rowHeight);
+      notRecApplicants.add(row.applicantAndLocation);
+
       y += rowHeight;
     }
+
+    // Same applicant/location across rows prints once per run.
+    await _mergeRepeatedCells(
+      canvas: canvas,
+      rowTops: notRecRowTops,
+      rowHeights: notRecRowHeights,
+      texts: notRecApplicants,
+      xLeft: tableX + columnWidths[0],
+      colWidth: columnWidths[1],
+      strokeWidth: 0.7 * _scale,
+      xPadding: padding,
+      fontSize: 10 * _scale,
+    );
 
     return y;
   }
@@ -3212,8 +3360,12 @@ class DrfoDocumentService {
     y += completeHeaderHeight;
 
     // ========================================================
-    // TREE ROWS
+    // TREE ROWS (MCC)
     // ========================================================
+
+    final mccRowTops = <double>[];
+    final mccRowHeights = <double>[];
+    final mccApplicants = <String>[];
 
     for (final row in rows) {
       final normalTexts = <int, String>{
@@ -3320,8 +3472,25 @@ class DrfoDocumentService {
         );
       }
 
+      mccRowTops.add(y);
+      mccRowHeights.add(rowHeight);
+      mccApplicants.add(applicant);
+
       y += rowHeight;
     }
+
+    // Applicant repeats in every MCC row: print once per run.
+    await _mergeRepeatedCells(
+      canvas: canvas,
+      rowTops: mccRowTops,
+      rowHeights: mccRowHeights,
+      texts: mccApplicants,
+      xLeft: xPositions[2],
+      colWidth: widths[2],
+      strokeWidth: 0.6 * _scale,
+      xPadding: 2 * _scale,
+      fontSize: 6.7 * _scale,
+    );
 
     return y;
   }
