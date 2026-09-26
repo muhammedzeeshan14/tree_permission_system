@@ -78,12 +78,47 @@ class OfficerRepository {
     return designation+(copyTo?', ':'\n')+address;
   }
   Future<String> addressForRole(String role,{bool copyTo=false}) async {
+    // The Officers screen lists cloud data when online, so the
+    // letter address lookup must also check the cloud first.
+    // A cloud row with incomplete designation/address falls back
+    // to local instead of throwing.
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'officer_directory',
+          equals: {'role': role},
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          try {
+            return formatAddress(rows.single,copyTo:copyTo);
+          } catch (_) {}
+        }
+      } catch (e) {
+        debugPrint('online addressForRole officer_directory failed, falling back to local: $e');
+      }
+    }
     final rows=await (await _db).query('officer_directory',where:'role=?',whereArgs:[role]);
     if(rows.isEmpty) throw StateError('Add the '+role+' officer in Administration > Officers before generating or printing this letter.');
     return formatAddress(rows.single,copyTo:copyTo);
   }
   Future<String?> sourceRole(int? sourceId,String fallback) async {
     if(sourceId!=null) {
+      if (OnlineMode.enabled) {
+        try {
+          final rows = await OnlineDatabase.select(
+            'forwarded_source_master',
+            equals: {'id': sourceId},
+            limit: 1,
+          );
+          if (rows.isNotEmpty) {
+            final code=rows.first['shortCode']?.toString().trim().toUpperCase();
+            if(code=='ACF'||code=='DCF') return code;
+          }
+        } catch (e) {
+          debugPrint('online sourceRole forwarded_source_master failed, falling back to local: $e');
+        }
+      }
       final rows=await (await _db).query('forwarded_source_master',where:'id=?',whereArgs:[sourceId]);
       if(rows.isNotEmpty) {
         final code=rows.first['shortCode']?.toString().trim().toUpperCase();
