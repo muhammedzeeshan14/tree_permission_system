@@ -4,8 +4,8 @@
 
 ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ {{TREE_LOCATION_SUBJECT_PHRASE}} ಖಾಸಗಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿ ನೀಡುವ ಬಗ್ಗೆ.
 ಉಲ್ಲೇಖ:
-1. ನಿಮ್ಮ ಮನವಿ{{APPLICANT_LETTER_NUMBER_PHRASE}}, ದಿನಾಂಕ: {{APPLICATION_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{RECEIVED_DATE}}).
-2. {{REVENUE_AUTHORITY}} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: {{REVENUE_LETTER_NUMBER}}, ದಿನಾಂಕ: {{REVENUE_LETTER_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{REVENUE_RECEIVED_DATE}}).
+1. ನಿಮ್ಮ ಮನವಿ{{APPLICANT_LETTER_NUMBER_PHRASE}}[IF_APPLICATION_DATE], ದಿನಾಂಕ: {{APPLICATION_DATE}}[/IF_APPLICATION_DATE][IF_RECEIVED_DATE] (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{RECEIVED_DATE}})[/IF_RECEIVED_DATE].
+2. {{REVENUE_AUTHORITY}} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: {{REVENUE_LETTER_NUMBER}}[IF_REVENUE_LETTER_DATE], ದಿನಾಂಕ: {{REVENUE_LETTER_DATE}}[/IF_REVENUE_LETTER_DATE][IF_REVENUE_RECEIVED_DATE] (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{REVENUE_RECEIVED_DATE}})[/IF_REVENUE_RECEIVED_DATE].
 [CENTER]
 --------
 [/CENTER]

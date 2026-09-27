@@ -373,6 +373,41 @@ class DrfoDocumentService {
   }
 
   // ==========================================================
+  // CONDITIONAL DATE BLOCKS
+  //
+  // Dates not entered at application creation must not print,
+  // along with their ದಿನಾಂಕ/ಸ್ವೀಕೃತಿ fragments. Templates wrap
+  // such fragments in [IF_<FLAG>]...[/IF_<FLAG>] blocks; a block
+  // prints only when its date is non-empty.
+  // ==========================================================
+
+  String _resolveDateBlocks(
+    String master, {
+    String applicationDate = '',
+    String receivedDate = '',
+    String drfoReportDate = '',
+    String revenueLetterDate = '',
+    String revenueReceivedDate = '',
+  }) {
+    var result = master;
+    final present = <String, bool>{
+      'APPLICATION_DATE': _date(applicationDate).isNotEmpty,
+      'RECEIVED_DATE': _date(receivedDate).isNotEmpty,
+      'DRFO_REPORT_DATE': _date(drfoReportDate).isNotEmpty,
+      'REVENUE_LETTER_DATE': _date(revenueLetterDate).isNotEmpty,
+      'REVENUE_RECEIVED_DATE':
+          _date(revenueReceivedDate).isNotEmpty,
+    };
+    present.forEach((flag, has) {
+      result = result.replaceAllMapped(
+        RegExp('\\[IF_' + flag + '\\]([\\s\\S]*?)\\[/IF_' + flag + '\\]'),
+        (match) => has ? match.group(1)! : '',
+      );
+    });
+    return result;
+  }
+
+  // ==========================================================
   // TREE / LAND LOCATION
   // ==========================================================
 
@@ -653,9 +688,11 @@ class DrfoDocumentService {
     final receivedDate = _date(application.receivedDate);
 
     if (toApplicant) {
-      String applicantReference =
-          "1. ನಿಮ್ಮ ಮನವಿ ದಿನಾಂಕ: "
-          "$applicationDate";
+      var applicantReference = "1. ನಿಮ್ಮ ಮನವಿ";
+      if (applicationDate.isNotEmpty) {
+        applicantReference += " ದಿನಾಂಕ: "
+            "$applicationDate";
+      }
 
       if (receivedDate.isNotEmpty) {
         applicantReference +=
@@ -665,11 +702,14 @@ class DrfoDocumentService {
 
       lines.add(applicantReference);
     } else {
-      lines.add(
-        "1. ${application.applicantName}, "
-        "${application.applicantAddress} "
-        "ರವರ ಮನವಿ ದಿನಾಂಕ: $applicationDate",
-      );
+      var applicantReference =
+          "1. ${application.applicantName}, "
+          "${application.applicantAddress} "
+          "ರವರ ಮನವಿ";
+      if (applicationDate.isNotEmpty) {
+        applicantReference += " ದಿನಾಂಕ: $applicationDate";
+      }
+      lines.add(applicantReference);
     }
 
     final isForwarded =
@@ -1574,6 +1614,13 @@ class DrfoDocumentService {
 
     template = _replace(template, '{{LETTER_DATE}}', letterDate);
 
+    template = _resolveDateBlocks(
+      template,
+      applicationDate: application.applicationDate,
+      receivedDate: application.receivedDate,
+      drfoReportDate: application.drfoInspectionDate,
+    );
+
     return template;
   }
 
@@ -2064,6 +2111,13 @@ class DrfoDocumentService {
     // ----------------------------------------------------------
 
     template = _replace(template, '{{LETTER_DATE}}', generatedDate);
+
+    template = _resolveDateBlocks(
+      template,
+      applicationDate: application.applicationDate,
+      receivedDate: application.receivedDate,
+      drfoReportDate: application.drfoInspectionDate,
+    );
 
     return template;
   }
@@ -5444,15 +5498,31 @@ class DrfoDocumentService {
   }
 
   Future<String> _buildGovernmentDoReferences(ApplicationModel application) async {
+    final appDate = _date(application.applicationDate);
     final appReceived = _date(application.receivedDate);
-    final references = <String>[
-      '1. ' + application.applicantName + ' ರವರ ಮನವಿ ದಿನಾಂಕ: ' + _date(application.applicationDate) +
-        (appReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $appReceived).'),
-    ];
+    var first =
+        '1. ' + application.applicantName + ' ರವರ ಮನವಿ';
+    if (appDate.isNotEmpty) {
+      first += ' ದಿನಾಂಕ: ' + appDate;
+    }
+    if (appReceived.isNotEmpty) {
+      first += ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $appReceived)';
+    }
+    first += '.';
+    final references = <String>[first];
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty && reference.referenceNumber.trim().isEmpty && reference.referenceDate.trim().isEmpty) continue;
-      references.add((references.length + 1).toString() + '. ' + reference.forwardedBy.trim() +
-        ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + reference.referenceNumber.trim() + ', ದಿನಾಂಕ: ' + _date(reference.referenceDate) + _receivedSuffix(reference) + '.');
+      final number = reference.referenceNumber.trim();
+      final date = _date(reference.referenceDate);
+      var line = (references.length + 1).toString() + '. ' + reference.forwardedBy.trim();
+      if (number.isNotEmpty) {
+        line += ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
+      }
+      if (date.isNotEmpty) {
+        line += ', ದಿನಾಂಕ: ' + date;
+      }
+      line += _receivedSuffix(reference) + '.';
+      references.add(line);
     }
     references.add((references.length + 1).toString() + '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
       await _printSectionName(application) + ' ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ' + _date(application.drfoInspectionDate) + '.');
@@ -5578,17 +5648,28 @@ class DrfoDocumentService {
     final total = rows.fold<double>(0, (sum, row) => sum + row.totalValueNumber);
     final answers = approval.answers;
     final replyReceived = _date(answers['receivedDate'] ?? '');
-    final replyReference = afterReply
-        ? '3. ' + application.applicantName + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') + ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') + (replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).')
-        : '';
+    final replyLetterNumber = (answers['letterNumber'] ?? '').trim();
+    final replyLetterDate = _date(answers['letterDate'] ?? '');
+    var replyReference = '';
+    if (afterReply) {
+      replyReference =
+          '3. ' + application.applicantName + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + replyLetterNumber;
+      if (replyLetterDate.isNotEmpty) {
+        replyReference += ', ದಿನಾಂಕ: ' + replyLetterDate;
+      }
+      replyReference += replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).';
+    }
     var valuationReferences = await _buildGovernmentDoReferences(application);
     if (afterReply) {
       final forwardedCount = application.forwardingReferences.where((reference) =>
           reference.forwardedBy.trim().isNotEmpty || reference.referenceNumber.trim().isNotEmpty || reference.referenceDate.trim().isNotEmpty).length;
-      valuationReferences += '\n' + (forwardedCount + 3).toString() + '. ' +
-          (answers['authority'] ?? '') + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + (answers['letterNumber'] ?? '') +
-          ', ದಿನಾಂಕ: ' + _date(answers['letterDate'] ?? '') +
-          (replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).');
+      var replyLine = (forwardedCount + 3).toString() + '. ' +
+          (answers['authority'] ?? '') + ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + replyLetterNumber;
+      if (replyLetterDate.isNotEmpty) {
+        replyLine += ', ದಿನಾಂಕ: ' + replyLetterDate;
+      }
+      replyLine += replyReceived.isEmpty ? '.' : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $replyReceived).';
+      valuationReferences += '\n' + replyLine;
     }
     final values = <String,String>{
       '{{APPLICANT_LETTER_NUMBER_PHRASE}}': application.applicantLetterNumber.trim().isEmpty ? '' : ' ಸಂಖ್ಯೆ: ' + application.applicantLetterNumber.trim(),
@@ -5631,6 +5712,13 @@ class DrfoDocumentService {
           templateName == 'RFO_MCC_VALUATION.txt';
       // Resolve the saved approval date before the shared report's current-date fallback.
       master = master.replaceAll('{{LETTER_DATE}}', _date(application.rfoApprovalDate));
+      master = _resolveDateBlocks(
+        master,
+        applicationDate: application.applicationDate,
+        receivedDate: application.receivedDate,
+        revenueLetterDate: answers['letterDate'] ?? '',
+        revenueReceivedDate: answers['receivedDate'] ?? '',
+      );
       if (isDo || isPatti || isValuation || request) master = await _buildRecommendedReportMaster(master, application, rfoApprovedOnly: auction || isValuation);
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
         final key = match.group(0)!;
@@ -5702,11 +5790,15 @@ class DrfoDocumentService {
       '{{TREE_DETAILS}}': details,
     };
     final template = await _loadRfoTemplate('RFO_BRANCH_PERMISSION_PL.txt');
-    final master = template.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
-      final value = values[match.group(0)];
-      if (value == null) throw StateError('Unknown branch permission placeholder: ' + match.group(0)!);
-      return value.trim().isEmpty ? '—' : value;
-    });
+    var master = _resolveDateBlocks(
+      template.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        final value = values[match.group(0)];
+        if (value == null) throw StateError('Unknown branch permission placeholder: ' + match.group(0)!);
+        return value.trim().isEmpty ? '—' : value;
+      }),
+      applicationDate: application.applicationDate,
+      receivedDate: application.receivedDate,
+    );
     final pages = await _renderMasterToPng(master, rfoLetterhead: _RfoLetterheadData(
       letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
       rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '',
@@ -5835,6 +5927,13 @@ class DrfoDocumentService {
       }
       return value.trim().isEmpty ? '—' : value;
     });
+    master = _resolveDateBlocks(
+      master,
+      applicationDate: application.applicationDate,
+      receivedDate: application.receivedDate,
+      revenueLetterDate: reply.answers['letterDate'] ?? '',
+      revenueReceivedDate: reply.answers['receivedDate'] ?? '',
+    );
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
           letterNumber: await _rfoLetterNumber(application),
@@ -5882,16 +5981,29 @@ class DrfoDocumentService {
 
     final applicantReceived = _date(application.receivedDate);
     final revenueReceived = _date(reply.answers['receivedDate'] ?? '');
+    final applicantDate = _date(application.applicationDate);
+    var sandalFirst =
+        '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ';
+    if (applicantDate.isNotEmpty) {
+      sandalFirst += ' ದಿನಾಂಕ: $applicantDate';
+    }
+    sandalFirst += applicantReceived.isEmpty
+        ? '.'
+        : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).';
+    final revenueLetterDate =
+        _date(reply.answers['letterDate'] ?? '');
+    var sandalThird =
+        '3. ${reply.answers['authority'] ?? ''} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}';
+    if (revenueLetterDate.isNotEmpty) {
+      sandalThird += ', ದಿನಾಂಕ: $revenueLetterDate';
+    }
+    sandalThird += revenueReceived.isEmpty
+        ? '.'
+        : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $revenueReceived).';
     final references = <String>[
-      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}' +
-          (applicantReceived.isEmpty
-              ? '.'
-              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'),
+      sandalFirst,
       '2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.',
-      '3. ${reply.answers['authority'] ?? ''} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}, ದಿನಾಂಕ: ${_date(reply.answers['letterDate'] ?? '')}' +
-          (revenueReceived.isEmpty
-              ? '.'
-              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $revenueReceived).'),
+      sandalThird,
     ];
 
     // To is always the DCF officer from the officer master.
@@ -6009,20 +6121,34 @@ class DrfoDocumentService {
     final masterRepository = MasterRepository();
 
     final applicantReceived = _date(application.receivedDate);
-    final references = <String>[
-      '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ ದಿನಾಂಕ: ${_date(application.applicationDate)}' +
-          (applicantReceived.isEmpty
-              ? '.'
-              : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).'),
-    ];
+    final applicantDate = _date(application.applicationDate);
+    var sglFirst =
+        '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ';
+    if (applicantDate.isNotEmpty) {
+      sglFirst += ' ದಿನಾಂಕ: $applicantDate';
+    }
+    sglFirst += applicantReceived.isEmpty
+        ? '.'
+        : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $applicantReceived).';
+    final references = <String>[sglFirst];
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty &&
           reference.referenceNumber.trim().isEmpty &&
           reference.referenceDate.trim().isEmpty) {
         continue;
       }
-      references.add(
-          '${references.length + 1}. ${reference.forwardedBy.trim()} ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ${reference.referenceNumber.trim()}, ದಿನಾಂಕ: ${_date(reference.referenceDate)}${_receivedSuffix(reference)}.');
+      final number = reference.referenceNumber.trim();
+      final date = _date(reference.referenceDate);
+      var line =
+          '${references.length + 1}. ${reference.forwardedBy.trim()}';
+      if (number.isNotEmpty) {
+        line += ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
+      }
+      if (date.isNotEmpty) {
+        line += ', ದಿನಾಂಕ: ' + date;
+      }
+      line += '${_receivedSuffix(reference)}.';
+      references.add(line);
     }
     references.add(
         '${references.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.');
@@ -6234,6 +6360,13 @@ class DrfoDocumentService {
       master = master.replaceAllMapped(
         RegExp(r'\[IF_ONLINE_APPLICATION_NUMBER\]([\s\S]*?)\[/IF_ONLINE_APPLICATION_NUMBER\]'),
         (match) => (reply.answers['onlineApplicationNumber'] ?? '').trim().isEmpty ? '' : match.group(1)!,
+      );
+      master = _resolveDateBlocks(
+        master,
+        applicationDate: application.applicationDate,
+        receivedDate: application.receivedDate,
+        revenueLetterDate: reply.answers['letterDate'] ?? '',
+        revenueReceivedDate: reply.answers['receivedDate'] ?? '',
       );
       // Substitute once so values containing placeholder-like text stay literal.
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {

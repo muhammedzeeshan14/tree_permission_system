@@ -8,7 +8,7 @@
 ಮಾನ್ಯರೆ,
 ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಮರ/ಮರದ ರೆಂಬೆ ಕೊಂಬೆಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಕೋರಿ ಸಲ್ಲಿಸಿದ ಅರ್ಜಿಗೆ ವರದಿಯನ್ನು ಸಲ್ಲಿಸುವ ಬಗ್ಗೆ.
 ಉಲ್ಲೇಖ:
-1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಅರ್ಜಿ ದಿನಾಂಕ: {{APPLICATION_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ {{RECEIVED_DATE}}).
+1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ ಅರ್ಜಿ [IF_APPLICATION_DATE]ದಿನಾಂಕ: {{APPLICATION_DATE}}[/IF_APPLICATION_DATE][IF_RECEIVED_DATE] (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ {{RECEIVED_DATE}})[/IF_RECEIVED_DATE].
 {{FORWARDED_REFERENCE}}
 [CENTER]
 ---

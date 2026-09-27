@@ -4,8 +4,8 @@
 
 ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರು {{ADDITIONAL_TREE_LOCATION}} ಸರ್ಕಾರಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಿಕೊಡಲು ಮೌಲ್ಯ ನಿಗಧಿಪಡಿಸಿ ಅನುಮತಿ ನೀಡುವ ಬಗ್ಗೆ.
 ಉಲ್ಲೇಖ:
-1. ತಮ್ಮ ಕಛೇರಿ ಪತ್ರ{{APPLICANT_LETTER_NUMBER_PHRASE}}, ದಿನಾಂಕ: {{APPLICATION_DATE}} (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{RECEIVED_DATE}}).
-2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಗಳು, {{SECTION}} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: {{DRFO_REPORT_DATE}}.
+1. ತಮ್ಮ ಕಛೇರಿ ಪತ್ರ{{APPLICANT_LETTER_NUMBER_PHRASE}}[IF_APPLICATION_DATE], ದಿನಾಂಕ: {{APPLICATION_DATE}}[/IF_APPLICATION_DATE][IF_RECEIVED_DATE] (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: {{RECEIVED_DATE}})[/IF_RECEIVED_DATE].
+2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಗಳು, {{SECTION}} ಶಾಖೆ ರವರ[IF_DRFO_REPORT_DATE] ವರದಿ ದಿನಾಂಕ: {{DRFO_REPORT_DATE}}[/IF_DRFO_REPORT_DATE].
 [CENTER]
 --------
 [/CENTER]

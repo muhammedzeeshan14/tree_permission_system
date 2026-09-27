@@ -6,7 +6,7 @@
 ವಿಷಯ: ಖಾಸಗಿ ಜಾಗದಲ್ಲಿನ ಮರಗಳ ಕೊಂಬೆ / ಸಣ್ಣ ತುದಿ / ಮೇಲ್ಭಾಗ ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿ.
 [/BOLD]
 ಉಲ್ಲೇಖ:
-1. ಅರ್ಜಿ ಸಂಖ್ಯೆ: {{OFFICE_NUMBER}}, ದಿನಾಂಕ: {{APPLICATION_DATE}}
+1. ಅರ್ಜಿ ಸಂಖ್ಯೆ: {{OFFICE_NUMBER}}[IF_APPLICATION_DATE], ದಿನಾಂಕ: {{APPLICATION_DATE}}[/IF_APPLICATION_DATE]
 2. {{SECTION}} ಶಾಖೆಯ ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಯ ಪರಿಶೀಲನಾ ವರದಿ.
 
 [JUSTIFY]

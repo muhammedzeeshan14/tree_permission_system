@@ -5,8 +5,8 @@
 ಮಾನ್ಯರೆ,
 ವಿಷಯ: {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ಇವರ {{TREE_LOCATION_SUBJECT_PHRASE}} ಖಾಸಗಿ ಜಾಗದಲ್ಲಿರುವ ಮರಗಳನ್ನು ತೆರವುಗೊಳಿಸಲು ಅನುಮತಿ ನೀಡಲು ಕಂದಾಯ ಅಭಿಪ್ರಾಯವನ್ನು ನೀಡುವ ಬಗ್ಗೆ.
 ಉಲ್ಲೇಖ:
-1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ರವರ ಮನವಿ ದಿನಾಂಕ: {{APPLICATION_DATE}}
-2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, {{SECTION}} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: {{DRFO_REPORT_DATE}}
+1. {{APPLICANT_NAME}}, {{APPLICANT_ADDRESS}} ರವರ ಮನವಿ[IF_APPLICATION_DATE] ದಿನಾಂಕ: {{APPLICATION_DATE}}[/IF_APPLICATION_DATE]
+2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, {{SECTION}} ಶಾಖೆ ರವರ[IF_DRFO_REPORT_DATE] ವರದಿ ದಿನಾಂಕ: {{DRFO_REPORT_DATE}}[/IF_DRFO_REPORT_DATE]
 3. ಸರ್ಕಾರಿ ಅಧಿಸೂಚನೆ ಸಂಖ್ಯೆ: ಎಫ್.ಇ.ಇ-113/ಎ1/2016 ದಿನಾಂಕ: 06/12/2017
 [CENTER]
 --------
