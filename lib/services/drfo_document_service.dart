@@ -734,7 +734,10 @@ class DrfoDocumentService {
     return lines.join("\n");
   }
 
-  Future<String> _buildDeferredReasons(ApplicationModel application) async {
+  Future<String> _buildDeferredReasons(
+    ApplicationModel application, {
+    bool commaSeparated = false,
+  }) async {
     if (application.id == null) {
       print('DEFERRED REASONS: Application ID is NULL');
       return '';
@@ -766,6 +769,12 @@ class DrfoDocumentService {
 
     if (names.isEmpty) {
       return '';
+    }
+
+    // Non-RTC DRFO body prints the Kannada reasons continuously,
+    // separated by commas only.
+    if (commaSeparated) {
+      return names.join(', ');
     }
 
     if (names.length == 1) {
@@ -1892,7 +1901,8 @@ class DrfoDocumentService {
 
   Future<String> _buildDeferredLetterMaster(
     String template,
-    ApplicationModel application,
+    ApplicationModel application, {
+    bool commaReasons = false,
   ) async {
     final applicant = _safeText(application.applicantName);
 
@@ -1942,7 +1952,10 @@ class DrfoDocumentService {
           : 2,
     );
 
-    final deferredReasons = await _buildDeferredReasons(application);
+    final deferredReasons = await _buildDeferredReasons(
+      application,
+      commaSeparated: commaReasons,
+    );
 
     // ----------------------------------------------------------
     // OFFICE NUMBER
@@ -4860,7 +4873,13 @@ class DrfoDocumentService {
     // INSERT APPLICATION VALUES
     // ----------------------------------------------------------
 
-    final master = await _buildDeferredLetterMaster(template, application);
+    final master = await _buildDeferredLetterMaster(
+      template,
+      application,
+      // Non-RTC DRFO body prints the Kannada reasons continuously,
+      // comma-separated.
+      commaReasons: templateName == 'DRFO_DEFERRED_NON_RTC.txt',
+    );
 
     // ----------------------------------------------------------
     // RENDER KANNADA THROUGH FLUTTER TEXT ENGINE
