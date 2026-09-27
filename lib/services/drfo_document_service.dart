@@ -1815,8 +1815,9 @@ class DrfoDocumentService {
     final officeAddress = addressOpinion.officeAddress.trim();
 
     final recipientRole = addressOpinion.code.trim().toUpperCase();
+    // To address prints ONLY the Kannada officer designation and
+    // Kannada office address (no master title/name line).
     final kannadaTo = [
-      addressOpinion.kannadaName.trim(),
       addressOpinion.kannadaDesignation.trim(),
       addressOpinion.kannadaOfficeAddress.trim(),
     ].where((value) => value.isNotEmpty).join('\n');
