@@ -1903,7 +1903,7 @@ class DrfoDocumentService {
     String template,
     ApplicationModel application, {
     bool commaReasons = false,
-  ) async {
+  }) async {
     final applicant = _safeText(application.applicantName);
 
     final address = _safeText(application.applicantAddress);
