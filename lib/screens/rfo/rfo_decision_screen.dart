@@ -143,7 +143,7 @@ String governmentPermission = '';
 bool? governmentKhata;
 int? governmentOfficerId;
 bool governmentBusy = false;
-bool get needsGovernmentFinal => GovernmentApproval.isGovernment(widget.application.applicationType) && !isDeferredApplication && !allTreesNotRecommended;
+bool get needsGovernmentFinal => (GovernmentApproval.isGovernment(widget.application.applicationType) || isSandalGovernmentApplication) && !isDeferredApplication && !allTreesNotRecommended;
 
 final treeOfficerRepository = TreeOfficerRepository();
 List<Map<String, dynamic>> treeOfficerOptions = [];
