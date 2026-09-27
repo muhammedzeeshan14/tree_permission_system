@@ -1822,9 +1822,7 @@ class DrfoDocumentService {
     ].where((value) => value.isNotEmpty).join('\n');
     final toAddress = {'ACF', 'DCF'}.contains(recipientRole)
         ? await OfficerRepository().addressForRole(recipientRole)
-        : kannadaTo.isNotEmpty
-            ? kannadaTo
-            : [officeName, officeAddress].where((value) => value.isNotEmpty).join("\n");
+        : kannadaTo;
 
     template = _replace(template, '{{DCF_COPY_LINE}}',
         recipientRole == 'DCF' ? await _dcfCopyLine() : '');

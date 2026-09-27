@@ -30,11 +30,13 @@ class InspectionPhotoRepository {
           equals: {"applicationId": applicationId},
           orderBy: "id",
         );
-        // Cloud: fetch bytes taken on other devices.
+        // Cloud: fetch bytes taken on other devices, remapped
+        // to this device's photo folder.
         for (final row in rows) {
-          await CloudFileService.ensurePhotoFile(
-            applicationId,
-            row["photoPath"]?.toString() ?? "",
+          row["photoPath"] =
+              await CloudFileService.resolvePhotoPath(
+            applicationId: applicationId,
+            storedPath: row["photoPath"]?.toString() ?? "",
           );
         }
         return rows;
@@ -45,7 +47,7 @@ class InspectionPhotoRepository {
 
     final db = await _db;
 
-    return await db.query(
+    final rows = await db.query(
 
       "inspection_photos",
 
@@ -60,6 +62,16 @@ class InspectionPhotoRepository {
       orderBy: "id",
 
     );
+
+    for (final row in rows) {
+      row["photoPath"] =
+          await CloudFileService.resolvePhotoPath(
+        applicationId: applicationId,
+        storedPath: row["photoPath"]?.toString() ?? "",
+      );
+    }
+
+    return rows;
 
   }
 

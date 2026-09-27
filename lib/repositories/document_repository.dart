@@ -142,6 +142,13 @@ class DocumentRepository {
         } catch (_) {
           // Best effort only.
         }
+        for (final doc in docs) {
+          doc.filePath =
+              await CloudFileService.resolveDocumentPath(
+            applicationId: applicationId,
+            storedPath: doc.filePath,
+          );
+        }
         return docs;
       } catch (_) {
         /* fall through to local */
@@ -162,7 +169,7 @@ class DocumentRepository {
 
     );
 
-    return result.map((row) {
+    final docs = result.map((row) {
 
       return DocumentModel(
 
@@ -194,6 +201,16 @@ class DocumentRepository {
       );
 
     }).toList();
+
+    for (final doc in docs) {
+      doc.filePath =
+          await CloudFileService.resolveDocumentPath(
+        applicationId: applicationId,
+        storedPath: doc.filePath,
+      );
+    }
+
+    return docs;
 
   }
 

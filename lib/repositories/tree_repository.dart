@@ -108,6 +108,20 @@ class TreeRepository {
   }
 
   // Get Trees of one Application
+  // Display order is parent tree number first, then stem sequence
+  // (1, 2a, 2b, 3): stems stay grouped with their parent tree even
+  // when a later stem (2b) was entered after tree 3.
+  static int displayOrder(Map a, Map b) {
+    final base = (((a['baseTreeNumber'] as num?)?.toInt() ?? 0))
+        .compareTo(((b['baseTreeNumber'] as num?)?.toInt() ?? 0));
+    if (base != 0) return base;
+    final stem = (((a['stemSequence'] as num?)?.toInt() ?? 0))
+        .compareTo(((b['stemSequence'] as num?)?.toInt() ?? 0));
+    if (stem != 0) return stem;
+    return (((a['id'] as num?)?.toInt() ?? 0))
+        .compareTo(((b['id'] as num?)?.toInt() ?? 0));
+  }
+
   Future<List<TreeModel>> getTrees(
       int applicationId) async {
     if (OnlineMode.enabled) {
@@ -116,9 +130,7 @@ class TreeRepository {
         equals: {'applicationId': applicationId},
         orderBy: 'baseTreeNumber',
       );
-      result.sort((a, b) =>
-          ((a['stemSequence'] as num?)?.toInt() ?? 0).compareTo(
-              (b['stemSequence'] as num?)?.toInt() ?? 0));
+      result.sort(displayOrder);
       return result.map((e) => TreeModel.fromMap(e)).toList();
     }
     final db = await _db;
@@ -129,6 +141,7 @@ class TreeRepository {
       whereArgs: [applicationId],
       orderBy: 'baseTreeNumber, stemSequence',
     );
+    result.sort(displayOrder);
 
     return result
         .map((e) => TreeModel.fromMap(e))

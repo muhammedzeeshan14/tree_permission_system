@@ -1,10 +1,12 @@
 import 'revenue_reply_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
 import '../models/application_model.dart';
 import '../models/application_reference_model.dart';
 import '../constants/workflow_status.dart';
+import '../services/office_number_service.dart';
 import '../services/online_database.dart';
 import '../services/online_mode.dart';
 import '../services/sync_service.dart';
@@ -17,11 +19,56 @@ class ApplicationRepository {
       await dbHelper.database;
 
   // ======================================
+  // OFFICE NUMBER UNIQUENESS (online + local)
+  // ======================================
+
+  Future<bool> _officeNumberTaken(String officeNumber) async {
+    if (officeNumber.trim().isEmpty) return true;
+    if (OnlineMode.enabled) {
+      try {
+        final rows = await OnlineDatabase.select(
+          'applications',
+          equals: {'officeNumber': officeNumber.trim()},
+          limit: 1,
+        );
+        if (rows.isNotEmpty) return true;
+      } catch (e) {
+        debugPrint('office number online check failed: $e');
+      }
+    }
+    try {
+      final db = await _db;
+      final rows = await db.query(
+        'applications',
+        columns: ['id'],
+        where: 'officeNumber=?',
+        whereArgs: [officeNumber.trim()],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) return true;
+    } catch (e) {
+      debugPrint('office number local check failed: $e');
+    }
+    return false;
+  }
+
+  // ======================================
   // INSERT APPLICATION
   // ======================================
 
   Future<int> insertApplication(
     ApplicationModel application) async {
+
+  // The office number is reserved when the entry form opens, so two
+  // devices can hold the same number (offline reserve, discarded
+  // forms). Guarantee uniqueness at save time: redraw while taken.
+  // This also keeps generated-document folders (keyed by office
+  // number) from colliding across applications.
+  for (var attempt = 0; attempt < 10; attempt++) {
+    if (!await _officeNumberTaken(application.officeNumber)) break;
+    application.officeNumber =
+        await OfficeNumberService.nextOfficeNumber();
+  }
 
   final row = <String, Object?>{
 

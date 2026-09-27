@@ -125,6 +125,15 @@ class PhotoRepository {
         } catch (_) {
           // Best effort only.
         }
+        // Cross-device: rewrite foreign absolute paths to this
+        // device's photo folder (downloading bytes when online).
+        for (final photo in photos) {
+          photo.photoPath =
+              await CloudFileService.resolvePhotoPath(
+            applicationId: applicationId,
+            storedPath: photo.photoPath,
+          );
+        }
         return photos;
       } catch (_) {
         /* fall through to local */
@@ -145,7 +154,7 @@ class PhotoRepository {
 
     );
 
-    return result.map((row) {
+    final photos = result.map((row) {
 
       return PhotoModel(
 
@@ -166,6 +175,16 @@ class PhotoRepository {
       );
 
     }).toList();
+
+    for (final photo in photos) {
+      photo.photoPath =
+          await CloudFileService.resolvePhotoPath(
+        applicationId: applicationId,
+        storedPath: photo.photoPath,
+      );
+    }
+
+    return photos;
 
   }
 

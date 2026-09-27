@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:storage_client/storage_client.dart';
 
 import '../database/database_helper.dart';
@@ -181,6 +182,79 @@ class CloudFileService {
     } catch (e) {
       debugPrint('ensure document failed: $e');
       return false;
+    }
+  }
+
+  // ---------- cross-device path mapping ----------
+  //
+  // Stored paths are absolute device-local paths (Android vs
+  // Windows layouts differ). Viewing on another device must use
+  // THIS device's app folder, downloading bytes from cloud when
+  // missing. These resolvers never throw: on any failure the
+  // original stored path is returned.
+
+  static Future<String> _mappedPath(
+    String kind,
+    String officeNumber,
+    String storedPath,
+  ) async {
+    final base = await getApplicationDocumentsDirectory();
+    return '${base.path}/TPMS/$kind/$officeNumber/${_fileName(storedPath)}';
+  }
+
+  /// Usable local path for an inspection photo: the stored path
+  /// when the file exists here, otherwise this device's photo
+  /// folder (downloaded from cloud when online).
+  static Future<String> resolvePhotoPath({
+    required int applicationId,
+    required String storedPath,
+    String? officeNumber,
+  }) async {
+    try {
+      if (storedPath.isEmpty) return storedPath;
+      if (await File(storedPath).exists()) return storedPath;
+      final office =
+          officeNumber ?? await officeNumberFor(applicationId);
+      if (office.isEmpty) return storedPath;
+      final local =
+          await _mappedPath('Photos', office, storedPath);
+      if (await File(local).exists()) return local;
+      if (!enabled) return storedPath;
+      await ensureLocal(
+        bucket: photosBucket,
+        key: photoKey(office, storedPath),
+        localPath: local,
+      );
+      return local;
+    } catch (_) {
+      return storedPath;
+    }
+  }
+
+  /// Usable local path for an uploaded document (same contract).
+  static Future<String> resolveDocumentPath({
+    required int applicationId,
+    required String storedPath,
+    String? officeNumber,
+  }) async {
+    try {
+      if (storedPath.isEmpty) return storedPath;
+      if (await File(storedPath).exists()) return storedPath;
+      final office =
+          officeNumber ?? await officeNumberFor(applicationId);
+      if (office.isEmpty) return storedPath;
+      final local =
+          await _mappedPath('Documents', office, storedPath);
+      if (await File(local).exists()) return local;
+      if (!enabled) return storedPath;
+      await ensureLocal(
+        bucket: docsBucket,
+        key: uploadKey(office, storedPath),
+        localPath: local,
+      );
+      return local;
+    } catch (_) {
+      return storedPath;
     }
   }
 
