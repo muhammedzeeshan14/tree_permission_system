@@ -880,7 +880,11 @@ hasFullTreeRecommendation = trees.any(
   ),
 );
 
-allTreesBranchOnly = TreeRepository.hasOnlyBranchRecommendations(trees, recommendationTypes, allowNotRecommended:widget.application.applicationType.trim().toUpperCase() == 'PL');
+allTreesBranchOnly = TreeRepository.hasOnlyBranchRecommendations(trees,
+    widget.application.applicationType.trim().toUpperCase() == 'PL'
+        ? recommendationTypes.where((row) => {'BRANCH', 'TWIG', 'TOP', 'NR', 'FULL'}.contains(row['code']?.toString().trim().toUpperCase())).toList()
+        : recommendationTypes,
+    allowNotRecommended: widget.application.applicationType.trim().toUpperCase() == 'PL');
 
 recommendationTypeMap = {
   for (final item in recommendationTypes)
@@ -1658,8 +1662,10 @@ if (applicationType == "RTC") {
   );
 }
 
-widget.application.status =
-    WorkflowStatus.completed;
+// Branch permission completes only after successful printing.
+widget.application.status = needsBranchPermission
+    ? WorkflowStatus.approved
+    : WorkflowStatus.completed;
 
   await applicationRepository.updateApplication(
     widget.application,

@@ -1,3 +1,4 @@
+import '../../repositories/application_repository.dart';
 import '../../repositories/revenue_reply_repository.dart';
 import '../../models/revenue_reply_model.dart';
 import '../../constants/workflow_status.dart';
@@ -192,6 +193,23 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
   setState(() => printing = true);
   try {
     final printed = await documentService.openPdf(file);
+    if (printed && widget.rfoApprovedOnly &&
+        widget.application.applicationType.trim().toUpperCase() == 'PL' &&
+        widget.application.status == WorkflowStatus.approved &&
+        _baseName(file.path).toUpperCase().endsWith('_RFO_PRIVATE_LAND_BRANCH_PERMISSION.PDF')) {
+      // Only this final letter completes this route; viewing/cancellation does not.
+      final repository = ApplicationRepository();
+      final saved = await repository.getByOfficeNumber(widget.application.officeNumber);
+      if (saved != null && saved.status == WorkflowStatus.approved) {
+        saved.status = WorkflowStatus.completed;
+        await repository.updateApplication(saved);
+        widget.application.status = WorkflowStatus.completed;
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Letter printed. Application completed.')));
+        Navigator.pop(context, true);
+        return;
+      }
+    }
     if (printed && revenueReply?.stage == 'printing' && _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase()) {
       await RevenueReplyRepository().markPrinted(revenueReply!);
       if (!mounted) return;

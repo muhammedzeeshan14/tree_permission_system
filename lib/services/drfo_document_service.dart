@@ -3561,6 +3561,57 @@ class DrfoDocumentService {
     return y;
   }
 
+  Future<double> _drawBranchPermissionTable({
+    required ui.Canvas canvas, required double y, required double contentWidth,
+    required List<List<String>> rows,
+  }) async {
+    final weights = <double>[25, 35, 70, 48, 48, 48, 48, 110];
+    final total = weights.reduce((a, b) => a + b);
+    final widths = weights.map((w) => contentWidth * w / total).toList();
+    final x = <double>[_leftMargin * _scale];
+    for (final w in widths) { x.add(x.last + w); }
+    final border = ui.Paint()..color = const ui.Color(0xFF000000)..style = ui.PaintingStyle.stroke..strokeWidth = 0.6 * _scale;
+    Future<ui.Paragraph> paragraph(String text, double width, {bool bold = false}) => _buildParagraph(
+      text: text.isEmpty ? '—' : text, width: width - 6 * _scale,
+      fontSize: 8 * _scale, alignment: ui.TextAlign.center, bold: bold);
+    void cell(int col, double top, double height, ui.Paragraph text, {double? width}) {
+      canvas.drawRect(ui.Rect.fromLTWH(x[col], top, width ?? widths[col], height), border);
+      canvas.drawParagraph(text, ui.Offset(x[col] + 3 * _scale, top + (height - text.height) / 2));
+    }
+    final labels = ['ಕ್ರ ಸಂ', 'ಮರದ ಸಂಖ್ಯೆ', 'ಮರದ ಜಾತಿ', 'ಸುತ್ತಳತೆ (ಮೀ ಗಳಲ್ಲಿ)', 'ಎತ್ತರ (ಮೀ ಗಳಲ್ಲಿ)', 'ನಾಟ (ಘ ಮೀ)', 'ಸೌದೆ (ಟನ್)', 'ಷರಾ'];
+    final headers = <ui.Paragraph>[];
+    for (var i = 0; i < labels.length; i++) { headers.add(await paragraph(labels[i], widths[i], bold: true)); }
+    final groupWidth = widths[5] + widths[6];
+    final group = await paragraph('ಪರಿಮಾಣ', groupWidth, bold: true);
+    final groupHeight = group.height + 8 * _scale;
+    final subHeight = math.max(headers[5].height, headers[6].height) + 8 * _scale;
+    final headerHeight = math.max(groupHeight + subHeight, headers.map((p) => p.height).reduce(math.max) + 8 * _scale);
+    void header() {
+      for (var i = 0; i < 8; i++) {
+        if (i != 5 && i != 6) cell(i, y, headerHeight, headers[i]);
+      }
+      cell(5, y, groupHeight, group, width: groupWidth);
+      cell(5, y + groupHeight, headerHeight - groupHeight, headers[5]);
+      cell(6, y + groupHeight, headerHeight - groupHeight, headers[6]);
+      y += headerHeight;
+    }
+    var headerDrawn = false;
+    for (final row in rows) {
+      final paragraphs = <ui.Paragraph>[];
+      for (var i = 0; i < 8; i++) { paragraphs.add(await paragraph(row[i], widths[i])); }
+      final height = paragraphs.map((p) => p.height).reduce(math.max) + 10 * _scale;
+      final next = _pagePosition(y, height);
+      if (!headerDrawn || next != y) {
+        y = _pagePosition(next, headerHeight + height);
+        header();
+        headerDrawn = true;
+      }
+      for (var i = 0; i < 8; i++) { cell(i, y, height, paragraphs[i]); }
+      y += height;
+    }
+    return y;
+  }
+
   double _pagePosition(double y, double blockHeight) {
     final pageHeight = (_pageHeight * _scale).round().toDouble();
     final top = _topMargin * _scale;
@@ -3616,6 +3667,7 @@ class DrfoDocumentService {
     List<_NotRecommendedTreeTableRow> notRecommendedTreeRows = const [],
     List<_GlTreeEnumerationRow> glTreeEnumerationRows = const [],
     List<_SandalTreeTableRow> sandalTreeRows = const [],
+    List<List<String>> branchTreeRows = const [],
     String mccValuationApplicant = '',
   }) async {
     final width = (_pageWidth * _scale).round();
@@ -4039,6 +4091,12 @@ class DrfoDocumentService {
         );
 
         y += 8 * _scale;
+        continue;
+      }
+
+      if (trimmed == '{{BRANCH_PERMISSION_TREE_TABLE}}') {
+        y = await _drawBranchPermissionTable(canvas: canvas, y: y, contentWidth: contentWidth, rows: branchTreeRows);
+        y += 12 * _scale;
         continue;
       }
 
@@ -4625,6 +4683,7 @@ class DrfoDocumentService {
     List<_NotRecommendedTreeTableRow> notRecommendedTreeRows = const [],
     List<_GlTreeEnumerationRow> glTreeEnumerationRows = const [],
     List<_SandalTreeTableRow> sandalTreeRows = const [],
+    List<List<String>> branchTreeRows = const [],
     String mccValuationApplicant = '',
   }) async {
     final lines = master.trimRight().split('\n');
@@ -4636,6 +4695,7 @@ class DrfoDocumentService {
       notRecommendedTreeRows: notRecommendedTreeRows,
       glTreeEnumerationRows: glTreeEnumerationRows,
       sandalTreeRows: sandalTreeRows,
+      branchTreeRows: branchTreeRows,
       mccValuationApplicant: mccValuationApplicant,
     );
   }
@@ -5746,66 +5806,89 @@ class DrfoDocumentService {
   Future<File> generateRfoPrivateLandBranchPermissionLetter(
     ApplicationModel application,
   ) async {
-    final type = application.applicationType.trim().toUpperCase();
-    if (application.id == null || !{'PL', 'SPL'}.contains(type) ||
+    if (application.id == null) throw StateError('Save the application before generating its letter.');
+    final masters = MasterRepository();
+    final trees = await TreeRepository().getTrees(application.id!);
+    final recommendations = await masters.getMasters('Recommendation Type');
+    final codes = {for (final row in recommendations) row['id']: row['code']?.toString().trim().toUpperCase() ?? ''};
+    const branchCodes = {'BRANCH', 'TWIG', 'TOP'};
+    final permittedTrees = trees.where((tree) => branchCodes.contains(codes[tree.recommendationTypeId])).toList();
+    if (!{'PL', 'SPL'}.contains(application.applicationType.trim().toUpperCase()) ||
         application.inspectionDecision.trim().toUpperCase() == 'DEFERRED' ||
-        !await TreeRepository().areAllTreesBranchOnly(application.id!)) {
-      throw StateError('Branch permission requires at least one branch-only recommendation and no Full Tree or missing recommendations.');
+        permittedTrees.isEmpty || trees.any((tree) => !branchCodes.contains(codes[tree.recommendationTypeId]) && codes[tree.recommendationTypeId] != 'NR')) {
+      throw StateError('Branch permission requires branch, twig or top-portion recommendations, with no full-tree or missing recommendations.');
     }
-    await _loadFlutterKannadaFont();
+    // RFO modifications are saved to the trees before final approval.
+    final decisions = await RfoItemApprovalRepository().getApplicationDecisions(application.id!);
+    final approvedIds = decisions.where((row) => row['itemKey'] == 'TREE' && {'Approve', 'Modify'}.contains(row['decision'])).map((row) => row['itemId']).toSet();
+    if (permittedTrees.any((tree) => !approvedIds.contains(tree.id))) {
+      throw StateError('Approve every recommended tree before generating the branch permission letter.');
+    }
+    final officerRepository = TreeOfficerRepository();
+    final selectedId = await officerRepository.getSelection(application.id!);
+    final selected = (await officerRepository.getAll()).where((row) => row['id'] == selectedId).toList();
+    if (selected.length != 1) throw StateError('Select the tree officer before final approval.');
+    final role = selected.single['code']?.toString().trim().toUpperCase() ?? '';
+    if (!{'RFO', 'ACF', 'DCF'}.contains(role)) throw StateError('Select RFO, ACF or DCF as tree officer.');
+    final officerAddress = await OfficerRepository().addressForRole(role);
+    String kannada(String text, String field) {
+      final value = text.trim();
+      if (value.isEmpty || RegExp(r'[A-Za-z]').hasMatch(value) || !RegExp(r'[\u0C80-\u0CFF]').hasMatch(value)) {
+        throw StateError('Enter the Kannada $field in Administration before generating this letter.');
+      }
+      return value;
+    }
+    kannada(officerAddress, 'officer designation and posting address');
+    final species = {for (final row in await masters.getSpecies()) row['id']: row['kannadaName']?.toString() ?? ''};
+    final reasons = {for (final row in await masters.getMasters('Recommendation Reason')) row['id']: row['kannadaName']?.toString() ?? ''};
+    final tableRows = <List<String>>[];
+    for (var i = 0; i < permittedTrees.length; i++) {
+      final tree = permittedTrees[i];
+      tableRows.add([
+        '${i + 1}', tree.treeNumber,
+        kannada(species[tree.speciesId] ?? '', 'species name'),
+        tree.gbh?.toStringAsFixed(2) ?? '—',
+        tree.height?.toStringAsFixed(2) ?? '—',
+        '—', // Branch/twig/top recommendations have no timber volume in enumeration.
+        tree.firewood.toStringAsFixed(2),
+        tree.recommendationReasonIds.map((id) => kannada(reasons[id] ?? '', 'recommendation reason')).toSet().join(', '),
+      ]);
+    }
     final config = await OfficeConfigurationRepository().getConfiguration();
     final range = config?['rangeName']?.toString() ?? '';
     final location = config?['rangeLocation']?.toString() ?? range;
-    final trees = await TreeRepository().getTrees(application.id!);
-    final masters = MasterRepository();
-    final species = await masters.getSpecies();
-    final recommendations = await masters.getMasters('Recommendation Type');
-    String name(Map<String, dynamic> row) =>
-        row['kannadaName']?.toString().trim().isNotEmpty == true
-            ? row['kannadaName'].toString() : row['value']?.toString() ?? '—';
-    final speciesNames = {for (final row in species) row['id']: name(row)};
-    final recommendationNames = {for (final row in recommendations) row['id']: name(row)};
-    final codes = {for (final row in recommendations) row['id']: row['code']?.toString().trim().toUpperCase()};
-    final permittedTrees = trees.where((tree) {
-      final code = codes[tree.recommendationTypeId];
-      return code != null && code.isNotEmpty && code != 'NR' && code != 'FULL';
-    });
-    final details = permittedTrees.map((tree) {
-      final code = codes[tree.recommendationTypeId];
-      final quantity = code == 'BRANCH' ? ' / ಕೊಂಬೆಗಳ ಸಂಖ್ಯೆ: ' + (tree.numberOfBranches ?? 0).toString()
-          : code == 'TWIG' ? ' / ಸಣ್ಣ ತುದಿಗಳ ಸಂಖ್ಯೆ: ' + (tree.numberOfTwigs ?? 0).toString() : '';
-      return tree.treeNumber + '. ' + (speciesNames[tree.speciesId] ?? '—') + ' — ' +
-          (recommendationNames[tree.recommendationTypeId] ?? '—') + quantity;
-    }).join('\n');
+    final locationPhrase = application.treeLocationSame ? '' : application.treeLocationAddress.trim();
     final values = <String, String>{
-      '{{OFFICE_NUMBER}}': application.officeNumber,
-      '{{APPLICATION_DATE}}': _date(application.applicationDate),
+      '{{TREE_OFFICER_TO_ADDRESS}}': officerAddress,
       '{{APPLICANT_NAME}}': application.applicantName,
       '{{APPLICANT_ADDRESS}}': application.applicantAddress,
-      '{{TREE_LOCATION}}': _location(application),
-      '{{SECTION}}': await _printSectionName(application),
-      '{{BEAT}}': await _printBeatName(application),
-      '{{RANGE_NAME}}': range, '{{RANGE_LOCATION}}': location,
+      '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
+      '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
+      '{{TOTAL_RECOMMENDED_TREES}}': '${permittedTrees.length}',
+      '{{WHY_REMOVING_KANNADA}}': kannada(await _masterKannadaName(masters, application.whyRemovingId), 'reason for removal'),
+      '{{SECTION}}': kannada(await _printSectionName(application), 'section name'),
+      '{{REFERENCES}}': await _buildMccReferences(application, drfoOrderLast: false),
+      '{{RANGE_NAME}}': range,
+      '{{RANGE_LOCATION}}': location,
+      '{{OFFICE_NUMBER}}': application.officeNumber,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
-      '{{TREE_DETAILS}}': details,
     };
     final template = await _loadRfoTemplate('RFO_BRANCH_PERMISSION_PL.txt');
-    var master = _resolveDateBlocks(
-      template.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
-        final value = values[match.group(0)];
-        if (value == null) throw StateError('Unknown branch permission placeholder: ' + match.group(0)!);
-        return value.trim().isEmpty ? '—' : value;
-      }),
-      applicationDate: application.applicationDate,
-      receivedDate: application.receivedDate,
-    );
-    final pages = await _renderMasterToPng(master, rfoLetterhead: _RfoLetterheadData(
-      letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
-      rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '',
-      rangeEmail: config?['rangeEmail']?.toString() ?? '',
-      logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',
-      approvalDate: _date(application.rfoApprovalDate),
-    ));
+    final master = template.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+      final key = match.group(0)!;
+      if (key == '{{BRANCH_PERMISSION_TREE_TABLE}}') return key;
+      if (!values.containsKey(key)) throw StateError('Unknown branch permission placeholder: $key');
+      return values[key]!;
+    });
+    await _loadFlutterKannadaFont();
+    final pages = await _renderMasterToPng(master, branchTreeRows: tableRows,
+      rfoLetterhead: _RfoLetterheadData(
+        letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
+        rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '',
+        rangeEmail: config?['rangeEmail']?.toString() ?? '',
+        logoPath: config?['rfoOfficeLogoPath']?.toString() ?? '',
+        approvalDate: _date(application.rfoApprovalDate),
+      ));
     final pdf = pw.Document();
     _appendRenderedPages(pdf, pages);
     return _savePdf(officeNumber: application.officeNumber,
@@ -6581,6 +6664,7 @@ class DrfoDocumentService {
     final name = file.uri.pathSegments.last.toUpperCase();
     final rtc = name.contains('_RFO_APPROVED_RTC') || name.contains('_RFO_DEFERRED_RTC');
     final nonRtc = name.contains('_RFO_DEFERRED_NON_RTC') || name.contains('_RFO_NOT_RECOMMENDED_NON_RTC');
+    final privateBranch = name.endsWith('_RFO_PRIVATE_LAND_BRANCH_PERMISSION.PDF');
     final privateRejected = name.contains('_RFO_PRIVATE_LAND_REJECTED');
     final governmentRequest = name.contains('_RFO_GL_DOCUMENT_REQUEST');
     final privateApproval = name.contains('_RFO_PRIVATE_LAND_APPROVED') && !name.contains('_APPLICANT');
@@ -6591,7 +6675,7 @@ class DrfoDocumentService {
     final governmentValuation = name.contains('_RFO_GL_VALUATION') ||
         name.contains('_RFO_MCC_VALUATION');
     final mccValuation = name.contains('_RFO_MCC_VALUATION');
-    if (!rtc && !nonRtc && !privateApproval && !revenueRequest && !governmentValuation && !governmentAuction && !governmentRequest && !privateRejected) return;
+    if (!privateBranch && !rtc && !nonRtc && !privateApproval && !revenueRequest && !governmentValuation && !governmentAuction && !governmentRequest && !privateRejected) return;
     final officers = OfficerRepository();
     final fingerprint = await officers.fingerprint();
     final marker = File(file.path + '.officer-addresses');
@@ -6599,7 +6683,9 @@ class DrfoDocumentService {
     final rejectionMarker = File(file.path + '.rejection-layout');
     final requestMarker = File(file.path + '.request-layout');
     final valuationMarker = File(file.path + '.valuation-layout');
-    final layoutCurrent = (!privateRejected || (await rejectionMarker.exists() && await rejectionMarker.readAsString() == await _loadRfoTemplate('RFO_REJECTED_PL.txt'))) &&
+    final branchMarker = File(file.path + '.branch-layout');
+    final branchTemplate = privateBranch ? await _loadRfoTemplate('RFO_BRANCH_PERMISSION_PL.txt') : '';
+    final layoutCurrent = (!privateBranch || (await branchMarker.exists() && await branchMarker.readAsString() == branchTemplate)) && (!privateRejected || (await rejectionMarker.exists() && await rejectionMarker.readAsString() == await _loadRfoTemplate('RFO_REJECTED_PL.txt'))) &&
         (!governmentRequest || (await requestMarker.exists() && await requestMarker.readAsString() == await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'))) &&
         (!governmentAuction || (await layoutMarker.exists() && await layoutMarker.readAsString() == await _auctionLayoutFingerprint())) &&
         (!governmentValuation || (await valuationMarker.exists() && await valuationMarker.readAsString() == await _loadRfoTemplate(mccValuation ? 'RFO_MCC_VALUATION.txt' : 'RFO_GL_VALUATION.txt')));
@@ -6620,7 +6706,9 @@ class DrfoDocumentService {
     int? requestAuthorityId;
     final cycleMatch = RegExp(r'_CYCLE_(\d+)').firstMatch(name);
     final cycle = cycleMatch == null ? 1 : int.parse(cycleMatch.group(1)!);
-    if (governmentValuation || governmentAuction || governmentRequest) {
+    if (privateBranch) {
+      affected = true;
+    } else if (governmentValuation || governmentAuction || governmentRequest) {
       government = await GovernmentApprovalRepository().get(app.id!);
       if (government == null) throw StateError('Government approval details are missing.');
       // Older auction drafts had no officer selection; preserve their saved PDF.
@@ -6661,7 +6749,10 @@ class DrfoDocumentService {
       final backup = File(file.path + '.before-officer-address-update');
       if (!await backup.exists()) await file.copy(backup.path);
       File? regenerated;
-      if (governmentValuation || governmentAuction || governmentRequest) {
+      if (privateBranch) {
+        regenerated = await generateRfoPrivateLandBranchPermissionLetter(app);
+        await branchMarker.writeAsString(branchTemplate);
+      } else if (governmentValuation || governmentAuction || governmentRequest) {
         if (governmentRequest) { app.rfoApprovalDate = government!.requestDate; }
         else if (government!.finalDate.isNotEmpty) app.rfoApprovalDate = government.finalDate;
         final refreshed = await generateGovernmentLandLetters(app, government, afterReply: !governmentRequest && government.permissionType == 'Valuation' && government.khataGiven == false && government.requestLetterPath.isNotEmpty);
