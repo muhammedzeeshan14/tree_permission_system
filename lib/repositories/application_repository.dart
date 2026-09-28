@@ -1143,8 +1143,6 @@ Future<List<ApplicationModel>>
     (application.status ==
             WorkflowStatus.pendingRevenueOpinion ||
         application.status ==
-            WorkflowStatus.completed ||
-        application.status ==
             WorkflowStatus.approved);
   }).toList();
   final result = <ApplicationModel>[];
@@ -1152,7 +1150,8 @@ Future<List<ApplicationModel>>
     final cycle = await RevenueReplyRepository().current(application.id!);
     if (application.status != WorkflowStatus.pendingRevenueOpinion || cycle == null || cycle.stage == 'printing') result.add(application);
   }
-  return result;
+  // Exclude completed applications — they move to the new "Completed Applications" tab.
+  return result.where((app) => app.status != WorkflowStatus.completed).toList();
 }
 
 // ======================================

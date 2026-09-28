@@ -8,6 +8,7 @@ import '../../widgets/sync_bar.dart';
 import 'application_list_screen.dart';
 import 'new_application_screen.dart';
 import 'approved_rfo_letters_screen.dart';
+import 'completed_applications_screen.dart';
 
 class CaseWorkerDashboardScreen extends StatefulWidget {
   const CaseWorkerDashboardScreen({
@@ -262,6 +263,9 @@ class _CaseWorkerDashboardScreenState
 const SizedBox(height: 15),
 Card(child: ListTile(leading: const Icon(Icons.account_balance, color: Colors.orange), title: const Text('Pending Government land approvals'), subtitle: const Text('Print document requests and enter received details'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingGovernmentApprovalsScreen())))),
 Card(child: ListTile(leading: const Icon(Icons.hourglass_empty, color: Colors.orange), title: const Text('Pending Revenue Opinion'), subtitle: const Text('Enter replies received from the revenue authority'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingRevenueOpinionScreen())))),
+
+Card(child: ListTile(leading: const Icon(Icons.check_circle, color: Colors.green), title: const Text('Completed Applications'), subtitle: const Text('Applications where letters have been generated and printed'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompletedApplicationsScreen())))),
+
         ],
 
       ),
