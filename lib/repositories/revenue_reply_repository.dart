@@ -25,7 +25,7 @@ class RevenueReplyRepository {
       requestAuthority TEXT NOT NULL,
       requestLetterPath TEXT NOT NULL DEFAULT '',
       printedAt TEXT NOT NULL DEFAULT '',
-      stage TEXT NOT NULL DEFAULT 'printing',
+      stage TEXT NOT NULL DEFAULT 'pending',
       answers TEXT NOT NULL DEFAULT '{}',
       decisions TEXT NOT NULL DEFAULT '{}',
       nextAuthorityId INTEGER,

@@ -1252,7 +1252,8 @@ Future<List<ApplicationModel>>
   return all.where((app) {
 
     return app.status ==
-        WorkflowStatus.pendingRFOApproval;
+        WorkflowStatus.pendingRFOApproval ||
+        app.status == WorkflowStatus.completed;
 
   }).toList();
 
