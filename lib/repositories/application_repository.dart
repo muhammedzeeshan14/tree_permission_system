@@ -1133,6 +1133,45 @@ Future<List<ApplicationModel>>
 }
 
 Future<List<ApplicationModel>>
+    searchApplications(
+      {String? officeNumber,
+      String? applicantName,
+      String? applicationType,
+      int? sectionId,
+      int? beatId,
+    }) async {
+  final all = await getApplications();
+
+  return all.where((app) {
+    bool match = true;
+
+    if (officeNumber != null &&
+        (app.officeNumber ?? '').trim().toUpperCase()
+            .contains(officeNumber.trim().toUpperCase())) {
+      match = false;
+    }
+    if (applicantName != null &&
+        (app.applicantName ?? '').trim().toUpperCase()
+            .contains(applicantName.trim().toUpperCase())) {
+      match = false;
+    }
+    if (applicationType != null &&
+        (app.applicationType ?? '').trim().toUpperCase()
+            .contains(applicationType.trim().toUpperCase())) {
+      match = false;
+    }
+    if (sectionId != null && (app.sectionId ?? -1) != sectionId) {
+      match = false;
+    }
+    if (beatId != null && (app.beatId ?? -1) != beatId) {
+      match = false;
+    }
+
+    return match;
+  }).toList();
+}
+
+Future<List<ApplicationModel>>
     getRfoApprovedApplicationsForCaseWorker(
   int userId,
 ) async {

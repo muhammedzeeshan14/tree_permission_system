@@ -7701,11 +7701,11 @@ class DrfoDocumentService {
         .map(
           (entry) => _SandalTreeTableRow(
             serialNumber: entry.key + 1,
-            treeNumber: entry.value.treeNumber,
-            speciesName: entry.value.speciesName,
-            gbh: entry.value.gbh,
-            height: entry.value.height,
-            remarks: entry.value.recommendationReason,
+            treeNumber: entry.value.treeNumber ?? '—',
+            speciesName: entry.value.speciesName ?? '—',
+            gbh: entry.value.gbh?.toString() ?? '—',
+            height: entry.value.height?.toString() ?? '—',
+            remarks: entry.value.recommendationReason ?? '—',
           ),
         )
         .toList();
