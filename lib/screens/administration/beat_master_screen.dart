@@ -112,6 +112,8 @@ Future<void> showBeatDialog({
                   children: [
 
                     DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
 
                       value: selectedSectionId,
 

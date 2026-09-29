@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/application_refresh_button.dart';
 import 'package:flutter/material.dart';
 
@@ -268,7 +269,7 @@ case "Approved":
 
             ),
 
-            child: Row(
+            child: AdaptiveRow(
 
               children: [
 

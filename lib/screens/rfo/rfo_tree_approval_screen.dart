@@ -195,6 +195,8 @@ Future<String?> _showReinspectDialog(
         ),
 
         content: DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
           value: treeVerificationReasons.contains(
                   selectedReason)

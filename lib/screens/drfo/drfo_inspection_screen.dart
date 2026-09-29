@@ -1,3 +1,7 @@
+import '../../services/deferred_reason_labels.dart';
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
+import '../../services/cloud_file_service.dart';
+import '../../widgets/attachment_image.dart';
 import '../../widgets/inspection_exit_guard.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -1118,20 +1122,9 @@ Future<void> _saveVerification() async {
     verifiedBy: SessionService.instance.name,
   );
 
-  // Save deferred inspection reasons.
-  // Entries loaded from the database carry the saved-row id;
-  // normalize to master reason ids so re-saving during
-  // verification never corrupts the stored reasons.
-  if (isDeferred) {
-    await deferredRepository.saveReasons(
-      applicationId: widget.application.id!,
-      reasons: selectedDeferredReasons
-          .map((e) => <String, dynamic>{
-                'id': e['reasonId'] ?? e['id'],
-              })
-          .toList(),
-    );
-  }
+  // Reviewing a selection must not delete/reinsert its saved reason links.
+  // Only the inspection-decision editor changes the selected reasons.
+
 }
 
 Future<void> _changeVerificationStatus({
@@ -1242,9 +1235,8 @@ void _showPhotos() {
                             const EdgeInsets.all(15),
 
                         gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-
-                          crossAxisCount: 3,
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+ maxCrossAxisExtent: 240,
 
                           crossAxisSpacing: 12,
 
@@ -1272,9 +1264,7 @@ void _showPhotos() {
 
                                     child: InteractiveViewer(
 
-                                      child: Image.file(
-
-                                        File(photo.photoPath),
+                                      child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
 
                                         fit: BoxFit.contain,
 
@@ -1290,9 +1280,7 @@ void _showPhotos() {
 
                             },
 
-                            child: Image.file(
-
-                              File(photo.photoPath),
+                            child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
 
                               fit: BoxFit.cover,
 
@@ -1392,7 +1380,7 @@ void _showDocuments() {
                             margin:
                                 const EdgeInsets.all(8),
 
-                            child: ListTile(
+                            child: AdaptiveDocumentTile(
 
                               leading: const Icon(
                                 Icons.description,
@@ -1422,9 +1410,7 @@ void _showDocuments() {
 
                                 onPressed: workflowAction(context, () async {
 
-                                  await OpenFilex.open(
-                                    doc.filePath,
-                                  );
+                                  await CloudFileService.openDocument(doc.applicationId, doc.storedPath);
 
                                 }),
 
@@ -1830,7 +1816,7 @@ void _showGeneratedDocuments() {
                             margin: const EdgeInsets.only(
                               bottom: 8,
                             ),
-                            child: ListTile(
+                            child: AdaptiveDocumentTile(
                               leading: const Icon(
                                 Icons.picture_as_pdf,
                                 color: Colors.red,
@@ -1918,6 +1904,8 @@ Widget _buildOverallRemarkVerificationPage() {
           },
           modifyField:
               DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
             value: overallRemarkList.any(
               (item) =>
                   item["id"] ==
@@ -2006,7 +1994,7 @@ Widget build(BuildContext context) => InspectionExitGuard(child: _buildScreen(co
 
         children: [
 
-          Container(
+          ResponsiveHeader(child: Container(
 
   width: double.infinity,
 
@@ -2056,7 +2044,7 @@ Widget build(BuildContext context) => InspectionExitGuard(child: _buildScreen(co
 
   ),
 
-),
+)),
 
 if (generatedDocuments.isNotEmpty)
   Padding(
@@ -2068,7 +2056,7 @@ if (generatedDocuments.isNotEmpty)
     ),
     child: Card(
       elevation: 2,
-      child: ListTile(
+      child: AdaptiveDocumentTile(
         leading: const Icon(
           Icons.folder_special,
           color: Colors.green,
@@ -2192,7 +2180,7 @@ else
         padding:
             const EdgeInsets.only(bottom: 8),
 
-        child: Row(
+        child: AdaptiveRow(
 
           children: [
 
@@ -2246,7 +2234,7 @@ else
 
         title: "Deferred Verification",
 
-        value: "Verify the deferred inspection.",
+        value: deferredReasonSummary(selectedDeferredReasons),
 
         verification: deferredCorrect,
 
@@ -2327,6 +2315,8 @@ VerificationCard(
     await _saveVerification();
   },
   modifyField: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: applicationTypeList.any((item) {
       final code = item["shortCode"]
               ?.toString()
@@ -2455,6 +2445,8 @@ if (showsGovernmentAgency) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
       value: governmentAgencyList.any(
         (item) =>
             item["id"] ==
@@ -2521,6 +2513,8 @@ if (isPrivateCategory) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
       value: urbanRuralList.any(
         (item) =>
             item["id"] ==
@@ -2587,6 +2581,8 @@ if (showsAdditionalDetails) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
       value: whyRemovingList.any(
         (item) =>
             item["id"] ==
@@ -2678,6 +2674,8 @@ if (showsAdditionalDetails) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
       value: purposeList.any(
         (item) =>
             item["id"] ==
@@ -2753,6 +2751,8 @@ if (showsAdditionalDetails) ...[
       await _saveVerification();
     },
     modifyField: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
       value: structureTypeList.any(
         (item) =>
             item["id"] ==
@@ -2980,6 +2980,8 @@ VerificationCard(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
         value: sandalDestinationList.any(
           (item) =>
               item["id"] ==
@@ -3245,11 +3247,11 @@ if (!isDeferred && !hasAnyReInspection())
 
           ),
 
-        Container(
+        NavigationPanel(
 
   padding: const EdgeInsets.all(15),
 
-  child: Row(
+  child: AdaptiveRow(
 
     children: [
 
@@ -3645,7 +3647,7 @@ await _saveVerificationCheckpoint();
 
         Expanded(
 
-          child: Row(
+          child: AdaptiveRow(
 
             children: [
 

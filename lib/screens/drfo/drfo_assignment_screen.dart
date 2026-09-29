@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
@@ -266,7 +267,7 @@ class _DRFOAssignmentScreenState
 
             const Spacer(),
 
-            Row(
+            AdaptiveRow(
 
               children: [
 

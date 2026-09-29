@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../repositories/user_repository.dart';
+import '../../repositories/office_configuration_repository.dart';
 import '../../services/session_service.dart';
 import '../../services/master_data_service.dart';
 import '../../services/supabase_auth_service.dart';
@@ -23,6 +24,26 @@ class _LoginScreenState
 
   final passwordController =
       TextEditingController();
+
+  String officeFooter = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOfficeFooter();
+  }
+
+  Future<void> _loadOfficeFooter() async {
+    try {
+      final configuration = await OfficeConfigurationRepository().getConfiguration();
+      final range = configuration?['rangeName']?.toString().trim() ?? '';
+      final location = configuration?['rangeLocation']?.toString().trim() ?? '';
+      final text = [if (range.isNotEmpty) '$range ವಲಯ', if (location.isNotEmpty) location].join(', ');
+      if (mounted) setState(() => officeFooter = text);
+    } catch (_) {
+      // Office details are optional; loading them must not prevent login.
+    }
+  }
 
   bool hidePassword = true;
 
@@ -379,11 +400,12 @@ Navigator.pushReplacementNamed(
 
                     const SizedBox(height: 20),
 
-                    const Text(
+                    Text(
 
-                      "Mysuru Territorial Range",
+                      officeFooter,
+                      textAlign: TextAlign.center,
 
-                      style: TextStyle(
+                      style: const TextStyle(
 
                         color: Colors.grey,
 

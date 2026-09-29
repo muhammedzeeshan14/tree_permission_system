@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/application_refresh_button.dart';
 import '../../widgets/workflow_action.dart';
 import 'revenue_reply_screen.dart';
@@ -147,7 +148,7 @@ Future<void> loadAdditionalApplicationDetails() async {
   Widget detail(String title, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+      child: AdaptiveRow(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(

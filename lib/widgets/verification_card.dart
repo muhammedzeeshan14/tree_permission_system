@@ -1,3 +1,4 @@
+import 'adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 class VerificationCard extends StatelessWidget {
@@ -73,8 +74,7 @@ Widget build(BuildContext context) {
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: IntrinsicHeight(
-          child: Column(
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -119,7 +119,7 @@ if (approvalOptions)
             ),
           ],
         )
-      : Row(
+      : AdaptiveRow(
           children: [
             Expanded(
               child: approvalRadio(
@@ -143,7 +143,7 @@ if (approvalOptions)
         )
 
 else if (threeOptions)
-  Row(
+  AdaptiveRow(
                   children: [
                     Expanded(
                       child: RadioListTile<String>(
@@ -246,6 +246,8 @@ if ((threeOptions || approvalOptions) &&
         verification == false)) ...[
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
+                  itemHeight: null,
+ isExpanded: true,
                   value: selectedReason,
                   decoration: const InputDecoration(
                     labelText: "Verification Reason",
@@ -264,7 +266,6 @@ if ((threeOptions || approvalOptions) &&
                 ),
               ],
             ],
-          ),
         ),
       ),
     );

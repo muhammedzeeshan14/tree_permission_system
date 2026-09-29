@@ -1,3 +1,4 @@
+import '../../widgets/application_search_action.dart';
 import '../../widgets/workflow_action.dart';
 import 'revenue_reply_screen.dart';
 import 'government_approval_screen.dart';
@@ -53,6 +54,7 @@ class _CaseWorkerDashboardScreenState
         ),
 
         actions: [
+            const ApplicationSearchAction(),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -265,7 +267,7 @@ const SizedBox(height: 15),
 Card(child: ListTile(leading: const Icon(Icons.account_balance, color: Colors.orange), title: const Text('Pending Government land approvals'), subtitle: const Text('Print document requests and enter received details'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingGovernmentApprovalsScreen())))),
 Card(child: ListTile(leading: const Icon(Icons.hourglass_empty, color: Colors.orange), title: const Text('Pending Revenue Opinion'), subtitle: const Text('Enter replies received from the revenue authority'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingRevenueOpinionScreen())))),
 
-Card(child: ListTile(leading: const Icon(Icons.check_circle, color: Colors.green), title: const Text('Completed Applications'), subtitle: const Text('Applications where letters have been generated and printed'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompletedApplicationsScreen())))),
+Card(child: ListTile(leading: const Icon(Icons.check_circle, color: Colors.green), title: const Text('Completed Applications'), subtitle: const Text('Final letters viewed/printed, or online permission route completed'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompletedApplicationsScreen())))),
 
         ],
 

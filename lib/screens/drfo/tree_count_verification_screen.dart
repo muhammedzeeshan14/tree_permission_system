@@ -126,6 +126,8 @@ Future<String?> showReinspectDialog() async {
         ),
 
         content: DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
           value: selectedReason,
 

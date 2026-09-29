@@ -324,6 +324,8 @@ class _StorageManagementScreenState
                               const SizedBox(height: 8),
                               DropdownButtonFormField<
                                   String>(
+ itemHeight: null,
+ isExpanded: true,
                                 value: _statusFilter,
                                 decoration:
                                     const InputDecoration(

@@ -1,3 +1,4 @@
+import '../../widgets/application_search_action.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
@@ -47,6 +48,7 @@ class _RFODashboardScreenState
         ),
 
         actions: [
+            const ApplicationSearchAction(),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -131,16 +133,14 @@ subtitle: const Text(
               ),
 
               subtitle: const Text(
-                "Search by Office Number",
+                "Search all applications and file status",
               ),
 
               trailing: const Icon(
                 Icons.arrow_forward_ios,
               ),
 
-              onTap: () {
-
-              },
+              onTap: () => ApplicationSearchAction.open(context),
 
             ),
 

@@ -1,4 +1,8 @@
 class DocumentModel {
+  String? sourcePath;
+  String? attachmentError;
+  String get storedPath => sourcePath ?? filePath;
+
 
   int? id;
 

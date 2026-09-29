@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 import '../models/application_model.dart';
@@ -57,7 +58,7 @@ class ApplicationCard extends StatelessWidget {
 
             children: [
 
-              Row(
+              AdaptiveRow(
 
                 children: [
 

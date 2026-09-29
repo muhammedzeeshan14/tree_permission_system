@@ -1,3 +1,5 @@
+import '../../../services/cloud_file_service.dart';
+import '../../../widgets/attachment_image.dart';
 import 'dart:async';
 import '../../../widgets/workflow_action.dart';
 import '../../../widgets/revenue_reply_history_card.dart';
@@ -14,8 +16,6 @@ import '../../../repositories/inspection_defer_reason_repository.dart';
 import '../../../models/tree_model.dart';
 import '../../../models/photo_model.dart';
 import '../../../models/document_model.dart';
-import 'dart:io';
-import 'package:open_filex/open_filex.dart';
 import '../../../widgets/tree_inspection_table.dart';
 import '../../../repositories/mahazar_repository.dart';
 import '../../../models/mahazar_model.dart';
@@ -528,8 +528,7 @@ Widget buildPhotoCard() {
                                 title: const Text("Photo Preview"),
                               ),
                               InteractiveViewer(
-                                child: Image.file(
-                                  File(photo.photoPath),
+                                child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
                                   fit: BoxFit.contain,
                                 ),
                               ),
@@ -550,8 +549,7 @@ Widget buildPhotoCard() {
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(photo.photoPath),
+                    child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
                       width: 120,
                       height: 120,
                       fit: BoxFit.cover,
@@ -718,9 +716,7 @@ Widget buildDocumentCard() {
 
                               onPressed: workflowAction(context, () async {
 
-                                await OpenFilex.open(
-                                  doc.filePath,
-                                );
+                                await CloudFileService.openDocument(doc.applicationId, doc.storedPath);
 
                               }),
 
@@ -836,7 +832,7 @@ Card(
         ),
         const Divider(),
         Text(widget.application.inspectionDecision),
-        if (widget.application.inspectionDecision == "DEFERRED") ...[
+        if (widget.application.inspectionDecision.trim().toUpperCase() == "DEFERRED") ...[
           const SizedBox(height: 10),
           const Text(
             "Reasons",

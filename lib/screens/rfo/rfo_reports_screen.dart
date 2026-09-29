@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/application_refresh_button.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -361,7 +362,7 @@ class _RfoReportsScreenState extends State<RfoReportsScreen> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
-                  Row(
+                  AdaptiveRow(
                     children: [
                       _dateField('From', _from, true),
                       const SizedBox(width: 10),

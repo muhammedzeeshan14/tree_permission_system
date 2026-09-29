@@ -1,3 +1,4 @@
+import 'deferred_reason_labels.dart';
 import '../repositories/history_repository.dart';
 import '../repositories/section_repository.dart';
 import '../repositories/beat_repository.dart';
@@ -301,7 +302,8 @@ class DrfoDocumentService {
 
   String _kannadaPrintName(Map<String, dynamic>? row) {
     final name = row?['kannadaName']?.toString().trim() ?? '';
-    if (name.isNotEmpty && RegExp(r'[\u0C80-\u0CFF]').hasMatch(name) && !RegExp(r'[A-Za-z]').hasMatch(name)) return name;
+    // The field is a print label, not a restriction on the script entered.
+    if (name.isNotEmpty) return name;
     final label = row?['value']?.toString() ?? row?['id']?.toString() ?? 'selected entry';
     return '\uFFF9${label.replaceAll(RegExp(r'[\r\n\uFFF9\uFFFB]'), ' ')}\uFFFB';
   }
@@ -836,48 +838,10 @@ class DrfoDocumentService {
     bool commaSeparated = false,
   }) async {
     if (application.id == null) {
-      print('DEFERRED REASONS: Application ID is NULL');
-      return '';
+      throw StateError('Save the application before generating a deferred letter.');
     }
-
-    final repository = InspectionDeferredReasonRepository();
-
-    final reasons = await repository.getReasons(application.id!);
-
-    print('DEFERRED REASONS: Application ID = ${application.id}');
-
-    print('DEFERRED REASONS: ROW COUNT = ${reasons.length}');
-
-    for (final reason in reasons) {
-      print('DEFERRED REASON ROW: $reason');
-    }
-
-    final names = <String>[];
-    for (final reason in reasons) {
-      names.add(_kannadaPrintName(await MasterRepository().getMasterById((reason['reasonId'] as num?)?.toInt())));
-    }
-
-    print('DEFERRED REASONS NAMES = $names');
-
-    if (names.isEmpty) {
-      return '';
-    }
-
-    // Non-RTC DRFO body prints the Kannada reasons continuously,
-    // separated by commas only.
-    if (commaSeparated) {
-      return names.join(', ');
-    }
-
-    if (names.length == 1) {
-      return names.first;
-    }
-
-    if (names.length == 2) {
-      return '${names[0]} ಮತ್ತು ${names[1]}';
-    }
-
-    return '${names.sublist(0, names.length - 1).join(', ')} ಮತ್ತು ${names.last}';
+    final reasons = await InspectionDeferredReasonRepository().getReasons(application.id!);
+    return deferredReasonDocumentText(reasons, commaSeparated: commaSeparated);
   }
 
   // ==========================================================
@@ -1752,7 +1716,10 @@ class DrfoDocumentService {
   }) async {
     final masterRepository = MasterRepository();
 
-    final deferredReasons = await _buildDeferredReasons(application);
+    final deferredReasons = application.inspectionDecision.trim().toUpperCase() == 'DEFERRED'
+        ? await _buildDeferredReasons(application)
+        : '';
+
 
     final references = await _buildRfoNonRtcDeferredReferences(
       application: application,
@@ -2172,7 +2139,7 @@ class DrfoDocumentService {
   }) async {
     final missingKannada = RegExp('\uFFF9([^\uFFFB]*)\uFFFB').firstMatch(text);
     if (missingKannada != null) {
-      throw StateError('Enter Kannada text in Administration > Masters for: ${missingKannada.group(1)}. Then regenerate the document.');
+      throw StateError('Fill the Kannada Name field in Administration > Masters for: ${missingKannada.group(1)}. Then regenerate the document.');
     }
     final paragraphStyle = ui.ParagraphStyle(
       textAlign: alignment,
@@ -3985,6 +3952,13 @@ class DrfoDocumentService {
     // MAIN LOOP
     // ==========================================================
 
+    // DRFO recipient block: keep the salutation at the margin, and indent
+    // its designation/range by one standard half-inch tab. RFO letters
+    // provide their own letterhead and retain their existing address layout.
+    final drfoRecipientStart = rfoLetterhead == null
+        ? lines.indexWhere((line) => line.trim() == 'ರವರಿಗೆ,')
+        : -1;
+
     for (int i = 0; i < lines.length; i++) {
       contentEnd = math.max(contentEnd, y);
       final rawLine = lines[i];
@@ -4475,9 +4449,13 @@ class DrfoDocumentService {
       // Continuation lines start from the normal body margin.
       // ========================================================
 
+      final bool isDrfoRecipientLine = drfoRecipientStart >= 0 &&
+          i > drfoRecipientStart && i <= drfoRecipientStart + 2;
+
       final bool isReferenceNumber = RegExp(r'^[1-9]\d*\.\s').hasMatch(trimmed);
 
       final bool isOfficeAddress =
+          isDrfoRecipientLine ||
           trimmed == 'ರವರಿಗೆ,' ||
           trimmed == 'ಮಾನ್ಯರೆ,' ||
           trimmed.startsWith('ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಗಳು') ||
@@ -4601,6 +4579,12 @@ class DrfoDocumentService {
       // Therefore the first line receives a visual indentation
       // while the paragraph width remains the full body width.
       // --------------------------------------------------------
+
+      if (isDrfoRecipientLine) {
+        x = bodyX + 36 * _scale;
+        paragraphWidth = contentWidth - 36 * _scale;
+        alignment = ui.TextAlign.left;
+      }
 
       String paragraphText = _safeText(trimmed);
 
@@ -5914,8 +5898,8 @@ class DrfoDocumentService {
     final officerAddress = await OfficerRepository().addressForRole(role);
     String kannada(String text, String field) {
       final value = text.trim();
-      if (value.isEmpty || RegExp(r'[A-Za-z]').hasMatch(value) || !RegExp(r'[\u0C80-\u0CFF]').hasMatch(value)) {
-        throw StateError('Enter the Kannada $field in Administration before generating this letter.');
+      if (value.isEmpty) {
+        throw StateError('Fill the Kannada-name/address field for $field in Administration before generating this letter.');
       }
       return value;
     }

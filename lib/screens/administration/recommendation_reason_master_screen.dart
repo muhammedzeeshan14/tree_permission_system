@@ -108,6 +108,8 @@ class _RecommendationReasonMasterScreenState
                   children: [
 
                     DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
                       value: selectedType,
 

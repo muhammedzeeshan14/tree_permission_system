@@ -1,3 +1,4 @@
+import '../database/timber_species_seed.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
@@ -963,8 +964,8 @@ await add("Beat","Beat-2","B2","",2);
   await add("Sandal Destination","Sandalwood Depot, Hunsur","HUNSUR_DEPOT","BOTH",3);
 
   // SPECIES
-  // No default species are seeded. Only species entered and saved
-  // through the Species master screen exist here.
+  // Timber defaults from the 2026–2027 seigniorage annexure.
+  await seedTimberSpeciesDefaults(db);
 
   // PROBLEMS
 

@@ -1,3 +1,4 @@
+import '../../widgets/application_search_action.dart';
 import '../../widgets/workflow_action.dart';
 import 'dart:io';
 
@@ -399,6 +400,7 @@ class _BFODashboardScreenState
           centerTitle: true,
           title: const Text("BFO Dashboard"),
           actions: [
+            const ApplicationSearchAction(),
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',
@@ -462,6 +464,7 @@ class _BFODashboardScreenState
           centerTitle: true,
           title: const Text("BFO Dashboard"),
           actions: [
+            const ApplicationSearchAction(),
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',
@@ -490,6 +493,7 @@ class _BFODashboardScreenState
           centerTitle: true,
           title: const Text("BFO Dashboard"),
           actions: [
+            const ApplicationSearchAction(),
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',

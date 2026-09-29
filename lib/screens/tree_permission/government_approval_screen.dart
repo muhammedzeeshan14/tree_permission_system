@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/application_refresh_button.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,6 @@ import '../../services/session_service.dart';
 import '../../services/drfo_document_service.dart';
 import '../../constants/workflow_status.dart';
 import '../bfo/wizard/inspection_summary_step.dart';
-import '../drfo/drfo_forwarded_application_screen.dart';
 
 class PendingGovernmentApprovalsScreen extends StatefulWidget {
   const PendingGovernmentApprovalsScreen({super.key});
@@ -92,7 +92,7 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
   Widget details()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(widget.rfo?'Review government document details':'Enter government document details',style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
     const SizedBox(height:16),
-    for(final entry in GovernmentApproval.questions.entries)Padding(padding:const EdgeInsets.only(bottom:16),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    for(final entry in GovernmentApproval.questions.entries)Padding(padding:const EdgeInsets.only(bottom:16),child:AdaptiveRow(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Expanded(flex:2,child:Padding(padding:const EdgeInsets.only(top:12),child:Text(entry.value))),const SizedBox(width:12),
       Expanded(flex:3,child:Row(children:[Expanded(child:field(entry.key)),if(widget.rfo)Tooltip(message:'Approve this answer',child:Checkbox(value:!dirty&&record!.approvedFields.contains(entry.key),onChanged:busy?null:(value)=>run(() async {await save();record=await repository.approveField(record!,entry.key,value??false);}))),])),
     ])),
@@ -104,7 +104,7 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
     try {
       final files=await DrfoDocumentService().generateGovernmentLandLetters(widget.application,record!,afterReply:true);
       await repository.finishReviewDocuments(record!,files.map((file)=>file.path).toList(),now);
-      widget.application.status=WorkflowStatus.completed;
+      widget.application.status=WorkflowStatus.approved;
       if(mounted)Navigator.pop(context,true);
     }catch(_){widget.application.rfoApprovalDate=oldDate;rethrow;}
   }
@@ -113,7 +113,7 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
     Text('Reply nature: '+(record!.answers['nature']??'')),const SizedBox(height:16),
     if(GovernmentApproval.natures.contains(record!.answers['nature'])) ...[
       DropdownButtonFormField<int>(initialValue:record!.treeOfficerId,isExpanded:true,decoration:const InputDecoration(labelText:'Select Tree officer',border:OutlineInputBorder()),items:officers.map((r)=>DropdownMenuItem(value:r['id'] as int,child:Text(r['name'].toString()))).toList(),onChanged:busy?null:(id){if(id!=null)run(() async {record=await repository.saveReviewOfficer(record!,id);});}),
-      const SizedBox(height:16),Text(record!.answers['nature']=='Not satisfied'?'Final Approval generates the auction DO letter and Taggu Bele Patti and completes the application.':'Final Approval generates the RFO GL valuation letter with the approved reply reference and completes the application.'),
+      const SizedBox(height:16),Text(record!.answers['nature']=='Not satisfied'?'Final Approval generates the auction DO letter and Taggu Bele Patti and moves the application to RFO Approved Print.':'Final Approval generates the RFO GL valuation letter with the approved reply reference and moves the application to RFO Approved Print.'),
     ] else const Text('Select Satisfied or Not satisfied in the reply details and approve every answer.'),
   ]);
   @override
@@ -122,7 +122,6 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
     if(record==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text(widget.application.officeNumber+' — Government land')),
       body:Column(children:[
-        if(!widget.rfo)Padding(padding:const EdgeInsets.all(8),child:OutlinedButton.icon(icon:const Icon(Icons.print),label:const Text('View / Print Request Letter'),onPressed:workflowAction(context, busy?null:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>DRFOForwardedApplicationScreen(application:widget.application,rfoApprovedOnly:true,screenTitle:'Government Documents Request')))))),
         Expanded(child:step==0?InspectionSummaryStep(application:widget.application,showNavigationButtons:false,onBack:(){},onNext:(){}):step==1?details():finalPage()),
         if(busy)const LinearProgressIndicator(),
         Padding(padding:const EdgeInsets.all(12),child:Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.end,children:[

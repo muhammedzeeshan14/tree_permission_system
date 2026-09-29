@@ -1,3 +1,4 @@
+import 'adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 /// Item 7: side-by-side buttons on desktop, stacked on mobile.
@@ -20,26 +21,11 @@ class ResponsiveActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (children.isEmpty) return const SizedBox.shrink();
-    final wide =
-        MediaQuery.sizeOf(context).width >= breakpoint;
-    if (wide) {
-      return Row(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) SizedBox(width: spacing),
-            Expanded(child: children[i]),
-          ],
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) SizedBox(height: spacing),
-          children[i],
-        ],
-      ],
+    return AdaptiveRow(
+      breakpoint:breakpoint, spacing:spacing,
+      children:[for(var i=0;i<children.length;i++) ...[
+        if(i>0) SizedBox(width:spacing), Expanded(child:children[i]),
+      ]],
     );
   }
 }

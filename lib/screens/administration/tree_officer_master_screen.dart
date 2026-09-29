@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/tree_officer_repository.dart';
 
@@ -50,10 +51,10 @@ class _TreeOfficerMasterScreenState extends State<TreeOfficerMasterScreen> {
         const Text('Felling Permission Mapping',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
         const SizedBox(height:16),
         SingleChildScrollView(scrollDirection:Axis.horizontal,child:SizedBox(
-          width:MediaQuery.sizeOf(context).width < 650 ? 620 : MediaQuery.sizeOf(context).width-32,
+          width:MediaQuery.sizeOf(context).width-32,
           child:Column(children:[for(int i=0;i<rows.length;i++) Padding(
             padding:const EdgeInsets.only(bottom:16),
-            child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            child:AdaptiveRow(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Expanded(child:TextFormField(controller:names[i],enabled:!saving,
                 decoration:InputDecoration(labelText:rows[i]['code'].toString(),border:const OutlineInputBorder()),
                 validator:(v)=>v==null || v.trim().isEmpty ? 'Enter officer name' : null)),

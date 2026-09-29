@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
@@ -641,6 +642,8 @@ if (result == true) {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
               value: sandalDestinations.any((item) =>
                       item["id"] ==
                       selectedSandalDestinationId)
@@ -947,7 +950,7 @@ if (result == true) {
 
     }
 
-    return Column(
+    return ScrollableTableViewport(child: Column(
 
   children: [
 
@@ -1076,7 +1079,7 @@ if (result == true) {
 
   ],
 
-);
+));
 
   }
 

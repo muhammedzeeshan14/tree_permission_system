@@ -130,7 +130,7 @@ class _CompletedApplicationsScreenState
                                   application: app,
                                   rfoApprovedOnly: true,
                                   screenTitle:
-                                      'Approved RFO - Print Letters',
+                                      'Completed Application - Documents',
                                 ),
                               ));
                             },

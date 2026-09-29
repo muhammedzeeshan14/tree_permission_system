@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:sqflite/sqflite.dart';
-
 import '../database/database_helper.dart';
 import '../models/photo_model.dart';
 import '../services/cloud_file_service.dart';
@@ -8,309 +6,64 @@ import '../services/online_database.dart';
 import '../services/online_mode.dart';
 
 class PhotoRepository {
+  Future<Database> get _db async => DatabaseHelper.instance.database;
 
-  Future<Database> get _db async =>
-      await DatabaseHelper.instance.database;
-
-  // ======================================
-  // SAVE PHOTO
-  // ======================================
-
-  Future<void> savePhoto(
-    PhotoModel photo,
-  ) async {
-
+  Future<void> savePhoto(PhotoModel item) async {
+    // Do not publish a record on other devices until the actual file is stored.
+    final reference = await CloudFileService.savePhotoFile(item.applicationId, item.storedPath);
+    final row = <String, Object?>{'applicationId': item.applicationId, 'photoPath': reference,
+      "caption": item.caption, 'createdDate': item.createdDate};
     if (OnlineMode.enabled) {
-      try {
-        await OnlineDatabase.insert(
-          "inspection_photos",
-          {
-            "applicationId": photo.applicationId,
-            "photoPath": photo.photoPath,
-            "caption": photo.caption,
-            "createdDate": photo.createdDate,
-          },
-        );
-        return;
-      } catch (_) {
-        /* fall through to local */
-      }
-    }
-
-    final db = await _db;
-
-    await db.insert(
-
-      "inspection_photos",
-
-      {
-
-        "applicationId": photo.applicationId,
-
-        "photoPath": photo.photoPath,
-
-        "caption": photo.caption,
-
-        "createdDate": photo.createdDate,
-
-      },
-
-    );
-
-  }
-
-  // ======================================
-  // GET PHOTOS
-  // ======================================
-
-  Future<List<PhotoModel>> getPhotos(
-    int applicationId,
-  ) async {
-
-    if (OnlineMode.enabled) {
-      try {
-        final result = await OnlineDatabase.select(
-          "inspection_photos",
-          equals: {"applicationId": applicationId},
-          orderBy: "id",
-        );
-        final photos = result.map((row) {
-          return PhotoModel(
-            id: (row["id"] as num?)?.toInt() ?? 0,
-            applicationId:
-                (row["applicationId"] as num?)?.toInt() ?? 0,
-            photoPath:
-                row["photoPath"]?.toString() ?? "",
-            caption:
-                row["caption"]?.toString() ?? "",
-            createdDate:
-                row["createdDate"]?.toString() ?? "",
-          );
-        }).toList();
-        // Cloud: download bytes taken elsewhere; upload local-only
-        // files from before cloud sync existed.
-        try {
-          final office =
-              await CloudFileService.officeNumberFor(
-            applicationId,
-          );
-          if (office.isNotEmpty) {
-            final remote =
-                await CloudFileService.listKeys(
-              CloudFileService.photosBucket,
-              'photos/$office',
-            );
-            final remoteNames = remote
-                .map((k) => k.split('/').last)
-                .toSet();
-            for (final photo in photos) {
-              if (photo.photoPath.isEmpty) continue;
-              final file = File(photo.photoPath);
-              if (await file.exists()) {
-                final name = photo.photoPath
-                    .split(RegExp(r'[/\\]'))
-                    .last;
-                if (!remoteNames.contains(name)) {
-                  CloudFileService.uploadPhoto(
-                      office, file);
-                }
-              } else {
-                await CloudFileService.ensurePhotoFile(
-                  applicationId,
-                  photo.photoPath,
-                );
-              }
-            }
-          }
-        } catch (_) {
-          // Best effort only.
-        }
-        // Cross-device: rewrite foreign absolute paths to this
-        // device's photo folder (downloading bytes when online).
-        for (final photo in photos) {
-          photo.photoPath =
-              await CloudFileService.resolvePhotoPath(
-            applicationId: applicationId,
-            storedPath: photo.photoPath,
-          );
-        }
-        return photos;
-      } catch (_) {
-        /* fall through to local */
-      }
-    }
-
-    final db = await _db;
-
-    final result = await db.query(
-
-      "inspection_photos",
-
-      where: "applicationId=?",
-
-      whereArgs: [applicationId],
-
-      orderBy: "id ASC",
-
-    );
-
-    final photos = result.map((row) {
-
-      return PhotoModel(
-
-        id: row["id"] as int,
-
-        applicationId:
-            row["applicationId"] as int,
-
-        photoPath:
-            row["photoPath"]?.toString() ?? "",
-
-        caption:
-            row["caption"]?.toString() ?? "",
-
-        createdDate:
-            row["createdDate"]?.toString() ?? "",
-
-      );
-
-    }).toList();
-
-    for (final photo in photos) {
-      photo.photoPath =
-          await CloudFileService.resolvePhotoPath(
-        applicationId: applicationId,
-        storedPath: photo.photoPath,
-      );
-    }
-
-    return photos;
-
-  }
-
-  // ======================================
-  // DELETE PHOTO
-  // ======================================
-
-  Future<void> deletePhoto(
-  int photoId,
-) async {
-
-  if (OnlineMode.enabled) {
-    try {
-      final rows = await OnlineDatabase.select(
-        "inspection_photos",
-        equals: {"id": photoId},
-        limit: 1,
-      );
-
-      if (rows.isNotEmpty) {
-        final path =
-            rows.first["photoPath"]?.toString() ?? "";
-
-        if (path.isNotEmpty) {
-          final file = File(path);
-
-          if (await file.exists()) {
-            await file.delete();
-          }
-        }
-      }
-
-      await OnlineDatabase.delete(
-        "inspection_photos",
-        column: "id",
-        value: photoId,
-      );
+      final existing = await OnlineDatabase.select('inspection_photos', equals: {'applicationId': item.applicationId, 'photoPath': reference}, limit: 1);
+      item.id = existing.isEmpty ? await OnlineDatabase.insert('inspection_photos', row) : (existing.first['id'] as num).toInt();
+      item.sourcePath = reference;
       return;
-    } catch (_) {
-      /* fall through to local */
     }
-  }
-
-  final db = await _db;
-
-  final result = await db.query(
-
-    "inspection_photos",
-
-    where: "id=?",
-
-    whereArgs: [photoId],
-
-  );
-
-  if (result.isNotEmpty) {
-
-    final path =
-        result.first["photoPath"]?.toString() ?? "";
-
-    if (path.isNotEmpty) {
-
-      final file = File(path);
-
-      if (await file.exists()) {
-
-        await file.delete();
-
-      }
-
-    }
-
-  }
-
-  await db.delete(
-
-    "inspection_photos",
-
-    where: "id=?",
-
-    whereArgs: [photoId],
-
-  );
-
-}
-
-  // ======================================
-  // TOTAL PHOTOS
-  // ======================================
-
-  Future<int> totalPhotos(
-    int applicationId,
-  ) async {
-
-    if (OnlineMode.enabled) {
-      try {
-        final rows = await OnlineDatabase.select(
-          "inspection_photos",
-          equals: {"applicationId": applicationId},
-        );
-        return rows.length;
-      } catch (_) {
-        /* fall through to local */
-      }
-    }
-
     final db = await _db;
-
-    final result = await db.rawQuery(
-
-      """
-
-SELECT COUNT(*) as total
-
-FROM inspection_photos
-
-WHERE applicationId=?
-
-""",
-
-      [applicationId],
-
-    );
-
-    return result.first["total"] as int;
-
+    item.id = await db.insert('inspection_photos', row);
   }
 
+  Future<List<PhotoModel>> getPhotos(int applicationId) async {
+    final List<Map<String, dynamic>> rows;
+    if (OnlineMode.enabled) {
+      rows = await OnlineDatabase.selectAll('inspection_photos', equals: {'applicationId': applicationId}, orderBy: 'id');
+    } else {
+      final db = await _db;
+      rows = await db.query('inspection_photos', where: 'applicationId=?', whereArgs: [applicationId], orderBy: 'id ASC');
+    }
+    final office = rows.isEmpty ? '' : await CloudFileService.officeNumberFor(applicationId);
+    final items = <PhotoModel>[];
+    for (var offset = 0; offset < rows.length; offset += 3) {
+      items.addAll(await Future.wait(rows.skip(offset).take(3).map((row) async {
+      final original = row['photoPath']?.toString() ?? '';
+      final item = PhotoModel(id: (row['id'] as num?)?.toInt(), applicationId: applicationId,
+        photoPath: original, caption: row['caption']?.toString() ?? '', createdDate: row['createdDate']?.toString() ?? '')..sourcePath = original;
+      try {
+        item.photoPath = await CloudFileService.resolvePhotoPath(applicationId: applicationId, storedPath: original, officeNumber: office, requiredForUse: true);
+      } catch (error) {
+        // Keep the record visible, with a retryable error instead of dropping it.
+        item.attachmentError = error.toString();
+      }
+      return item;
+      })));
+    }
+    return items;
+  }
+
+  Future<void> deletePhoto(int id) async {
+    if (OnlineMode.enabled) {
+      await OnlineDatabase.delete('inspection_photos', column: 'id', value: id);
+      return;
+    }
+    final db = await _db;
+    await db.delete('inspection_photos', where: 'id=?', whereArgs: [id]);
+  }
+
+  Future<int> totalPhotos(int applicationId) async {
+    if (OnlineMode.enabled) {
+      return (await OnlineDatabase.selectAll('inspection_photos', equals: {'applicationId': applicationId})).length;
+    }
+    final db = await _db;
+    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM inspection_photos WHERE applicationId=?', [applicationId])) ?? 0;
+  }
 }

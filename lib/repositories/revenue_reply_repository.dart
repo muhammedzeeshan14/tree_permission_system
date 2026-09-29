@@ -276,17 +276,18 @@ class RevenueReplyRepository {
           'requestedAt': application.rfoApprovalDate,
           'requestAuthority': authority,
           'requestLetterPath': path,
+          'stage': 'pending',
         });
         await OnlineDatabase.update(
           'applications',
           application.id!,
           {
-            'status': WorkflowStatus.pendingRevenueOpinion,
+            'status': WorkflowStatus.approved,
             'rfoApprovalDate': application.rfoApprovalDate,
           },
         );
         await _onlineAudit(app, 'Revenue opinion requested by RFO');
-        application.status = WorkflowStatus.pendingRevenueOpinion;
+        application.status = WorkflowStatus.approved;
         return;
       } catch (e) {
         if (e is StateError || e is ArgumentError) rethrow;
@@ -321,11 +322,12 @@ class RevenueReplyRepository {
         'requestedAt': application.rfoApprovalDate,
         'requestAuthority': selection.isEmpty ? '' : _address(selection.first),
         'requestLetterPath': path,
+          'stage': 'pending',
       });
       await tx.update(
         'applications',
         {
-          'status': WorkflowStatus.pendingRevenueOpinion,
+          'status': WorkflowStatus.approved,
           'rfoApprovalDate': application.rfoApprovalDate,
         },
         where: 'id=?',
@@ -333,7 +335,7 @@ class RevenueReplyRepository {
       );
       await _audit(tx, app, 'Revenue opinion requested by RFO');
     });
-    application.status = WorkflowStatus.pendingRevenueOpinion;
+    application.status = WorkflowStatus.approved;
   }
 
   Future<RevenueReply> ensureLegacyRequest(
@@ -360,6 +362,7 @@ class RevenueReplyRepository {
             'requestedAt': app['rfoApprovalDate'] ?? '',
             'requestAuthority': authority,
             'requestLetterPath': path,
+          'stage': 'pending',
           });
           rows = await OnlineDatabase.select(
             'revenue_reply_cycles',
@@ -402,6 +405,7 @@ class RevenueReplyRepository {
               ? ''
               : _address(selection.first),
           'requestLetterPath': path,
+          'stage': 'pending',
         });
         rows = await tx.query(
           'revenue_reply_cycles',
@@ -413,17 +417,17 @@ class RevenueReplyRepository {
     });
   }
 
-  Future<void> markPrinted(RevenueReply reply) async {
+  Future<void> markPrinted(RevenueReply reply, {bool openedForEntry = false}) async {
     if (OnlineMode.enabled) {
       try {
         await _onlineCheck(reply, 'Case Worker', 'printing');
         await _onlineUpdated(reply, {
           'stage': 'pending',
-          'printedAt': DateTime.now().toIso8601String(),
+          if (!openedForEntry) 'printedAt': DateTime.now().toIso8601String(),
         });
         await _onlineAudit(
           await _onlineApplication(reply.applicationId),
-          'Revenue request letters printed; awaiting reply',
+          openedForEntry ? 'Revenue request available in pending tab; awaiting reply' : 'Revenue request letters printed; awaiting reply',
         );
         return;
       } catch (e) {
@@ -438,12 +442,12 @@ class RevenueReplyRepository {
       await _check(tx, reply, 'Case Worker', 'printing');
       await _updated(tx, reply, {
         'stage': 'pending',
-        'printedAt': DateTime.now().toIso8601String(),
+        if (!openedForEntry) 'printedAt': DateTime.now().toIso8601String(),
       });
       await _audit(
         tx,
         await _application(tx, reply.applicationId),
-        'Revenue request letters printed; awaiting reply',
+        openedForEntry ? 'Revenue request available in pending tab; awaiting reply' : 'Revenue request letters printed; awaiting reply',
       );
     });
   }
@@ -623,6 +627,10 @@ class RevenueReplyRepository {
                 ? await _onlineCompletionOutcome(reply.applicationId)
                 : null);
         final onlinePermission = outcome == PrivateLandOutcome.onlinePermission;
+        final awaitingOnlineNumber = includeOnline &&
+            reply.answers['nature'] == RevenueReply.satisfied &&
+            outcome == PrivateLandOutcome.treeOfficerLetter &&
+            reply.answers['onlineApplicationStatus'] == RevenueReply.onlineNotApplied;
         if (onlinePermission && letterPath.trim().isNotEmpty) {
           throw StateError('RFO online permission completion must not generate a letter.');
         }
@@ -648,20 +656,20 @@ class RevenueReplyRepository {
             'requestedAt': approvalDate,
             'requestAuthority': _address(authorities.first),
             'requestLetterPath': letterPath,
+            'stage': 'pending',
           });
           // Retain the original opinion purpose/content; each cycle stores its recipient.
         }
         await _onlineUpdated(reply, {
-          'stage': 'completed',
+          'stage': awaitingOnlineNumber ? 'pending' : 'completed',
+          if (awaitingOnlineNumber) 'decisions': '{}',
           'finalLetterPath': letterPath,
         });
         await OnlineDatabase.update(
           'applications',
           reply.applicationId,
           {
-            'status': resend
-                ? WorkflowStatus.pendingRevenueOpinion
-                : WorkflowStatus.completed,
+            'status': onlinePermission ? WorkflowStatus.completed : WorkflowStatus.approved,
             'rfoApprovalDate': approvalDate,
           },
         );
@@ -673,7 +681,7 @@ class RevenueReplyRepository {
               ? 'Give online permission in Aranya website; application completed (no letter generated)'
               : 'Revenue opinion ' +
                     (reply.answers['nature'] ?? '') +
-                    '; application completed',
+                    (awaitingOnlineNumber ? '; awaiting online application details' : '; approved; awaiting caseworker view/print'),
         );
         return;
       } catch (e) {
@@ -692,6 +700,10 @@ class RevenueReplyRepository {
           (reply.answers['nature'] == RevenueReply.satisfied
               ? await TreeOfficerRepository.completionOutcome(tx, reply.applicationId) : null);
       final onlinePermission = outcome == PrivateLandOutcome.onlinePermission;
+        final awaitingOnlineNumber = includeOnline &&
+            reply.answers['nature'] == RevenueReply.satisfied &&
+            outcome == PrivateLandOutcome.treeOfficerLetter &&
+            reply.answers['onlineApplicationStatus'] == RevenueReply.onlineNotApplied;
       if (onlinePermission && letterPath.trim().isNotEmpty) {
         throw StateError('RFO online permission completion must not generate a letter.');
       }
@@ -714,19 +726,19 @@ class RevenueReplyRepository {
           'requestedAt': approvalDate,
           'requestAuthority': _address(authorities.first),
           'requestLetterPath': letterPath,
+            'stage': 'pending',
         });
         // Retain the original opinion purpose/content; each cycle stores its recipient.
       }
       await _updated(tx, reply, {
-        'stage': 'completed',
+        'stage': awaitingOnlineNumber ? 'pending' : 'completed',
+        if (awaitingOnlineNumber) 'decisions': '{}',
         'finalLetterPath': letterPath,
       });
       await tx.update(
         'applications',
         {
-          'status': resend
-              ? WorkflowStatus.pendingRevenueOpinion
-              : WorkflowStatus.completed,
+          'status': onlinePermission ? WorkflowStatus.completed : WorkflowStatus.approved,
           'rfoApprovalDate': approvalDate,
         },
         where: 'id=?',
@@ -741,7 +753,7 @@ class RevenueReplyRepository {
             ? 'Give online permission in Aranya website; application completed (no letter generated)'
             : 'Revenue opinion ' +
                   (reply.answers['nature'] ?? '') +
-                  '; application completed',
+                  (awaitingOnlineNumber ? '; awaiting online application details' : '; approved; awaiting caseworker view/print'),
       );
     });
   }

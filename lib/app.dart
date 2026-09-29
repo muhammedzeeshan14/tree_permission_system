@@ -14,6 +14,7 @@ class TPMSApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => SafeArea(top:false, child:child ?? const SizedBox.shrink()),
 
       title: "Tree Permission Management System",
 

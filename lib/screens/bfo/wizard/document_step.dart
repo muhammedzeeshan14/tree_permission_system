@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'dart:async';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -9,8 +10,6 @@ import '../../../repositories/document_repository.dart';
 import '../../../repositories/master_repository.dart';
 import '../../../services/cloud_file_service.dart';
 import '../../../services/document_service.dart';
-import 'package:open_filex/open_filex.dart';
-import 'dart:io';
 
 class DocumentStep extends StatefulWidget {
 
@@ -63,23 +62,6 @@ String selectedDocumentName = "";
     widget.application.id!,
   );
 
-  // Cloud: download documents uploaded on other devices.
-  for (final doc in documentList) {
-    if (doc.filePath.isEmpty) continue;
-    try {
-      await CloudFileService.ensureLocal(
-        bucket: CloudFileService.docsBucket,
-        key: CloudFileService.uploadKey(
-          widget.application.officeNumber,
-          doc.filePath,
-        ),
-        localPath: doc.filePath,
-      );
-    } catch (_) {
-      // Offline; show whatever is available locally.
-    }
-  }
-
   documentTypeList =
       await MasterRepository().getMasters(
     "Document Type",
@@ -106,7 +88,7 @@ Future<void> pickDocument() async {
 
     selectedDocumentPath = file.path;
 
-    selectedDocumentName = file.path.split("\\").last;
+    selectedDocumentName = file.path.split(RegExp(r'[/\\]')).last;
 
   });
 
@@ -124,7 +106,7 @@ void initState() {
 
     return Scaffold(
 
-      appBar: AppBar(
+      appBar: AppBar(actions: [IconButton(tooltip: 'Refresh attachments', icon: const Icon(Icons.refresh), onPressed: workflowAction(context, loadDocuments))],
 
         title: const Text(
           "Inspection Documents",
@@ -142,7 +124,7 @@ void initState() {
 
             Card(
 
-              child: ListTile(
+              child: AdaptiveDocumentTile(
 
                 leading: const Icon(
                   Icons.description,
@@ -220,6 +202,8 @@ Card(
         const SizedBox(height: 20),
 
         DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
 
           value: documentTypeId,
 
@@ -336,13 +320,6 @@ Card(
     ),
   );
 
-  // Cloud: document travels to other devices.
-  final savedFile = File(selectedDocumentPath);
-  CloudFileService.uploadDocument(
-    widget.application.officeNumber,
-    savedFile,
-  );
-
   selectedDocumentName = "";
   selectedDocumentPath = "";
   documentTypeId = null;
@@ -432,7 +409,7 @@ Expanded(
 
             return Card(
 
-              child: ListTile(
+              child: AdaptiveDocumentTile(
 
                 leading: const Icon(
 
@@ -494,9 +471,7 @@ Expanded(
 
       onPressed: workflowAction(context, () async {
 
-        await OpenFilex.open(
-          doc.filePath,
-        );
+        await CloudFileService.openDocument(doc.applicationId, doc.storedPath);
 
       }),
 

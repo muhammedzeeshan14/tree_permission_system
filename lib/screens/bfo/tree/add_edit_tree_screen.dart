@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../../widgets/workflow_action.dart';
 import '../../../repositories/tree_officer_repository.dart';
 import '../../../services/felling_exemptions.dart';
@@ -166,7 +167,9 @@ String selectedRecommendationCode = "";
     } catch (e) { _initializationError = e.toString(); }
     if (mounted) setState(() => _loading = false);
   }
-  Widget _officerPicker() => DropdownButtonFormField<int>(value: _treeOfficerId,
+  Widget _officerPicker() => DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,value: _treeOfficerId,
     decoration: const InputDecoration(labelText: 'Select tree officer before tree entry'),
     items: _treeOfficers.map((o) => DropdownMenuItem(value: (o['id'] as num).toInt(), child: Text(o['code'].toString()))).toList(),
     onChanged: _selectTreeOfficer);
@@ -982,6 +985,8 @@ Future<Map<String, dynamic>?> _showSpeciesSearchDialog() async {
 Widget _recommendationTypeDropdown() {
 
   return DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
 
     value: recommendationTypeList.any(
       (e) => e["id"] == selectedRecommendationTypeId,
@@ -1036,6 +1041,8 @@ Widget _recommendationTypeDropdown() {
 
 Widget _treeStatusDropdown() {
   return DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: treeStatusList.any(
       (item) =>
           item["id"] == selectedTreeStatusId,
@@ -1239,7 +1246,7 @@ Widget _treeStatusDropdown() {
         vertical: 5,
       ),
 
-      child: Row(
+      child: AdaptiveRow(
 
         children: [
 
@@ -1313,7 +1320,7 @@ Widget _treeStatusDropdown() {
             Column(
   children: [
 
-    Row(
+    AdaptiveRow(
       children: [
 
         Expanded(
@@ -1381,7 +1388,7 @@ CheckboxListTile(
 
           if (selectedRecommendationCode == "BRANCH") ...[
 
-  Row(
+  AdaptiveRow(
     children: [
 
       Expanded(
@@ -1410,7 +1417,7 @@ CheckboxListTile(
 
 if (selectedRecommendationCode == "TWIG") ...[
 
-  Row(
+  AdaptiveRow(
     children: [
 
       Expanded(
@@ -1639,7 +1646,7 @@ if (selectedRecommendationCode == "TOP") ...[
 
                                       const Divider(),
 
-                                    Row(
+                                    AdaptiveRow(
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     Expanded(
@@ -1685,7 +1692,7 @@ if (selectedRecommendationCode == "TOP") ...[
 
 if (widget.isEdit)
 
-  Row(
+  AdaptiveRow(
 
     children: [
 
@@ -1729,7 +1736,7 @@ if (widget.isEdit)
 
 else if (widget.tree.stemType == "Single")
 
-  Row(
+  AdaptiveRow(
 
     children: [
 
@@ -1773,7 +1780,7 @@ else if (widget.tree.stemType == "Single")
 
 else
 
-  Row(
+  AdaptiveRow(
 
     children: [
 

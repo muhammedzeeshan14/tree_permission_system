@@ -1,5 +1,4 @@
 import 'user_repository.dart';
-import 'revenue_reply_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -1017,7 +1016,7 @@ rfoOverallRemarks:
 
 Future<List<ApplicationModel>>
     getApplications({Map<String, Object?>? onlineEquals,
-      List<Object>? onlineStatuses}) async {
+      List<Object>? onlineStatuses, bool includeReferences = true}) async {
 
   if (OnlineMode.enabled) {
     final result = await OnlineDatabase.selectAll('applications',
@@ -1030,6 +1029,7 @@ Future<List<ApplicationModel>>
       OnlineDatabase.selectAll('users', columns: 'id,name'),
       () async {
         final rows = <Map<String, dynamic>>[];
+        if (!includeReferences) return rows;
         final ids = result.map((row) => row['id'] as Object).toList();
         for (var start = 0; start < ids.length; start += 200) {
           rows.addAll(await OnlineDatabase.selectAll('application_forward_references',
@@ -1127,7 +1127,7 @@ ORDER BY applications.createdDate DESC
     .toList();
 
 for (final application in applications) {
-  if (application.id != null) {
+  if (includeReferences && application.id != null) {
     application.forwardingReferences =
         await _getForwardingReferences(application.id!);
   }
@@ -1200,22 +1200,12 @@ Future<List<ApplicationModel>>
     getRfoApprovedApplicationsForCaseWorker(
   int userId,
 ) async {
-  final all = await getApplications(onlineEquals: {'createdBy': userId}, onlineStatuses: [WorkflowStatus.pendingRevenueOpinion, WorkflowStatus.approved]);
-
-  final candidates = all.where((application) {
-   return application.createdBy == userId &&
-    (application.status ==
-            WorkflowStatus.pendingRevenueOpinion ||
-        application.status ==
-            WorkflowStatus.approved);
-  }).toList();
-  final result = <ApplicationModel>[];
-  for (final application in candidates) {
-    final cycle = await RevenueReplyRepository().current(application.id!);
-    if (application.status != WorkflowStatus.pendingRevenueOpinion || cycle == null || cycle.stage == 'printing') result.add(application);
-  }
-  // Exclude completed applications — they move to the new "Completed Applications" tab.
-  return result.where((app) => app.status != WorkflowStatus.completed).toList();
+  final all = await getApplications(
+    onlineEquals: {'createdBy': userId},
+    onlineStatuses: [WorkflowStatus.approved],
+  );
+  return all.where((app) =>
+      app.createdBy == userId && app.status == WorkflowStatus.approved).toList();
 }
 
 // ======================================

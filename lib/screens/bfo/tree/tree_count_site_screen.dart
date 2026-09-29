@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
@@ -529,7 +530,7 @@ Future<Map<String, dynamic>?> _showSpeciesSearchDialog() async {
 
 const SizedBox(height: 20),
 
-const Row(
+if (MediaQuery.sizeOf(context).width >= 600) const Row(
 
   children: [
 
@@ -591,7 +592,7 @@ const Divider(),
                       padding:
                           const EdgeInsets.all(10),
 
-                      child:Row(
+                      child:AdaptiveRow(
 
                         children:[
 
@@ -684,6 +685,7 @@ const Divider(),
     keyboardType: TextInputType.number,
 
     decoration: const InputDecoration(
+ labelText: 'No. of Trees',
 
       isDense: true,
 

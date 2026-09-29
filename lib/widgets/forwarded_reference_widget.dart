@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 import '../utils/date_picker_util.dart';
 
@@ -135,6 +136,8 @@ class ForwardedReferenceWidget extends StatelessWidget {
       children: [
 
         DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
           value: applicationSource,
 
@@ -185,7 +188,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          Row(
+          AdaptiveRow(
 
             children: [
 
@@ -241,7 +244,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                   children: [
 
-                    Row(
+                    AdaptiveRow(
 
                   children: [
 
@@ -251,7 +254,8 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                       child:
                           DropdownButtonFormField<String>(
-                        isExpanded: true,
+                        itemHeight: null,
+ isExpanded: true,
 
                         value: ref.sourceId == null
                             ? null

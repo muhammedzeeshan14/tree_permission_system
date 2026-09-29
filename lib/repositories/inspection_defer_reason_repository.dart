@@ -1,251 +1,147 @@
-import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
-
 import '../database/database_helper.dart';
+import '../services/deferred_reason_labels.dart';
 import '../services/online_database.dart';
 import '../services/online_mode.dart';
+import '../services/supabase_service.dart';
 
 class InspectionDeferredReasonRepository {
-  final DatabaseHelper dbHelper = DatabaseHelper.instance;
-
-  Future<Database> get _db async => await dbHelper.database;
+  final Database? databaseOverride;
+  InspectionDeferredReasonRepository({this.databaseOverride});
+  Future<Database> get _db async =>
+      databaseOverride ?? await DatabaseHelper.instance.database;
+  bool get _online => databaseOverride == null && OnlineMode.enabled;
 
   Future<void> saveReasons({
     required int applicationId,
     required List<Map<String, dynamic>> reasons,
   }) async {
-    if (OnlineMode.enabled) {
-      try {
-        await OnlineDatabase.delete(
-          "inspection_deferred_reasons",
-          column: "applicationId",
-          value: applicationId,
-        );
-
-        for (int i = 0; i < reasons.length; i++) {
-          final master = await OnlineDatabase.select(
-            "master_data",
-            equals: {"id": reasons[i]["id"]},
-            limit: 1,
-          );
-
-          String reasonName = "";
-
-          if (master.isNotEmpty) {
-            reasonName =
-                master.first["value"]?.toString() ?? "";
-          }
-
-          await OnlineDatabase.insert(
-            "inspection_deferred_reasons",
-            {
-              "applicationId": applicationId,
-              "reasonId": reasons[i]["id"],
-              "reasonName": reasonName,
-              "displayOrder": i + 1,
-            },
-          );
-        }
-        // Mirror to local so reads work even before the
-        // background sync uploads local rows (or when a later
-        // read falls back offline). A mirror failure must never
-        // break the already-successful cloud save.
-        try {
-          await _saveLocal(
-            applicationId: applicationId,
-            reasons: reasons,
-          );
-        } catch (_) {}
-        return;
-      } catch (e) {
-        debugPrint('online saveReasons inspection_deferred_reasons failed, falling back to local: $e');
-      }
-    }
-    final db = await _db;
-
-    await _saveLocal(
-      applicationId: applicationId,
-      reasons: reasons,
-      db: db,
-    );
-  }
-
-  /// Local delete + insert shared by the online mirror and the
-  /// offline path. Looks up display names from the local masters.
-  Future<void> _saveLocal({
-    required int applicationId,
-    required List<Map<String, dynamic>> reasons,
-    DatabaseExecutor? db,
-  }) async {
-    final database = db ?? await _db;
-
-    await database.delete(
-      "inspection_deferred_reasons",
-      where: "applicationId=?",
-      whereArgs: [applicationId],
-    );
-
-    for (int i = 0; i < reasons.length; i++) {
-
-  final master = await database.query(
-    "master_data",
-    where: "id=?",
-    whereArgs: [reasons[i]["id"]],
-    limit: 1,
-  );
-
-  String reasonName = "";
-
-  if (master.isNotEmpty) {
-    reasonName =
-        master.first["value"]?.toString() ?? "";
-  }
-
-  await database.insert(
-    "inspection_deferred_reasons",
-    {
-      "applicationId": applicationId,
-      "reasonId": reasons[i]["id"],
-      "reasonName": reasonName,
-      "displayOrder": i + 1,
-    },
-  );
-}
-  }
-
-  Future<List<int>> getReasonIds(
-      int applicationId) async {
-    if (OnlineMode.enabled) {
-      try {
-        final rows = await OnlineDatabase.select(
-          "inspection_deferred_reasons",
-          equals: {"applicationId": applicationId},
-          orderBy: "displayOrder",
-        );
-        rows.sort((a, b) => ((a['displayOrder'] as num?)?.toInt() ?? 0)
-            .compareTo((b['displayOrder'] as num?)?.toInt() ?? 0));
-        // Empty cloud result falls through to local: reasons may
-        // have been saved offline and not synced yet.
-        if (rows.isNotEmpty) {
-          return rows
-              .map((e) => (e["reasonId"] as num?)?.toInt() ?? 0)
-              .toList();
-        }
-      } catch (e) {
-        debugPrint('online getReasonIds inspection_deferred_reasons failed, falling back to local: $e');
-      }
-    }
-    final db = await _db;
-
-    final rows = await db.query(
-      "inspection_deferred_reasons",
-      where: "applicationId=?",
-      whereArgs: [applicationId],
-      orderBy: "displayOrder",
-    );
-
-    return rows
-        .map((e) => e["reasonId"] as int)
+    final ids = reasons
+        .map((r) => ((r['reasonId'] ?? r['id']) as num?)?.toInt())
         .toList();
-  }
-
-  Future<List<Map<String, dynamic>>> getReasons(
-    int applicationId) async {
-  if (OnlineMode.enabled) {
-    try {
-      final saved = await OnlineDatabase.select(
-        "inspection_deferred_reasons",
-        equals: {"applicationId": applicationId},
-        orderBy: "displayOrder",
+    if (ids.any((id) => id == null) || ids.toSet().length != ids.length) {
+      throw StateError('Select valid, distinct deferred reasons.');
+    }
+    final masters = _online
+        ? await OnlineDatabase.selectAll(
+            'master_data',
+            equals: {'masterType': 'Inspection Deferred Reason'},
+          )
+        : await (await _db).query(
+            'master_data',
+            where: 'masterType=?',
+            whereArgs: ['Inspection Deferred Reason'],
+          );
+    final byId = {for (final m in masters) m['id']: m};
+    // Validate BEFORE deleting saved rows; a saved row ID is not a master ID.
+    if (ids.any((id) => !byId.containsKey(id))) {
+      throw StateError(
+        'A selected deferred reason is invalid. Please reselect it.',
       );
-      saved.sort((a, b) => ((a['displayOrder'] as num?)?.toInt() ?? 0)
-          .compareTo((b['displayOrder'] as num?)?.toInt() ?? 0));
-      // Empty cloud result falls through to local: reasons may
-      // have been saved offline and not synced yet.
-      if (saved.isNotEmpty) {
-        final masters = await OnlineDatabase.select("master_data");
-        final kannadaById = <int, String>{
-          for (final m in masters)
-            if ((m['id'] as num?) != null)
-              (m['id'] as num).toInt():
-                  (m['kannadaName']?.toString() ?? ''),
-        };
-        return [
-          for (final row in saved)
-            {
-              ...row,
-              'documentReasonName': (() {
-                final kannada = (kannadaById[(row['reasonId'] as num?)?.toInt()] ?? '').trim();
-                if (kannada.isNotEmpty) return kannada;
-                return row['reasonName']?.toString() ?? '';
-              })(),
-            },
-        ];
+    }
+    final rows = <Map<String, dynamic>>[
+      for (var i = 0; i < ids.length; i++)
+        {
+          'applicationId': applicationId,
+          'reasonId': ids[i],
+          'reasonName': byId[ids[i]]!['value']?.toString() ?? '',
+          'displayOrder': i + 1,
+        },
+    ];
+    if (_online) {
+      await OnlineDatabase.delete(
+        'inspection_deferred_reasons',
+        column: 'applicationId',
+        value: applicationId,
+      );
+      if (rows.isNotEmpty) {
+        final stamp = DateTime.now().toIso8601String();
+        await SupabaseService.client!
+            .from('inspection_deferred_reasons')
+            .insert(rows.map((r) => {...r, 'updatedAt': stamp}).toList());
       }
-    } catch (e) {
-      debugPrint('online getReasons inspection_deferred_reasons failed, falling back to local: $e');
+      // Cloud failures are surfaced, never reported as a successful local-only save.
+      try {
+        await (await _db).transaction(
+          (tx) => _replace(tx, applicationId, rows),
+        );
+      } catch (_) {}
+    } else {
+      await (await _db).transaction((tx) => _replace(tx, applicationId, rows));
     }
   }
-  final db = await _db;
 
-  return await _localReasons(db, applicationId);
-}
-
-  /// Local read shared by the offline path and the online
-  /// empty-result fallback. Prefers the master Kannada name so
-  /// letters print Kannada.
-  Future<List<Map<String, dynamic>>> _localReasons(
+  Future<void> _replace(
     DatabaseExecutor db,
     int applicationId,
+    List<Map<String, dynamic>> rows,
   ) async {
-    return await db.rawQuery(
-      '''
-    SELECT
-      saved.*,
-      CASE
-        WHEN TRIM(COALESCE(master.kannadaName, '')) <> ''
-          THEN master.kannadaName
-        ELSE saved.reasonName
-      END AS documentReasonName
-    FROM inspection_deferred_reasons AS saved
-    LEFT JOIN master_data AS master
-      ON master.id = saved.reasonId
-    WHERE saved.applicationId = ?
-    ORDER BY saved.displayOrder
-    ''',
-      [applicationId],
+    await db.delete(
+      'inspection_deferred_reasons',
+      where: 'applicationId=?',
+      whereArgs: [applicationId],
+    );
+    for (final row in rows) {
+      await db.insert('inspection_deferred_reasons', row);
+    }
+  }
+
+  Future<List<int>> getReasonIds(int applicationId) async =>
+      (await getReasons(applicationId))
+          .where((r) => r['masterAvailable'] == true)
+          .map((r) => (r['reasonId'] as num).toInt())
+          .toList();
+
+  Future<List<Map<String, dynamic>>> getReasons(int applicationId) async {
+    if (_online) {
+      final saved = await OnlineDatabase.selectAll(
+        'inspection_deferred_reasons',
+        equals: {'applicationId': applicationId},
+        orderBy: 'displayOrder',
+      );
+      if (saved.isEmpty)
+        return []; // An empty cloud result must not resurrect stale local selections.
+      final masters = await OnlineDatabase.selectAll(
+        'master_data',
+        equals: {'masterType': 'Inspection Deferred Reason'},
+      );
+      return resolveDeferredReasons(saved, masters);
+    }
+    final db = await _db;
+    return resolveDeferredReasons(
+      await db.query(
+        'inspection_deferred_reasons',
+        where: 'applicationId=?',
+        whereArgs: [applicationId],
+        orderBy: 'displayOrder',
+      ),
+      await db.query(
+        'master_data',
+        where: 'masterType=?',
+        whereArgs: ['Inspection Deferred Reason'],
+      ),
     );
   }
 
-  Future<void> deleteReasons(
-      int applicationId) async {
-    if (OnlineMode.enabled) {
+  Future<void> deleteReasons(int applicationId) async {
+    if (_online) {
+      await OnlineDatabase.delete(
+        'inspection_deferred_reasons',
+        column: 'applicationId',
+        value: applicationId,
+      );
       try {
-        await OnlineDatabase.delete(
-          "inspection_deferred_reasons",
-          column: "applicationId",
-          value: applicationId,
+        await (await _db).delete(
+          'inspection_deferred_reasons',
+          where: 'applicationId=?',
+          whereArgs: [applicationId],
         );
-        // Also clear local: with the empty-result local fallback
-        // above, stale local rows would otherwise resurface.
-        try {
-          final db = await _db;
-          await db.delete(
-            "inspection_deferred_reasons",
-            where: "applicationId=?",
-            whereArgs: [applicationId],
-          );
-        } catch (_) {}
-        return;
-      } catch (e) {
-        debugPrint('online deleteReasons inspection_deferred_reasons failed, falling back to local: $e');
-      }
+      } catch (_) {}
+      return;
     }
-    final db = await _db;
-
-    await db.delete(
-      "inspection_deferred_reasons",
-      where: "applicationId=?",
+    await (await _db).delete(
+      'inspection_deferred_reasons',
+      where: 'applicationId=?',
       whereArgs: [applicationId],
     );
   }

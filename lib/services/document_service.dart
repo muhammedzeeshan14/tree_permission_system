@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+import 'package:path/path.dart' as p;
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -49,7 +51,7 @@ class DocumentService {
 
     final destination = File(
 
-      "${folder.path}/${result.files.single.name}",
+      "${folder.path}/UPLOAD_${const Uuid().v4()}${p.extension(result.files.single.name).toLowerCase()}",
 
     );
 

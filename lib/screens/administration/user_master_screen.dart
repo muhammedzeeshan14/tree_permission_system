@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/user_repository.dart';
 import '../../repositories/section_repository.dart';
@@ -51,7 +52,9 @@ class _UserMasterScreenState extends State<UserMasterScreen> {
             TextField(controller: password, enabled: !saving, obscureText: !visible, autocorrect: false, enableSuggestions: false,
               decoration: InputDecoration(labelText: user == null ? 'Password' : 'New password (leave blank to keep current)',
                 suffixIcon: IconButton(onPressed: () => update(() => visible = !visible), icon: Icon(visible ? Icons.visibility_off : Icons.visibility)))),
-            DropdownButtonFormField<String>(value: role, decoration: const InputDecoration(labelText: 'Role'),
+            DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,value: role, decoration: const InputDecoration(labelText: 'Role'),
               items: ['RFO','DRFO','BFO','Case Worker'].map((r) => DropdownMenuItem(value:r,child:Text(r))).toList(),
               onChanged: saving ? null : (v) => update(() { role=v!; if (!{'BFO','DRFO'}.contains(role)) {section=null;beat=null;} })),
             if ({'BFO','DRFO'}.contains(role)) DropdownButtonFormField<int>(key: ValueKey('section-$role-$section'),value: section,isExpanded:true,
@@ -97,7 +100,7 @@ class _UserMasterScreenState extends State<UserMasterScreen> {
     appBar:AppBar(title:const Text('User Master'),actions:[ApplicationRefreshButton(onRefresh:loadUsers)]),
     floatingActionButton:canEdit?FloatingActionButton.extended(onPressed:workflowAction(context,()=>edit()),icon:const Icon(Icons.person_add),label:const Text('Add User')):null,
     body:loading?const Center(child:CircularProgressIndicator()):error!=null?Center(child:Text(error!)):ListView(padding:const EdgeInsets.fromLTRB(12,12,12,90),children:[
-      for(final user in users) Card(child:ListTile(title:Text(user['name'].toString()),
+      for(final user in users) Card(child:AdaptiveDocumentTile(title:Text(user['name'].toString()),
         subtitle:Text('Login ID: ${user['username']} • ${user['role']}\n${user['sectionName'] ?? ''} ${user['beatName'] ?? ''} • ${user['isActive']==1?'Active':'Inactive'}'),
         trailing:canEdit?Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Edit user',icon:const Icon(Icons.edit),onPressed:workflowAction(context,()=>edit(user))),IconButton(tooltip:'Delete user',icon:const Icon(Icons.delete),onPressed:workflowAction(context,()=>remove(user)))]):null)),
     ]),

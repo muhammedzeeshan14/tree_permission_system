@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'dart:io';
 
 import 'package:image_picker/image_picker.dart';
@@ -59,23 +60,7 @@ Future<File> createPhotoFile(
     officeNumber,
   );
 
-  final now = DateTime.now();
-
-  final fileName =
-
-      "PHOTO_"
-
-      "${now.year}"
-
-      "${now.month.toString().padLeft(2, '0')}"
-
-      "${now.day.toString().padLeft(2, '0')}_"
-
-      "${now.hour.toString().padLeft(2, '0')}"
-
-      "${now.minute.toString().padLeft(2, '0')}"
-
-      "${now.second.toString().padLeft(2, '0')}.jpg";
+  final fileName = 'PHOTO_${const Uuid().v4()}.jpg';
 
   return File(
 

@@ -1,4 +1,8 @@
 class PhotoModel {
+  String? sourcePath;
+  String? attachmentError;
+  String get storedPath => sourcePath ?? photoPath;
+
 
   int? id;
 

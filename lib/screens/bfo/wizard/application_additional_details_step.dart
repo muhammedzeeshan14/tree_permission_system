@@ -536,6 +536,8 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
                         value: isGovernmentCategory
                             ? selectedGovernmentAgencyId
                             : selectedUrbanRuralId,
@@ -583,6 +585,8 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
                         value:
                             selectedWhyRemovingId,
                         decoration:
@@ -633,6 +637,8 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
                         value: selectedPurposeId,
                         decoration:
                             const InputDecoration(
@@ -669,6 +675,8 @@ class _ApplicationAdditionalDetailsStepState
                       },
                       correctionField:
                           DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
                         value:
                             selectedStructureTypeId,
                         decoration:

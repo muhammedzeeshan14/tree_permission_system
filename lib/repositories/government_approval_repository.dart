@@ -141,8 +141,8 @@ class GovernmentApprovalRepository {
         await _onlineOfficer(record.treeOfficerId);
         if(!await _onlineHasApprovedTree(record.applicationId))throw StateError('At least one recommended tree must be approved by RFO.');
         await _onlineUpdate(record,pending?{'stage':'pending','requestDate':date,'requestLetterPath':paths.single}:{'stage':'completed','finalDate':date,'finalPaths':jsonEncode(paths)});
-        await OnlineDatabase.update('applications',record.applicationId,{'status':pending?WorkflowStatus.pendingGovernmentLandApprovals:WorkflowStatus.completed,'rfoApprovalDate':date});
-        await _onlineAudit(record.applicationId,pending?'Government valuation documents requested':'Government '+record.permissionType+' approved; application completed');
+        await OnlineDatabase.update('applications',record.applicationId,{'status':WorkflowStatus.approved,'rfoApprovalDate':date});
+        await _onlineAudit(record.applicationId,pending?'Government valuation documents requested':'Government '+record.permissionType+' approved; application approved; awaiting caseworker view/print');
         return;
       } catch (e) {
         if(e is StateError||e is ArgumentError)rethrow;
@@ -155,8 +155,8 @@ class GovernmentApprovalRepository {
       final trees=await tx.rawQuery("SELECT t.id FROM trees t JOIN master_data m ON m.id=t.recommendationTypeId JOIN rfo_item_approvals a ON a.applicationId=t.applicationId AND a.itemKey='TREE' AND a.itemId=t.id WHERE t.applicationId=? AND UPPER(TRIM(m.code)) IN ('FULL','BRANCH','TWIG','TOP') AND a.decision IN ('Approve','Modify')",[record.applicationId]);
       if(trees.isEmpty)throw StateError('At least one recommended tree must be approved by RFO.');
       await _update(tx,record,pending?{'stage':'pending','requestDate':date,'requestLetterPath':paths.single}:{'stage':'completed','finalDate':date,'finalPaths':jsonEncode(paths)});
-      await tx.update('applications',{'status':pending?WorkflowStatus.pendingGovernmentLandApprovals:WorkflowStatus.completed,'rfoApprovalDate':date},where:'id=?',whereArgs:[record.applicationId]);
-      await _audit(tx,record.applicationId,pending?'Government valuation documents requested':'Government '+record.permissionType+' approved; application completed');
+      await tx.update('applications',{'status':WorkflowStatus.approved,'rfoApprovalDate':date},where:'id=?',whereArgs:[record.applicationId]);
+      await _audit(tx,record.applicationId,pending?'Government valuation documents requested':'Government '+record.permissionType+' approved; application approved; awaiting caseworker view/print');
     });
   }
   Future<GovernmentApproval> saveAnswers(GovernmentApproval record,Map<String,String> answers,{bool rfo=false,bool submit=false}) async {
@@ -245,8 +245,8 @@ class GovernmentApprovalRepository {
       try {
         await _onlineCheck(record,'RFO','review');await _onlineOfficer(record.treeOfficerId);
         await _onlineUpdate(record,{'stage':'completed','finalPaths':jsonEncode(paths),'finalDate':date});
-        await OnlineDatabase.update('applications',record.applicationId,{'status':WorkflowStatus.completed,'rfoApprovalDate':date});
-        await _onlineAudit(record.applicationId,auction?'Government document reply not satisfied; auction DO and Taggu Bele Patti approved; application completed':'Government valuation approved after document reply; application completed',details:jsonEncode(record.answers));
+        await OnlineDatabase.update('applications',record.applicationId,{'status':WorkflowStatus.approved,'rfoApprovalDate':date});
+        await _onlineAudit(record.applicationId,auction?'Government document reply not satisfied; auction DO and Taggu Bele Patti approved; application approved; awaiting caseworker view/print':'Government valuation approved after document reply; application approved; awaiting caseworker view/print',details:jsonEncode(record.answers));
         return;
       } catch (e) {
         if(e is StateError||e is ArgumentError)rethrow;
@@ -256,8 +256,8 @@ class GovernmentApprovalRepository {
     await (await _db).transaction((tx) async {
       await _check(tx,record,'RFO','review');await _officer(tx,record.treeOfficerId);
       await _update(tx,record,{'stage':'completed','finalPaths':jsonEncode(paths),'finalDate':date});
-      await tx.update('applications',{'status':WorkflowStatus.completed,'rfoApprovalDate':date},where:'id=?',whereArgs:[record.applicationId]);
-      await _audit(tx,record.applicationId,auction?'Government document reply not satisfied; auction DO and Taggu Bele Patti approved; application completed':'Government valuation approved after document reply; application completed',details:jsonEncode(record.answers));
+      await tx.update('applications',{'status':WorkflowStatus.approved,'rfoApprovalDate':date},where:'id=?',whereArgs:[record.applicationId]);
+      await _audit(tx,record.applicationId,auction?'Government document reply not satisfied; auction DO and Taggu Bele Patti approved; application approved; awaiting caseworker view/print':'Government valuation approved after document reply; application approved; awaiting caseworker view/print',details:jsonEncode(record.answers));
     });
   }
 }

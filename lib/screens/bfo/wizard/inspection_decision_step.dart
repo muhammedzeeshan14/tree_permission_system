@@ -49,6 +49,8 @@ final InspectionDeferredReasonRepository deferredRepository =
     InspectionDeferredReasonRepository();
 
 String? decision;
+bool loadingReasons = true;
+String? reasonLoadError;
 
   List<Map<String, dynamic>> reasons = [];
 
@@ -72,16 +74,19 @@ void initState() {
 }
 
   Future<void> loadReasons() async {
-
-  reasons = await repository.getMasters(
-    "Inspection Deferred Reason",
-  );
-
-  if (mounted) {
-    setState(() {});
+    try {
+      reasons = await repository.getMasters('Inspection Deferred Reason');
+      final ids = widget.application.id == null
+          ? widget.application.deferredReasonIds
+          : await deferredRepository.getReasonIds(widget.application.id!);
+      selectedReasonIds = ids.isEmpty ? [null] : ids.cast<int?>().toList();
+      widget.application.deferredReasonIds = ids.toList();
+      reasonLoadError = null;
+    } catch (_) {
+      reasonLoadError = 'Unable to load deferred reasons. Please retry.';
+    }
+    if (mounted) setState(() => loadingReasons = false);
   }
-
-}
 
   List<Map<String, dynamic>> availableReasons(int index) {
 
@@ -152,7 +157,12 @@ Widget build(BuildContext context) {
       title: "Inspection Decision",
     ),
 
-    body: SingleChildScrollView(
+    body: loadingReasons ? const Center(child: CircularProgressIndicator())
+      : reasonLoadError != null ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(reasonLoadError!), TextButton(onPressed: () {
+            setState(() => loadingReasons = true); loadReasons();
+          }, child: const Text('Retry')),
+        ])) : SingleChildScrollView(
 
       padding: const EdgeInsets.all(16),
 
@@ -283,6 +293,8 @@ Widget build(BuildContext context) {
                               Expanded(
 
                                 child: DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
 
                                   value:
                                       selectedReasonIds[index],

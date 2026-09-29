@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/master_repository.dart';
@@ -625,7 +626,7 @@ displayOrder:
                         height: 18,
                       ),
 
-                      Row(
+                      AdaptiveRow(
                         children: [
 
                           Expanded(
@@ -678,7 +679,7 @@ displayOrder:
                         height: 12,
                       ),
 
-                      Row(
+                      AdaptiveRow(
                         children: [
 
                           Expanded(
@@ -756,6 +757,8 @@ displayOrder:
 
                       DropdownButtonFormField<
                           String>(
+ itemHeight: null,
+ isExpanded: true,
                         initialValue:
                             categoryController
                                     .text
@@ -1304,7 +1307,7 @@ await loadData();
 
           children: [
 
-            Row(
+            AdaptiveRow(
               children: [
 
                 Expanded(

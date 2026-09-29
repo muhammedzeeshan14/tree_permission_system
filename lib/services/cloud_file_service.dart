@@ -10,6 +10,8 @@ import 'online_database.dart';
 
 import 'online_mode.dart';
 import 'supabase_service.dart';
+import 'attachment_file_cache.dart';
+import 'package:open_filex/open_filex.dart';
 
 /// A cloud file reference with best-effort size.
 class CloudFileEntry {
@@ -21,21 +23,13 @@ class CloudFileEntry {
   String get name => key.split('/').last;
 }
 
-/// Cloud file sync via Supabase Storage (free tier).
-///
-/// DB rows already sync across devices; this moves the actual bytes:
-/// - inspection photos      -> bucket tpms-photos
-/// - generated PDFs         -> bucket tpms-documents
-/// - uploaded documents     -> bucket tpms-documents
-///
-/// Uploads are fire-and-forget (never throw, never block the UI).
-/// Reads use [ensureLocal]: if the file is missing locally it is
-/// downloaded from cloud into the exact expected local path, so all
-/// existing viewers (`Image.file`, `OpenFilex`) work unchanged.
+/// Inspection attachment saves await cloud upload before publishing database rows.
+/// Portable references resolve to a cache belonging to the current device.
 class CloudFileService {
   CloudFileService._();
 
-  static const photosBucket = 'tpms-photos';
+  static const photosBucket = 'tpms-documents';
+  static const legacyPhotosBucket = 'tpms-photos';
   static const docsBucket = 'tpms-documents';
 
   static bool get enabled => OnlineMode.enabled;
@@ -140,122 +134,114 @@ class CloudFileService {
 
   /// Best-effort download of an inspection photo. Returns true when
   /// the local file exists afterwards.
-  static Future<bool> ensurePhotoFile(
-    int applicationId,
-    String localPath,
-  ) async {
-    if (localPath.isEmpty) return false;
-    if (await File(localPath).exists()) return true;
-    if (!enabled) return false;
-    try {
-      final office = await officeNumberFor(applicationId);
-      if (office.isEmpty) return false;
-      await ensureLocal(
-        bucket: photosBucket,
-        key: photoKey(office, localPath),
-        localPath: localPath,
-      );
-      return true;
-    } catch (e) {
-      debugPrint('ensure photo failed: $e');
-      return false;
+  static final _cache = AttachmentFileCache(
+    directory: getApplicationDocumentsDirectory,
+    download: (bucket, key) async {
+      final client = SupabaseService.client;
+      if (client == null || !enabled) throw StateError('Connect to the cloud to download this attachment.');
+      return client.storage.from(bucket).download(key).timeout(const Duration(seconds: 60));
+    },
+  );
+  static final Set<String> _confirmedUploads = {};
+  static final Map<String, Future<void>> _pendingUploads = {};
+
+  static String reference(String bucket, String key) => Uri(scheme: 'cloud', host: bucket, path: '/$key').toString();
+
+  static Future<void> _uploadAttachment(String bucket, String key, File file, {bool overwrite = false}) async {
+    if (!enabled || SupabaseService.client == null) throw StateError('Cloud storage is unavailable. The attachment has not been saved.');
+    if (!await AttachmentFileCache.usable(file.path)) throw StateError('The attachment file is missing or empty. Select it again.');
+    final identity = '$bucket/$key';
+    if (_confirmedUploads.contains(identity)) return;
+    final pending = _pendingUploads[identity];
+    if (pending != null) return pending;
+    final operation = () async {
+      try {
+        await SupabaseService.client!.storage.from(bucket).upload(key, file,
+          fileOptions: FileOptions(upsert: overwrite)).timeout(const Duration(seconds: 90));
+      } on StorageException catch (error) {
+        if (error.statusCode != '409') {
+          throw StateError('Attachment upload failed (${error.message}). Check connection/storage access and retry. It was not saved to the cloud.');
+        }
+      }
+      _confirmedUploads.add(identity);
+    }();
+    _pendingUploads[identity] = operation;
+    try { await operation; }
+    finally { _pendingUploads.remove(identity); }
+  }
+
+  static Future<String> savePhotoFile(int applicationId, String path) => _saveAttachment(applicationId, path, true);
+  static Future<String> saveDocumentFile(int applicationId, String path) => _saveAttachment(applicationId, path, false);
+
+  static Future<String> _saveAttachment(int applicationId, String path, bool photo) async {
+    if (!enabled) return path;
+    if (path.startsWith('cloud://')) return path;
+    final office = await officeNumberFor(applicationId);
+    if (office.isEmpty) throw StateError('Cannot identify the application for this attachment. Retry after refreshing.');
+    final bucket = photo ? photosBucket : docsBucket;
+    final key = photo ? photoKey(office, path) : uploadKey(office, path);
+    await _uploadAttachment(bucket, key, File(path));
+    return reference(bucket, key);
+  }
+
+  static Future<String> _resolveAttachment({required int applicationId, required String storedPath, String? officeNumber, required bool photo}) async {
+    if (storedPath.isEmpty) throw StateError('This attachment has no file reference. Upload it again.');
+    String bucket = photo ? photosBucket : docsBucket;
+    String key;
+    if (storedPath.startsWith('cloud://')) {
+      final uri = Uri.parse(storedPath);
+      bucket = uri.host;
+      if (![docsBucket, legacyPhotosBucket].contains(bucket)) throw StateError('Unknown attachment storage bucket.');
+      key = uri.pathSegments.join('/');
+    } else {
+      final office = officeNumber ?? await officeNumberFor(applicationId);
+      if (office.isEmpty) throw StateError('Application details are unavailable. Refresh and retry.');
+      key = photo ? photoKey(office, storedPath) : uploadKey(office, storedPath);
+      String? original;
+      if (await AttachmentFileCache.usable(storedPath)) {
+        original = storedPath;
+      } else if (!office.split(RegExp(r'[/\\]')).any((part) => part == '..' || part == '.')) {
+        // Legacy downloads and restored mobile app folders may have a new root.
+        final root = await getApplicationDocumentsDirectory();
+        final candidate = '${root.path}/TPMS/${photo ? 'Photos' : 'Documents'}/$office/${_fileName(storedPath)}';
+        if (await AttachmentFileCache.usable(candidate)) original = candidate;
+      }
+      if (original != null) {
+        if (enabled) await _uploadAttachment(bucket, key, File(original));
+        return original;
+      }
+    }
+    try { return await _cache.resolve(bucket: bucket, key: key); }
+    catch (error) {
+      if (photo && bucket != legacyPhotosBucket) {
+        try { return await _cache.resolve(bucket: legacyPhotosBucket, key: key); }
+        catch (_) { /* Report the original failure below. */ }
+      }
+      throw StateError('Could not download ${photo ? 'photo' : 'document'} ${_fileName(storedPath)}. '
+        'Check your connection and retry. If it was never uploaded, open this application on the original device to sync it. ($error)');
     }
   }
 
-  /// Best-effort download of an uploaded document.
-  static Future<bool> ensureDocumentFile(
-    int applicationId,
-    String localPath,
-  ) async {
-    if (localPath.isEmpty) return false;
-    if (await File(localPath).exists()) return true;
-    if (!enabled) return false;
-    try {
-      final office = await officeNumberFor(applicationId);
-      if (office.isEmpty) return false;
-      await ensureLocal(
-        bucket: docsBucket,
-        key: uploadKey(office, localPath),
-        localPath: localPath,
-      );
-      return true;
-    } catch (e) {
-      debugPrint('ensure document failed: $e');
-      return false;
-    }
+  static Future<String> resolvePhotoPath({required int applicationId, required String storedPath, String? officeNumber, bool requiredForUse = false}) async {
+    try { return await _resolveAttachment(applicationId: applicationId, storedPath: storedPath, officeNumber: officeNumber, photo: true); }
+    catch (error) { if (requiredForUse) rethrow; debugPrint('Photo unavailable: $error'); return storedPath; }
   }
-
-  // ---------- cross-device path mapping ----------
-  //
-  // Stored paths are absolute device-local paths (Android vs
-  // Windows layouts differ). Viewing on another device must use
-  // THIS device's app folder, downloading bytes from cloud when
-  // missing. These resolvers never throw: on any failure the
-  // original stored path is returned.
-
-  static Future<String> _mappedPath(
-    String kind,
-    String officeNumber,
-    String storedPath,
-  ) async {
-    final base = await getApplicationDocumentsDirectory();
-    return '${base.path}/TPMS/$kind/$officeNumber/${_fileName(storedPath)}';
+  static Future<String> resolveDocumentPath({required int applicationId, required String storedPath, String? officeNumber, bool requiredForUse = false}) async {
+    try { return await _resolveAttachment(applicationId: applicationId, storedPath: storedPath, officeNumber: officeNumber, photo: false); }
+    catch (error) { if (requiredForUse) rethrow; debugPrint('Document unavailable: $error'); return storedPath; }
   }
-
-  /// Usable local path for an inspection photo: the stored path
-  /// when the file exists here, otherwise this device's photo
-  /// folder (downloaded from cloud when online).
-  static Future<String> resolvePhotoPath({
-    required int applicationId,
-    required String storedPath,
-    String? officeNumber,
-  }) async {
-    try {
-      if (storedPath.isEmpty) return storedPath;
-      if (await File(storedPath).exists()) return storedPath;
-      final office =
-          officeNumber ?? await officeNumberFor(applicationId);
-      if (office.isEmpty) return storedPath;
-      final local =
-          await _mappedPath('Photos', office, storedPath);
-      if (await File(local).exists()) return local;
-      if (!enabled) return storedPath;
-      await ensureLocal(
-        bucket: photosBucket,
-        key: photoKey(office, storedPath),
-        localPath: local,
-      );
-      return local;
-    } catch (_) {
-      return storedPath;
-    }
+  static Future<bool> ensurePhotoFile(int applicationId, String path) async {
+    final local = await resolvePhotoPath(applicationId: applicationId, storedPath: path);
+    return AttachmentFileCache.usable(local);
   }
-
-  /// Usable local path for an uploaded document (same contract).
-  static Future<String> resolveDocumentPath({
-    required int applicationId,
-    required String storedPath,
-    String? officeNumber,
-  }) async {
-    try {
-      if (storedPath.isEmpty) return storedPath;
-      if (await File(storedPath).exists()) return storedPath;
-      final office =
-          officeNumber ?? await officeNumberFor(applicationId);
-      if (office.isEmpty) return storedPath;
-      final local =
-          await _mappedPath('Documents', office, storedPath);
-      if (await File(local).exists()) return local;
-      if (!enabled) return storedPath;
-      await ensureLocal(
-        bucket: docsBucket,
-        key: uploadKey(office, storedPath),
-        localPath: local,
-      );
-      return local;
-    } catch (_) {
-      return storedPath;
-    }
+  static Future<bool> ensureDocumentFile(int applicationId, String path) async {
+    final local = await resolveDocumentPath(applicationId: applicationId, storedPath: path);
+    return AttachmentFileCache.usable(local);
+  }
+  static Future<void> openDocument(int applicationId, String path) async {
+    final local = await resolveDocumentPath(applicationId: applicationId, storedPath: path, requiredForUse: true);
+    final result = await OpenFilex.open(local);
+    if (result.type != ResultType.done) throw StateError('Could not open document: ${result.message}');
   }
 
   /// Lists files with best-effort sizes (bytes, -1 when unknown).
@@ -317,15 +303,9 @@ class CloudFileService {
 
   // ---------- convenience wrappers (never throw) ----------
 
-  static void uploadPhoto(
-    String officeNumber,
-    File file,
-  ) {
-    unawaited(_upload(
-      photosBucket,
-      photoKey(officeNumber, file.path),
-      file,
-    ));
+  static Future<void> uploadPhoto(String officeNumber, File file) async {
+    if (!enabled) return;
+    await _uploadAttachment(photosBucket, photoKey(officeNumber, file.path), file);
   }
 
   static void uploadGenerated(
@@ -339,14 +319,8 @@ class CloudFileService {
     ));
   }
 
-  static void uploadDocument(
-    String officeNumber,
-    File file,
-  ) {
-    unawaited(_upload(
-      docsBucket,
-      uploadKey(officeNumber, file.path),
-      file,
-    ));
+  static Future<void> uploadDocument(String officeNumber, File file) async {
+    if (!enabled) return;
+    await _uploadAttachment(docsBucket, uploadKey(officeNumber, file.path), file);
   }
 }

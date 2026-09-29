@@ -223,6 +223,8 @@ if (!applicationTypeCorrect) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
     value: selectedApplicationType,
     decoration: const InputDecoration(
       labelText: "Select Correct Application Type",

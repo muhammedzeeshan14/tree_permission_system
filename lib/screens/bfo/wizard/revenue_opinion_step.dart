@@ -144,6 +144,8 @@ if (mounted) {
           children: [
 
             DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
 
               value:selectedOpinionId,
 

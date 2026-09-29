@@ -173,6 +173,8 @@ if (opinion != null) {
 
           content:
               DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
             value: selectedReason,
 

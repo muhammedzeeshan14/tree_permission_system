@@ -1,4 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -6,16 +9,16 @@ import 'package:path_provider/path_provider.dart';
 
 import '../repositories/document_repository.dart';
 import '../repositories/inspection_photo_repository.dart';
-import '../models/document_model.dart';
+import '../repositories/photo_repository.dart';
 import 'cloud_file_service.dart';
 
 /// Items 5-6: printable PDFs for inspection photos and uploaded
 /// documents, generated for the DRFO alongside letters and lists.
 ///
 /// Photos: 1 PDF, chunks of 4 photos per A4 page (1 photo fills the
-/// whole page, 2-4 share one page, 5 photos = 4+1 pages, etc.).
+/// whole page, 2-3 stack with gaps, 4 use a 2x2 grid).
 /// Uploaded documents: 1 PDF, each scanned image on its own full A4
-/// page; non-image files get an info page pointing at the original.
+/// page; PDF uploads contribute all of their actual pages.
 class InspectionAttachmentPdfService {
   InspectionAttachmentPdfService._();
 
@@ -77,24 +80,13 @@ class InspectionAttachmentPdfService {
         await InspectionPhotoRepository().getPhotos(applicationId);
     final entries = <Map<String, String>>[];
     for (final row in rows) {
-      final path = row['photoPath']?.toString() ?? '';
-      if (path.isEmpty) continue;
-      try {
-        // Cloud: fetch photos taken on other devices.
-        await CloudFileService.ensureLocal(
-          bucket: CloudFileService.photosBucket,
-          key: CloudFileService.photoKey(officeNumber, path),
-          localPath: path,
-        );
-      } catch (_) {
-        continue;
-      }
-      if (!await File(path).exists()) continue;
-      if (!_isImage(path)) continue;
-      entries.add({
-        'path': path,
-        'caption': row['caption']?.toString() ?? '',
-      });
+      final path = await CloudFileService.resolvePhotoPath(
+        applicationId: applicationId,
+        storedPath: row['sourcePath']?.toString() ?? row['photoPath']?.toString() ?? '',
+        officeNumber: officeNumber, requiredForUse: true,
+      );
+      if (!_isImage(path)) throw StateError('Unsupported photo format. Upload a JPG or PNG image.');
+      entries.add({'path': path, 'caption': row['caption']?.toString() ?? ''});
     }
     if (entries.isEmpty) {
       throw StateError('No inspection photos found.');
@@ -110,7 +102,7 @@ class InspectionAttachmentPdfService {
       );
     }
 
-    final pdf = pw.Document();
+    final pdf = await _newDocument();
     for (var page = 0; page < chunks.length; page++) {
       final chunk = chunks[page];
       final images = <pw.Widget>[];
@@ -156,7 +148,39 @@ class InspectionAttachmentPdfService {
                 page + 1,
                 chunks.length,
               ),
-              ...images,
+              if (images.length == 4)
+                pw.Expanded(
+                  child: pw.Column(
+                    children: [
+                      pw.Expanded(
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                          children: [
+                            images[0],
+                            pw.SizedBox(width: 12),
+                            images[1],
+                          ],
+                        ),
+                      ),
+                      pw.SizedBox(height: 12),
+                      pw.Expanded(
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                          children: [
+                            images[2],
+                            pw.SizedBox(width: 12),
+                            images[3],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                for (var i = 0; i < images.length; i++) ...[
+                  if (i > 0) pw.SizedBox(height: 12),
+                  images[i],
+                ],
             ],
           ),
         ),
@@ -177,99 +201,13 @@ class InspectionAttachmentPdfService {
   }) async {
     final docs =
         await DocumentRepository().getDocuments(applicationId);
-    final usable = <DocumentModel>[];
+    if (docs.isEmpty) throw StateError('No uploaded documents found.');
+    final pdf = await _newDocument();
     for (final doc in docs) {
-      if (doc.filePath.isEmpty) continue;
-      try {
-        // Cloud: fetch documents uploaded on other devices.
-        await CloudFileService.ensureLocal(
-          bucket: CloudFileService.docsBucket,
-          key: CloudFileService.uploadKey(
-              officeNumber, doc.filePath),
-          localPath: doc.filePath,
-        );
-      } catch (_) {
-        continue;
-      }
-      if (File(doc.filePath).existsSync()) usable.add(doc);
-    }
-    final existing = usable;
-    if (existing.isEmpty) {
-      throw StateError('No uploaded documents found.');
-    }
-
-    final pdf = pw.Document();
-    for (var i = 0; i < existing.length; i++) {
-      final doc = existing[i];
-      final name = doc.filePath.split(RegExp(r'[/\\]')).last;
-      if (_isImage(doc.filePath)) {
-        final bytes = await File(doc.filePath).readAsBytes();
-        pdf.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(24),
-            build: (_) => pw.Column(
-              crossAxisAlignment:
-                  pw.CrossAxisAlignment.stretch,
-              children: [
-                _pageHeader(
-                  doc.documentTypeName.isEmpty
-                      ? 'Uploaded Document'
-                      : doc.documentTypeName,
-                  officeNumber,
-                  i + 1,
-                  existing.length,
-                ),
-                pw.Expanded(
-                  child: pw.Center(
-                    child: pw.Image(
-                      pw.MemoryImage(bytes),
-                      fit: pw.BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      } else {
-        pdf.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(32),
-            build: (_) => pw.Column(
-              crossAxisAlignment:
-                  pw.CrossAxisAlignment.start,
-              children: [
-                _pageHeader(
-                  'Uploaded Document',
-                  officeNumber,
-                  i + 1,
-                  existing.length,
-                ),
-                pw.Text(
-                  doc.documentTypeName.isEmpty
-                      ? name
-                      : doc.documentTypeName,
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-                pw.SizedBox(height: 12),
-                pw.Text(
-                  'File: $name\n\n'
-                  'This file cannot be embedded in print. '
-                  'Open the original file from the application '
-                  'documents folder to view or print it.',
-                  style:
-                      const pw.TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
+      final local = await CloudFileService.resolveDocumentPath(applicationId: applicationId,
+        storedPath: doc.storedPath, officeNumber: officeNumber, requiredForUse: true);
+      await appendDocumentPages(pdf: pdf, file: File(local), officeNumber: officeNumber,
+        title: doc.documentTypeName.isEmpty ? 'Uploaded Document' : doc.documentTypeName);
     }
 
     final folder = await _outputFolder(officeNumber);
@@ -278,54 +216,41 @@ class InspectionAttachmentPdfService {
     return file;
   }
 
-  static Future<int> photoCount(
-    int applicationId, {
-    String officeNumber = '',
-  }) async {
-    final rows =
-        await InspectionPhotoRepository().getPhotos(applicationId);
-    var count = 0;
-    for (final row in rows) {
-      final path = row['photoPath']?.toString() ?? '';
-      if (path.isEmpty) continue;
-      if (officeNumber.isNotEmpty) {
-        try {
-          await CloudFileService.ensureLocal(
-            bucket: CloudFileService.photosBucket,
-            key: CloudFileService.photoKey(officeNumber, path),
-            localPath: path,
-          );
-        } catch (_) {
-          // Offline; count local only.
-        }
-      }
-      if (path.isNotEmpty && await File(path).exists()) count++;
-    }
-    return count;
+  static Future<pw.Document> _newDocument() async {
+    final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansKannada-Regular.ttf'));
+    final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansKannada-Bold.ttf'));
+    return pw.Document(theme: pw.ThemeData.withFont(base: regular, bold: bold));
   }
 
-  static Future<int> documentCount(
-    int applicationId, {
-    String officeNumber = '',
-  }) async {
-    final docs =
-        await DocumentRepository().getDocuments(applicationId);
-    var count = 0;
-    for (final doc in docs) {
-      if (officeNumber.isNotEmpty && doc.filePath.isNotEmpty) {
-        try {
-          await CloudFileService.ensureLocal(
-            bucket: CloudFileService.docsBucket,
-            key: CloudFileService.uploadKey(
-                officeNumber, doc.filePath),
-            localPath: doc.filePath,
-          );
-        } catch (_) {
-          // Offline; count local only.
-        }
-      }
-      if (await File(doc.filePath).exists()) count++;
+  /// A PDF upload is rendered page-by-page; never substitute a filename-only page.
+  /// [rasterize] is injectable so rendering can be tested without a printer driver.
+  static Future<int> appendDocumentPages({required pw.Document pdf, required File file,
+    required String officeNumber, required String title,
+    Stream<Uint8List> Function(Uint8List)? rasterize}) async {
+    if (!await file.exists() || await file.length() == 0) throw StateError('Document file is missing or empty. Refresh attachments and retry.');
+    final bytes = await file.readAsBytes();
+    void addImage(Uint8List imageBytes, int page) {
+      final image = pw.MemoryImage(imageBytes);
+      pdf.addPage(pw.Page(pageFormat: PdfPageFormat.a4, margin: const pw.EdgeInsets.all(24),
+        build: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Text('$title — $officeNumber — Page $page', style: const pw.TextStyle(fontSize: 10)),
+          pw.SizedBox(height: 8),
+          pw.Expanded(child: pw.Center(child: pw.Image(image, fit: pw.BoxFit.contain))),
+        ]),
+      ));
     }
-    return count;
+    if (_isImage(file.path)) { addImage(bytes, 1); return 1; }
+    if (file.path.toLowerCase().endsWith('.pdf')) {
+      final render = rasterize ?? (Uint8List data) => Printing.raster(data, dpi: 144).asyncMap((page) => page.toPng());
+      var pages = 0;
+      await for (final png in render(bytes)) { addImage(png, ++pages); }
+      if (pages == 0) throw StateError('The uploaded PDF has no printable pages.');
+      return pages;
+    }
+    throw StateError('This document format cannot be combined into a PDF. Use View to open and print the original file, or upload a PDF/JPG/PNG version.');
   }
+
+  // Counts are records, not files already cached on this particular device.
+  static Future<int> photoCount(int applicationId, {String officeNumber = ''}) => PhotoRepository().totalPhotos(applicationId);
+  static Future<int> documentCount(int applicationId, {String officeNumber = ''}) => DocumentRepository().totalDocuments(applicationId);
 }

@@ -1,3 +1,5 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
+import '../../../widgets/attachment_image.dart';
 import 'dart:async';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,6 @@ import '../../../models/photo_model.dart';
 import '../../../repositories/photo_repository.dart';
 import '../../../services/cloud_file_service.dart';
 import '../../../services/photo_service.dart';
-import 'dart:io';
 
 class PhotoStep extends StatefulWidget {
 
@@ -54,28 +55,25 @@ class _PhotoStepState
 
   }
 
+  PhotoModel? pendingPhoto;
+
+  Future<void> _savePickedPhoto(PhotoModel photo) async {
+    if (mounted) setState(() => pendingPhoto = photo);
+    await repository.savePhoto(photo);
+    if (mounted) setState(() => pendingPhoto = null);
+  }
+
+  Future<void> _nextAfterUploads() async {
+    if (pendingPhoto != null) await _savePickedPhoto(pendingPhoto!);
+    await widget.onNext();
+  }
+
   Future<void> loadPhotos() async {
 
     photos = await repository.getPhotos(
       widget.application.id!,
     );
 
-    // Cloud: download photos taken on other devices.
-    for (final photo in photos) {
-      if (photo.photoPath.isEmpty) continue;
-      try {
-        await CloudFileService.ensureLocal(
-          bucket: CloudFileService.photosBucket,
-          key: CloudFileService.photoKey(
-            widget.application.officeNumber,
-            photo.photoPath,
-          ),
-          localPath: photo.photoPath,
-        );
-      } catch (_) {
-        // Offline; show whatever is available locally.
-      }
-    }
 
     if (mounted) {
 
@@ -90,7 +88,7 @@ class _PhotoStepState
 
     return Scaffold(
 
-      appBar: AppBar(
+      appBar: AppBar(actions: [IconButton(tooltip: 'Refresh attachments', icon: const Icon(Icons.refresh), onPressed: workflowAction(context, loadPhotos))],
 
         title: const Text(
           "Inspection Photos",
@@ -108,7 +106,7 @@ class _PhotoStepState
 
             Card(
 
-              child: ListTile(
+              child: AdaptiveDocumentTile(
 
                 leading: const Icon(
                   Icons.photo,
@@ -129,6 +127,16 @@ class _PhotoStepState
 
             const SizedBox(height: 15),
 
+            if (pendingPhoto != null)
+              Card(child: AdaptiveDocumentTile(
+                title: const Text('Photo upload has not finished'),
+                subtitle: const Text('The photo is kept on this device. Retry to make it available on other devices.'),
+                trailing: TextButton(onPressed: workflowAction(context, () async {
+                  await _savePickedPhoto(pendingPhoto!);
+                  await loadPhotos();
+                }), child: const Text('RETRY UPLOAD')),
+              )),
+
             ResponsiveActions(
 
               children: [
@@ -143,7 +151,7 @@ class _PhotoStepState
                       "Camera",
                     ),
 
-                    onPressed: workflowAction(context, () async {
+                    onPressed: workflowAction(context, pendingPhoto != null ? null : () async {
 
   final file = await photoService.takePhoto(
 
@@ -155,7 +163,7 @@ class _PhotoStepState
 
   final now = DateTime.now();
 
-  await repository.savePhoto(
+  await _savePickedPhoto(
 
     PhotoModel(
 
@@ -181,11 +189,6 @@ class _PhotoStepState
 
   );
 
-  // Cloud: photo travels to other devices.
-  CloudFileService.uploadPhoto(
-    widget.application.officeNumber,
-    file,
-  );
 
   await loadPhotos();
 
@@ -203,7 +206,7 @@ class _PhotoStepState
                       "Gallery",
                     ),
 
-                    onPressed: workflowAction(context, () async {
+                    onPressed: workflowAction(context, pendingPhoto != null ? null : () async {
 
   final file =
       await photoService.pickFromGallery(
@@ -216,7 +219,7 @@ class _PhotoStepState
 
   final now = DateTime.now();
 
-  await repository.savePhoto(
+  await _savePickedPhoto(
 
     PhotoModel(
 
@@ -243,11 +246,6 @@ class _PhotoStepState
 
   );
 
-  // Cloud: photo travels to other devices.
-  CloudFileService.uploadPhoto(
-    widget.application.officeNumber,
-    file,
-  );
 
   await loadPhotos();
 
@@ -291,7 +289,7 @@ class _PhotoStepState
 
                         return Card(
 
-                          child: ListTile(
+                          child: AdaptiveDocumentTile(
 
                             leading: ClipRRect(
 
@@ -299,9 +297,7 @@ class _PhotoStepState
 
       BorderRadius.circular(8),
 
-  child: Image.file(
-
-    File(photo.photoPath),
+  child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
 
     width: 60,
 
@@ -356,8 +352,7 @@ class _PhotoStepState
 
                   InteractiveViewer(
 
-                    child: Image.file(
-                      File(photo.photoPath),
+                    child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
                       fit: BoxFit.contain,
                     ),
 
@@ -513,7 +508,7 @@ class _PhotoStepState
                 ElevatedButton(
 
                     onPressed:
-                        workflowAction(context, widget.onNext),
+                        workflowAction(context, _nextAfterUploads),
 
                     child: const Text(
                       "NEXT",

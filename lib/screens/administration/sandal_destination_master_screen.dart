@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/master_repository.dart';
@@ -88,6 +89,8 @@ class _SandalDestinationMasterScreenState
                   ),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
                     value: mapping,
                     decoration: const InputDecoration(
                       labelText: 'Applies To',
@@ -232,7 +235,7 @@ class _SandalDestinationMasterScreenState
                         horizontal: 10,
                         vertical: 5,
                       ),
-                      child: ListTile(
+                      child: AdaptiveDocumentTile(
                         leading: CircleAvatar(
                           child: Text('${index + 1}'),
                         ),

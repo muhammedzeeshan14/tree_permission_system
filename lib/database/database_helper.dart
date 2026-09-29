@@ -1,3 +1,4 @@
+import 'timber_species_seed.dart';
 import '../repositories/revenue_reply_repository.dart';
 import '../repositories/tree_officer_repository.dart';
 import '../repositories/officer_repository.dart';
@@ -792,6 +793,7 @@ await _createSyncQueueTable(db);
 await _ensureFreshSyncColumns(db);
 await _createOfficeCounterTable(db);
 await seedDevelopmentData(db);
+await seedTimberSpeciesDefaults(db);
   }
 
 Future<void> _onUpgrade(

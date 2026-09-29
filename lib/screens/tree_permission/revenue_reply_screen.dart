@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/application_refresh_button.dart';
 import '../../widgets/workflow_action.dart';
 import 'dart:async';
@@ -50,29 +51,13 @@ class _PendingRevenueOpinionScreenState
   }
 
   Future<List<ApplicationModel>> _load() async {
-    final all = await ApplicationRepository().getApplications(onlineEquals: {'createdBy': SessionService.instance.userId}, onlineStatuses: [WorkflowStatus.pendingRevenueOpinion, WorkflowStatus.completed]);
-    final result = <ApplicationModel>[];
-    for (final app in all) {
-      if (app.createdBy != SessionService.instance.userId) continue;
-      final current =
-          await RevenueReplyRepository().current(app.id!);
-      if (app.status == WorkflowStatus.pendingRevenueOpinion &&
-          current?.stage == 'pending') {
-        result.add(app);
-        continue;
-      }
-      // Completed but applicant never applied online: stay visible
-      // so the caseworker can reopen and enter the number later.
-      if (app.status == WorkflowStatus.completed &&
-          current?.stage == 'completed' &&
-          current!.answers['onlineApplicationStatus'] ==
-              RevenueReply.onlineNotApplied &&
-          (current.answers['onlineApplicationNumber'] ?? '')
-              .trim()
-              .isEmpty) {
-        result.add(app);
-      }
-    }
+    final all = await ApplicationRepository().getApplications(
+      onlineEquals: {'createdBy': SessionService.instance.userId},
+      onlineStatuses: [WorkflowStatus.pendingRevenueOpinion],
+    );
+    final result = all.where((app) =>
+        app.createdBy == SessionService.instance.userId &&
+        app.status == WorkflowStatus.pendingRevenueOpinion).toList();
     return result;
   }
 
@@ -158,7 +143,11 @@ class _RevenueReplyWorkflowScreenState
 
   Future<void> _load() async {
     try {
-      final current = await repository.current(widget.application.id!);
+      var current = await repository.current(widget.application.id!);
+      if (!widget.rfo && current?.stage == 'printing') {
+        await repository.markPrinted(current!, openedForEntry: true);
+        current = await repository.current(widget.application.id!);
+      }
       final options = widget.rfo
           ? await RevenueOpinionRepository().getActive()
           : <RevenueOpinionModel>[];
@@ -308,10 +297,8 @@ class _RevenueReplyWorkflowScreenState
             : null,
         includeOnline: !isSandal,
       );
-      widget.application.status =
-          current.answers['nature'] == RevenueReply.wrongAuthority
-          ? WorkflowStatus.pendingRevenueOpinion
-          : WorkflowStatus.completed;
+      final saved = await ApplicationRepository().getById(widget.application.id!);
+      if (saved != null) widget.application.status = saved.status;
       if (mounted && file == null) {
         await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
           title: const Text('Application completed'),
@@ -345,7 +332,7 @@ class _RevenueReplyWorkflowScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                AdaptiveRow(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
@@ -369,9 +356,7 @@ class _RevenueReplyWorkflowScreenState
                   ],
                 ),
                 const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+                Wrap(spacing: 8, runSpacing: 8,
                     children: [
                       for (final decision in [
                         'Approve',
@@ -409,7 +394,6 @@ class _RevenueReplyWorkflowScreenState
                         ),
                     ],
                   ),
-                ),
               ],
             ),
           ),
@@ -418,7 +402,7 @@ class _RevenueReplyWorkflowScreenState
   );
   String get _satisfiedOutcomeMessage {
     if (isSandal) {
-      return 'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and completes the application.';
+      return 'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and moves the application to RFO Approved Print.';
     }
     final selected = treeOfficers.where((row) => row['id'] == selectedTreeOfficerId);
     if (selected.isEmpty) return 'Select Tree officer to determine the final approval action.';
@@ -427,13 +411,13 @@ class _RevenueReplyWorkflowScreenState
         case PrivateLandOutcome.onlinePermission:
           return 'Give online permission in Aranya website. Final Approval completes the application without generating a letter.';
         case PrivateLandOutcome.applicantLetter:
-          return 'Final Approval generates the RFO PL approval applicant letter and completes the application.';
+          return 'Final Approval generates the RFO PL approval applicant letter and moves the application to RFO Approved Print.';
         case PrivateLandOutcome.treeOfficerLetter:
           if (reply?.answers['onlineApplicationStatus'] ==
               RevenueReply.onlineNotApplied) {
             return 'Online application is not applied. Final Approval generates only the apply-online letter; the case stays open until the online number is entered.';
           }
-          return 'Final Approval generates the RFO PL approval letter addressed to the selected Tree Officer and completes the application.';
+          return 'Final Approval generates the RFO PL approval letter addressed to the selected Tree Officer and moves the application to RFO Approved Print.';
       }
     } catch (e) { return e.toString().replaceFirst('Bad state: ', ''); }
   }
@@ -513,7 +497,7 @@ class _RevenueReplyWorkflowScreenState
         Text(
           reply!.answers['nature'] == RevenueReply.satisfied
               ? _satisfiedOutcomeMessage
-              : 'Final approval generates the RFO private land rejection letter and completes the application.',
+              : 'Final approval generates the RFO private land rejection letter and moves the application to RFO Approved Print.',
         ),
     ],
   );
@@ -550,7 +534,7 @@ class _RevenueReplyWorkflowScreenState
             if (busy) const LinearProgressIndicator(),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
+              child: AdaptiveRow(
                 children: [
                   OutlinedButton(
                     onPressed: workflowAction(context, busy
@@ -709,6 +693,8 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
   Widget _answer(String field) {
     if (field == 'nature')
       return DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
         initialValue: RevenueReply.natures.contains(controllers[field]!.text)
             ? controllers[field]!.text
             : null,
@@ -725,6 +711,8 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
       );
     if (field == 'onlineApplicationStatus')
       return DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
         initialValue: RevenueReply.onlineStatuses
                 .contains(controllers[field]!.text)
             ? controllers[field]!.text
@@ -790,7 +778,7 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
                     includeOnline: !isSandal))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: Row(
+                    child: AdaptiveRow(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
@@ -818,7 +806,7 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
           if (busy) const LinearProgressIndicator(),
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: AdaptiveRow(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 OutlinedButton(

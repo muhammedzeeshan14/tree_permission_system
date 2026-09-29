@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/application_repository.dart';
@@ -795,7 +796,7 @@ const Align(
   ),
 ),
 
-Row(
+AdaptiveRow(
   children: [
 
     Expanded(
@@ -868,6 +869,8 @@ TextFormField(
             const SizedBox(height: 15),
 
             DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
   value: applicationTypeList.any(
           (e) => e["shortCode"] == applicationType)
       ? applicationType
@@ -937,6 +940,8 @@ if (isGovernmentCategory && !isMcc) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: governmentAgencyList.any(
       (item) => item["id"] == governmentAgencyId,
     )
@@ -966,6 +971,8 @@ if (isPrivateCategory) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: urbanRuralList.any(
       (item) => item["id"] == urbanRuralId,
     )
@@ -995,6 +1002,8 @@ if (requiresWhyRemovingAndPurpose) ...[
   const SizedBox(height: 15),
 
 DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
   value: whyRemovingList.any(
     (item) => item["id"] == whyRemovingId,
   )
@@ -1038,6 +1047,8 @@ DropdownButtonFormField<int>(
 const SizedBox(height: 15),
 
 DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
   value: purposeList.any(
     (item) => item["id"] == purposeId,
   )
@@ -1086,6 +1097,8 @@ if (showsAdditionalWorkDetails) ...[
   const SizedBox(height: 15),
 
   DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: structureTypeList.any(
       (item) => item["id"] == structureTypeId,
     )
@@ -1127,6 +1140,8 @@ if (showsAdditionalWorkDetails) ...[
             const SizedBox(height: 15),
 
 DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
   value: sectionList.any(
         (e) => e["sectionName"] == section)
@@ -1173,6 +1188,8 @@ DropdownButtonFormField<String>(
 const SizedBox(height: 15),
 
 DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
   value: beatList.any(
         (e) => e["beatName"] == beat)

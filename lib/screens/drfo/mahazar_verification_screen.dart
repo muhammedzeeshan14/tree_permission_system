@@ -217,6 +217,8 @@ String get endTimeDisplay {
         ),
 
         content: DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
 
           value: selectedReason,
 

@@ -1,3 +1,7 @@
+import '../../services/deferred_reason_labels.dart';
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
+import '../../services/cloud_file_service.dart';
+import '../../widgets/attachment_image.dart';
 import '../../widgets/inspection_exit_guard.dart';
 import '../../widgets/workflow_action.dart';
 import '../../repositories/revenue_reply_repository.dart';
@@ -1400,7 +1404,7 @@ Widget _governmentFinalPage() {
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
       const SizedBox(height: 20),
       const Text(
-          'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and completes the application.'),
+          'Final Approval generates the RFO sandal approval letter addressed to the DCF officer and moves the application to RFO Approved Print.'),
       const SizedBox(height: 16),
       const Text(
           'Finalized letters will be available to the caseworker for printing.'),
@@ -1425,16 +1429,18 @@ Widget _governmentFinalPage() {
   ),
   if (governmentPermission == 'Valuation' && !isMccApplication) ...[
     const SizedBox(height: 20),
-    DropdownButtonFormField<bool>(initialValue: governmentKhata, decoration: const InputDecoration(labelText: 'Whether khata details given?', border: OutlineInputBorder()),
+    DropdownButtonFormField<bool>(
+ itemHeight: null,
+ isExpanded: true,initialValue: governmentKhata, decoration: const InputDecoration(labelText: 'Whether khata details given?', border: OutlineInputBorder()),
       items: const [DropdownMenuItem(value: true, child: Text('Yes')), DropdownMenuItem(value: false, child: Text('No'))],
       onChanged: governmentBusy ? null : (v) async {setState(() => governmentKhata = v); await _saveGovernmentOptions();},
     ),
     const SizedBox(height: 20),
-    Text(governmentKhata == false ? 'Final Approval generates a document request to the applicant and moves the case to Pending Government land approvals.' : 'Final Approval generates the RFO GL valuation letter to the selected Tree Officer and completes the application.'),
+    Text(governmentKhata == false ? 'Final Approval generates a document request to the applicant and sends the case to RFO Approved Print. Viewing or printing the request then moves it to Pending Government land approvals.' : 'Final Approval generates the RFO GL valuation letter to the selected Tree Officer and moves the application to RFO Approved Print.'),
   ],
   if (governmentPermission == 'Valuation' && isMccApplication) ...[
     const SizedBox(height: 20),
-    const Text('Final Approval generates the RFO GL valuation letter to the selected Tree Officer and completes the application.'),
+    const Text('Final Approval generates the RFO GL valuation letter to the selected Tree Officer and moves the application to RFO Approved Print.'),
   ],
   if (GovernmentApproval.types.contains(governmentPermission)) ...[
     const SizedBox(height: 20),
@@ -1444,7 +1450,7 @@ Widget _governmentFinalPage() {
     ),
   ],
   if (governmentPermission == 'Auction') ...[
-    const SizedBox(height: 20), const Text('Final Approval generates the RFO DO letter and Taggu Bele Patti, then completes the application.'),
+    const SizedBox(height: 20), const Text('Final Approval generates the RFO DO letter and Taggu Bele Patti, then moves the application to RFO Approved Print.'),
   ],
   const SizedBox(height: 16), const Text('Finalized letters will be available to the caseworker for printing.'),
   if (governmentBusy) const LinearProgressIndicator(),
@@ -1463,7 +1469,7 @@ Future<void> _finalizeGovernmentApproval() async {
       await documentService.generateRfoSandalGovtApprovalLetter(
         widget.application,
       );
-      widget.application.status = WorkflowStatus.completed;
+      widget.application.status = WorkflowStatus.approved;
       await applicationRepository.updateApplication(
         widget.application,
       );
@@ -1483,7 +1489,7 @@ Future<void> _finalizeGovernmentApproval() async {
     widget.application.rfoApprovalDate = date;
     final files = await documentService.generateGovernmentLandLetters(widget.application, record);
     await governmentRepository.finishInitial(record, files.map((f) => f.path).toList(), date);
-    widget.application.status = record.permissionType == 'Valuation' && record.khataGiven == false ? WorkflowStatus.pendingGovernmentLandApprovals : WorkflowStatus.completed;
+    widget.application.status = WorkflowStatus.approved;
     if (mounted) Navigator.pop(context, true);
   } catch (e) {
     widget.application.rfoApprovalDate = previousDate;
@@ -1692,11 +1698,8 @@ if (applicationType == "RTC") {
   );
 }
 
-// Branch permission remains Approved until its letter prints successfully.
-  // Preserve the existing finalization behavior for other routes.
-  if (needsBranchPermission || widget.application.status != WorkflowStatus.completed) {
-    widget.application.status = WorkflowStatus.approved;
-  }
+// Every final decision awaits the caseworker's view/print action.
+widget.application.status = WorkflowStatus.approved;
 
   await applicationRepository.updateApplication(
     widget.application,
@@ -1801,7 +1804,7 @@ Future<void> _saveRfoModifiedApplication() async {
 Widget _buildTreeOfficerSelection() {
   return Padding(
     padding: const EdgeInsets.only(bottom: 20),
-    child: Row(children: [
+    child: AdaptiveRow(children: [
       const Text('Select Tree officer'),
       const SizedBox(width: 16),
       Expanded(child: DropdownButtonFormField<int>(
@@ -1853,6 +1856,8 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: applicationTypeOptions
             .where(
               (item) {
@@ -1975,6 +1980,8 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: governmentAgencyOptions.any(
       (item) =>
           item["id"] ==
@@ -2021,6 +2028,8 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: urbanRuralOptions.any(
       (item) =>
           item["id"] ==
@@ -2065,6 +2074,8 @@ Widget _buildApplicationApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: whyRemovingOptions.any(
       (item) =>
           item["id"] ==
@@ -2114,6 +2125,8 @@ _approvalCard(
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: purposeOptions.any(
       (item) =>
           item["id"] ==
@@ -2167,6 +2180,8 @@ _approvalCard(
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: structureTypeOptions.any(
       (item) =>
           item["id"] ==
@@ -2287,8 +2302,7 @@ Future<void> _showInspectionPhotos() async {
                 child: Column(
                   children: [
                     Expanded(
-                      child: Image.file(
-                        File(photo.photoPath),
+                      child: AttachmentImage(applicationId: photo.applicationId, storedPath: photo.storedPath,
                         width: double.infinity,
                         fit: BoxFit.contain,
                         errorBuilder: (
@@ -2357,7 +2371,7 @@ Future<void> _showUploadedDocuments() async {
             itemBuilder: (context, index) {
               final document = documents[index];
 
-              return ListTile(
+              return AdaptiveDocumentTile(
                 leading: const Icon(Icons.description),
                 title: Text(
                   document.documentTypeName.trim().isEmpty
@@ -2369,9 +2383,7 @@ Future<void> _showUploadedDocuments() async {
                     : Text(document.remarks),
                 trailing: const Icon(Icons.open_in_new),
                 onTap: () async {
-                  await OpenFilex.open(
-                    document.filePath,
-                  );
+                  await CloudFileService.openDocument(document.applicationId, document.storedPath);
                 },
               );
             },
@@ -2818,24 +2830,7 @@ Widget _buildDeferredApprovalPage() {
     );
   }
 
-  final deferredText =
-      selectedDeferredReasons.isEmpty
-          ? "No deferred reasons found."
-          : selectedDeferredReasons
-              .map(
-                (reason) =>
-                    reason["reasonName"]
-                        ?.toString()
-                        .trim() ??
-                    "",
-              )
-              .where(
-                (reason) => reason.isNotEmpty,
-              )
-              .map(
-                (reason) => "• $reason",
-              )
-              .join("\n");
+  final deferredText = deferredReasonSummary(selectedDeferredReasons);
 
   return ListView(
     padding: const EdgeInsets.all(16),
@@ -3093,6 +3088,8 @@ Widget _buildOverallRemarksApprovalPage() {
   reasons: applicationReasons,
   modifyField:
       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
     value: overallRemarkOptions.any(
       (item) =>
           item["id"] ==
@@ -3257,6 +3254,8 @@ Widget _buildRfoFinalDecisionPage() {
                 )
               else
                 DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
                   value: selectedDeferredRfoToKey,
                   decoration:
                       const InputDecoration(
@@ -3305,6 +3304,8 @@ Widget _buildRfoFinalDecisionPage() {
                     .isNotEmpty)
                  DropdownButtonFormField<
     String>(
+ itemHeight: null,
+ isExpanded: true,
   key: ValueKey(
     "rfo_copy_${selectedDeferredRfoToKey ?? 'none'}_"
     "${selectedDeferredRfoCopyKeys.join('_')}",
@@ -3452,7 +3453,7 @@ final approvalPages = <Widget>[
 
         children: [
 
-          Container(
+          ResponsiveHeader(child: Container(
 
             width: double.infinity,
 
@@ -3505,7 +3506,7 @@ final approvalPages = <Widget>[
 
             ),
 
-          ),
+          )),
 
           Expanded(
 
@@ -3532,12 +3533,12 @@ final approvalPages = <Widget>[
 
           ),
 
-          Container(
+          NavigationPanel(
 
             padding:
                 const EdgeInsets.all(15),
 
-            child: Row(
+            child: AdaptiveRow(
 
               children: [
 

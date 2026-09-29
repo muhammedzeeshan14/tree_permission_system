@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'dart:async';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -323,114 +324,33 @@ String? _validateMinute(String? value) {
   }
 
   Widget _timeEntry({
-  required String title,
-  required TextEditingController hourController,
-  required TextEditingController minuteController,
-  required String period,
-  required ValueChanged<String?> onPeriodChanged,
-}) {
-  return Row(
-    crossAxisAlignment:
-        CrossAxisAlignment.start,
-    children: [
-      SizedBox(
-        width: 150,
-        child: Padding(
-          padding:
-              const EdgeInsets.only(top: 18),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+    required String title,
+    required TextEditingController hourController,
+    required TextEditingController minuteController,
+    required String period,
+    required ValueChanged<String?> onPeriodChanged,
+  }) {
+    Widget number(TextEditingController controller, String label, String hint,
+        String? Function(String?) validator) => TextFormField(
+      controller:controller, keyboardType:TextInputType.number,
+      inputFormatters:[FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+      validator:validator, textAlign:TextAlign.center,
+      decoration:InputDecoration(labelText:label,hintText:hint,
+        counterText:'',border:const OutlineInputBorder()),
+    );
+    return TimeEntryLayout(
+      title:Text(title,style:const TextStyle(fontWeight:FontWeight.bold)),
+      hour:number(hourController,'HH','09',_validateHour),
+      minute:number(minuteController,'MM','30',_validateMinute),
+      period:DropdownButtonFormField<String>(
+        value:period,isExpanded:true,
+        decoration:const InputDecoration(labelText:'AM/PM',border:OutlineInputBorder()),
+        items:const [DropdownMenuItem(value:'AM',child:Text('AM')),
+          DropdownMenuItem(value:'PM',child:Text('PM'))],
+        onChanged:onPeriodChanged,
       ),
-
-      SizedBox(
-        width: 100,
-        child: TextFormField(
-          controller: hourController,
-          keyboardType:
-              TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter
-                .digitsOnly,
-            LengthLimitingTextInputFormatter(2),
-          ],
-          validator: _validateHour,
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            labelText: "HH",
-            hintText: "09",
-            counterText: "",
-            border: OutlineInputBorder(),
-          ),
-        ),
-      ),
-
-      const Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 12,
-        ),
-        child: Text(
-          ":",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-
-      SizedBox(
-        width: 100,
-        child: TextFormField(
-          controller: minuteController,
-          keyboardType:
-              TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter
-                .digitsOnly,
-            LengthLimitingTextInputFormatter(2),
-          ],
-          validator: _validateMinute,
-          textAlign: TextAlign.center,
-          decoration: const InputDecoration(
-            labelText: "MM",
-            hintText: "30",
-            counterText: "",
-            border: OutlineInputBorder(),
-          ),
-        ),
-      ),
-
-      const SizedBox(width: 12),
-
-      SizedBox(
-        width: 110,
-        child: DropdownButtonFormField<String>(
-          value: period,
-          decoration: const InputDecoration(
-            labelText: "AM/PM",
-            border: OutlineInputBorder(),
-          ),
-          items: const [
-            DropdownMenuItem(
-              value: "AM",
-              child: Text("AM"),
-            ),
-            DropdownMenuItem(
-              value: "PM",
-              child: Text("PM"),
-            ),
-          ],
-          onChanged: onPeriodChanged,
-        ),
-      ),
-    ],
-  );
-}
+    );
+  }
 
   Widget _boundaryEntry({
     required String direction,
@@ -441,7 +361,7 @@ String? _validateMinute(String? value) {
     return Padding(
       padding:
           const EdgeInsets.only(bottom: 16),
-      child: Row(
+      child: AdaptiveRow(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
@@ -463,6 +383,8 @@ String? _validateMinute(String? value) {
             flex: 2,
             child:
                 DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
               value: locationList.any(
                 (item) =>
                     item["id"] ==

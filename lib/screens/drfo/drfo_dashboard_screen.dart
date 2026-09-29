@@ -1,3 +1,4 @@
+import '../../widgets/application_search_action.dart';
 import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
@@ -267,6 +268,7 @@ Widget build(BuildContext context) {
       ),
 
       actions: [
+            const ApplicationSearchAction(),
         IconButton(
           icon: const Icon(Icons.refresh),
           tooltip: 'Refresh',

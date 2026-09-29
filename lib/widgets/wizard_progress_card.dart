@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 class WizardProgressCard extends StatelessWidget {
@@ -40,7 +41,7 @@ Widget build(BuildContext context) {
 
         children: [
 
-          Row(
+          AdaptiveRow(
 
             children: [
 

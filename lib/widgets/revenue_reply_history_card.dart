@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 import '../models/revenue_reply_model.dart';
 import '../repositories/revenue_reply_repository.dart';
@@ -61,7 +62,7 @@ class _RevenueReplyHistoryCardState extends State<RevenueReplyHistoryCard> {
                           'onlineApplicationStatus')))
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Row(
+                      child: AdaptiveRow(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(

@@ -1,3 +1,4 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/master_repository.dart';
@@ -158,6 +159,8 @@ class _PoleRateMasterScreenState
                     children: [
 
                       DropdownButtonFormField<int>(
+ itemHeight: null,
+ isExpanded: true,
   value: selectedSpeciesId,
 
   decoration: const InputDecoration(
@@ -185,7 +188,7 @@ class _PoleRateMasterScreenState
                         height: 15,
                       ),
 
-                      Row(
+                      AdaptiveRow(
                         children: [
 
                           Expanded(
@@ -239,7 +242,7 @@ class _PoleRateMasterScreenState
                         height: 15,
                       ),
 
-                      Row(
+                      AdaptiveRow(
                         children: [
 
                           Expanded(

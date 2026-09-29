@@ -132,6 +132,8 @@ Future<void> showMasterDialog({
 
                     if (isPurposeMaster) ...[
                       DropdownButtonFormField<String>(
+ itemHeight: null,
+ isExpanded: true,
                         value: whyRemovingMasters.any(
                           (parent) =>
                               parent["code"]

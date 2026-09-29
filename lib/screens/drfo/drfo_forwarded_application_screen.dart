@@ -1,7 +1,11 @@
+import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../widgets/application_refresh_button.dart';
 import '../../widgets/workflow_action.dart';
 import '../../repositories/application_repository.dart';
+import '../../repositories/application_completion_repository.dart';
+import '../../services/session_service.dart';
 import '../../repositories/revenue_reply_repository.dart';
+import '../../repositories/government_approval_repository.dart';
 import '../../models/revenue_reply_model.dart';
 import '../../constants/workflow_status.dart';
 import 'dart:io';
@@ -82,6 +86,11 @@ if (widget.rfoApprovedOnly && _application.status == WorkflowStatus.pendingReven
   if (current != null) { revenueReply = current; }
   else if (requests.isNotEmpty) { revenueReply = await RevenueReplyRepository().ensureLegacyRequest(_application, requests.first.path); }
 }
+final government = widget.rfoApprovedOnly
+    ? await GovernmentApprovalRepository().get(_application.id!) : null;
+if (widget.rfoApprovedOnly && _application.status == WorkflowStatus.approved) {
+  revenueReply = await RevenueReplyRepository().current(_application.id!);
+}
 final files = widget.rfoApprovedOnly
     ? allFiles.where((file) {
         final fileName = file.path
@@ -89,7 +98,37 @@ final files = widget.rfoApprovedOnly
             .last
             .toUpperCase();
 
-        if (_application.status == WorkflowStatus.pendingRevenueOpinion && revenueReply != null) return _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase();
+        if (_application.status == WorkflowStatus.pendingRevenueOpinion && revenueReply != null) {
+          final pendingLetter = revenueReply!.finalLetterPath.contains('APPLY_ONLINE')
+              ? revenueReply!.finalLetterPath : revenueReply!.requestLetterPath;
+          return _baseName(file.path).toUpperCase() == _baseName(pendingLetter).toUpperCase();
+        }
+        if (_application.status == WorkflowStatus.pendingGovernmentLandApprovals &&
+            government != null) {
+          return _baseName(file.path).toUpperCase() ==
+              _baseName(government.requestLetterPath).toUpperCase();
+        }
+        if (_application.status == WorkflowStatus.approved) {
+          if (revenueReply != null &&
+              {'pending', 'printing'}.contains(revenueReply!.stage)) {
+            final path = revenueReply!.finalLetterPath.toUpperCase().contains('APPLY_ONLINE')
+                ? revenueReply!.finalLetterPath : revenueReply!.requestLetterPath;
+            return fileName == _baseName(path).toUpperCase();
+          }
+          if (government != null && government.stage == 'pending') {
+            return fileName == _baseName(government.requestLetterPath).toUpperCase();
+          }
+          if (revenueReply != null && revenueReply!.finalLetterPath.isNotEmpty) {
+            return fileName == _baseName(revenueReply!.finalLetterPath).toUpperCase();
+          }
+          if (government != null && government.finalPaths.isNotEmpty) {
+            return government.finalPaths.any((path) =>
+                _baseName(path).toUpperCase() == fileName);
+          }
+          if (fileName.contains('REVENUE_OPINION_REQUEST') ||
+              fileName.contains('DOCUMENT_REQUEST') ||
+              fileName.contains('APPLY_ONLINE')) return false;
+        }
         return fileName.contains("_RFO_");
       }).toList()
     : allFiles;
@@ -193,47 +232,59 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
         .last;
   }
 
+  Future<void> _recordFinalDocument(File file, String action) async {
+    if (!widget.rfoApprovedOnly ||
+        SessionService.instance.role != 'Case Worker' ||
+        _application.status != WorkflowStatus.approved) return;
+    final complete = await ApplicationCompletionRepository().recordSuccessfulAction(
+      applicationId: _application.id!, path: file.path,
+      approvalDate: _application.rfoApprovalDate, action: action,
+    );
+    if (!mounted) return;
+    if (complete) {
+      final latest = await ApplicationRepository().getById(_application.id!);
+      if (!mounted) return;
+      if (latest != null) _application = latest;
+      final message = _application.status == WorkflowStatus.completed
+          ? 'Application completed. Available in Completed Applications.'
+          : 'Request handled. Moved to ${_application.status}.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Action saved. View or print the remaining final document to complete this application.')));
+    }
+  }
+
   Future<void> _openDocument(File file) async {
+    if (printing) return;
+    setState(() => printing = true);
     try {
       await documentService.refreshOfficerAddresses(file);
-      await OpenFilex.open(file.path);
+      final result = await OpenFilex.open(file.path);
+      if (result.type != ResultType.done) {
+        throw StateError('Unable to open document: ${result.message}');
+      }
+      await _recordFinalDocument(file, 'View');
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => printing = false);
     }
   }
 
   Future<void> _printDocument(File file) async {
-  if (printing) return;
-  setState(() => printing = true);
-  try {
-    final printed = await documentService.openPdf(file);
-    if (printed && widget.rfoApprovedOnly &&
-        _application.applicationType.trim().toUpperCase() == 'PL' &&
-        _application.status == WorkflowStatus.approved &&
-        _baseName(file.path).toUpperCase().endsWith('_RFO_PRIVATE_LAND_BRANCH_PERMISSION.PDF')) {
-      // Only this final letter completes this route; viewing/cancellation does not.
-      final repository = ApplicationRepository();
-      final saved = await repository.getByOfficeNumber(_application.officeNumber);
-      if (saved != null && saved.status == WorkflowStatus.approved) {
-        saved.status = WorkflowStatus.completed;
-        await repository.updateApplication(saved);
-        _application.status = WorkflowStatus.completed;
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Letter printed. Application completed.')));
-        Navigator.pop(context, true);
-        return;
-      }
+    if (printing) return;
+    setState(() => printing = true);
+    try {
+      final printed = await documentService.openPdf(file);
+      if (printed) await _recordFinalDocument(file, 'Print');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => printing = false);
     }
-    if (printed && revenueReply?.stage == 'printing' && _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase()) {
-      await RevenueReplyRepository().markPrinted(revenueReply!);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Moved to Pending Revenue Opinion.')));
-      Navigator.pop(context, true);
-    }
-  } catch (e) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-  } finally { if (mounted) setState(() => printing = false); }
-}
+  }
 
   Future<void> _openAttachmentPdf(bool photos) async {
     if (buildingAttachments) return;
@@ -296,7 +347,7 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
+      child: AdaptiveDocumentTile(
         leading: Icon(icon, color: Colors.red, size: 32),
         title: Text(
           title,
@@ -476,7 +527,7 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
                             bottom: 8,
                           ),
 
-                          child: ListTile(
+                          child: AdaptiveDocumentTile(
 
                             leading:
                                 const Icon(
@@ -506,9 +557,7 @@ trailing: Wrap(
       label: const Text(
         'VIEW',
       ),
-      onPressed: workflowAction(context, () {
-        _openDocument(file);
-      }),
+      onPressed: workflowAction(context, printing ? null : () => _openDocument(file)),
     ),
     ElevatedButton.icon(
       icon: const Icon(
@@ -517,9 +566,7 @@ trailing: Wrap(
       label: const Text(
         'PRINT',
       ),
-      onPressed: workflowAction(context, printing ? null : () {
-        _printDocument(file);
-      }),
+      onPressed: workflowAction(context, printing ? null : () => _printDocument(file)),
     ),
   ],
 ),
@@ -561,7 +608,7 @@ trailing: Wrap(
                     icon: Icons.upload_file,
                     title: 'Uploaded Documents (PDF)',
                     subtitle:
-                        '$uploadCount document(s) • 1 A4 page each',
+                        '$uploadCount document(s) • includes all uploaded PDF pages',
                     count: uploadCount,
                     photos: false,
                   ),
@@ -583,7 +630,7 @@ trailing: Wrap(
       padding:
           const EdgeInsets.only(bottom: 9),
 
-      child: Row(
+      child: AdaptiveRow(
         crossAxisAlignment:
             CrossAxisAlignment.start,
 
