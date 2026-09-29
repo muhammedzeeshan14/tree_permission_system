@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:tree_permission_system/models/application_model.dart';
 import 'package:tree_permission_system/screens/bfo/wizard/gps_step.dart';
 
@@ -52,6 +53,16 @@ void main() {
       expect(find.text('Settings'), findsOneWidget);
     });
   }
+  testWidgets('Windows gives manual entry guidance without calling native GPS', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    try {
+    await tester.pumpWidget(MaterialApp(home: GPSStep(application: application(), onNext: () {}, onBack: () {})));
+    final button = find.text('GET CURRENT GPS');
+    await tester.ensureVisible(button); await tester.tap(button); await tester.pumpAndSettle();
+    expect(gps.fixes, 0);
+    expect(find.textContaining('Enter latitude and longitude manually'), findsOneWidget);
+    } finally { debugDefaultTargetPlatformOverride = null; }
+  });
   testWidgets('Invalid coordinate cannot advance', (tester) async {
     int next = 0;
     final app = application()..gpsCoordinates = '91,181';

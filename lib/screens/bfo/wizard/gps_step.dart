@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
@@ -83,18 +84,22 @@ class _GPSStepState extends State<GPSStep> {
   }
 
   Future<void> _captureGps() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      if (!mounted) return;
-      _locationMessage('Turn on Location Services, then capture GPS again.', Geolocator.openLocationSettings);
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux)) {
+      _locationMessage('Automatic GPS capture is available on Android and iPhone. Enter latitude and longitude manually on this computer.');
       return;
     }
-    var permission = await Geolocator.checkPermission();
+    if (!await GeolocatorPlatform.instance.isLocationServiceEnabled()) {
+      if (!mounted) return;
+      _locationMessage('Turn on Location Services, then capture GPS again.', GeolocatorPlatform.instance.openLocationSettings);
+      return;
+    }
+    var permission = await GeolocatorPlatform.instance.checkPermission();
     if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      permission = await GeolocatorPlatform.instance.requestPermission();
     }
     if (!mounted) return;
     if (permission == LocationPermission.deniedForever) {
-      _locationMessage('Allow location access in app settings, then capture GPS again.', Geolocator.openAppSettings);
+      _locationMessage('Allow location access in app settings, then capture GPS again.', GeolocatorPlatform.instance.openAppSettings);
       return;
     }
     if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
@@ -102,7 +107,7 @@ class _GPSStepState extends State<GPSStep> {
       return;
     }
     try {
-      final position = await Geolocator.getCurrentPosition(
+      final position = await GeolocatorPlatform.instance.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 30)),
       );
       if (!mounted) return;

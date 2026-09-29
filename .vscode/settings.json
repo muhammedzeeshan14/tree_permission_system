@@ -1,0 +1,11 @@
+{
+  "dart.analysisExcludedFolders": [
+    "${workspaceFolder}/work/runtime"
+  ],
+  "files.exclude": {
+    "work/runtime": true
+  },
+  "files.watcherExclude": {
+    "**/work/runtime/**": true
+  }
+}
