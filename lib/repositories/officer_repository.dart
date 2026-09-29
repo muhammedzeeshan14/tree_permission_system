@@ -72,7 +72,7 @@ class OfficerRepository {
     });
   }
   static String formatAddress(Map<String,dynamic> row,{bool copyTo=false}) {
-    String line(String key) => (row[key]?.toString()??'').replaceAll(RegExp(r'\s+'),' ').trim();
+    String line(String key) => (row[key]?.toString() ?? '').split(RegExp(r'[\r\n]+')).map((part) => part.replaceAll(RegExp(r'\s+'), ' ').trim()).where((part) => part.isNotEmpty).join(copyTo ? ', ' : '\n');
     final designation=line('designation'), address=line('postingAddress');
     if(designation.isEmpty || address.isEmpty) throw StateError('Complete the officer designation and posting address in Administration > Officers.');
     return designation+(copyTo?', ':'\n')+address;

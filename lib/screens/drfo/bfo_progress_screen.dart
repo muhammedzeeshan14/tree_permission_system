@@ -1,9 +1,11 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../repositories/application_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
 import '../../widgets/application_card.dart';
 
-class BFOProgressScreen extends StatelessWidget {
+class BFOProgressScreen extends StatefulWidget {
 
   final ApplicationModel application;
 
@@ -16,11 +18,24 @@ class BFOProgressScreen extends StatelessWidget {
   });
 
   @override
+  State<BFOProgressScreen> createState() => _BFOProgressScreenState();
+}
+class _BFOProgressScreenState extends State<BFOProgressScreen> {
+  late ApplicationModel application;
+  @override
+  void initState() { super.initState(); application = widget.application; }
+  Future<void> _refresh() async {
+    final updated = await ApplicationRepository().getById(application.id!);
+    if (!mounted) return;
+    if (updated == null) throw StateError('Application no longer available.');
+    setState(() => application = updated);
+  }
+  @override
   Widget build(BuildContext context) {
 
     return Scaffold(
 
-      appBar: AppBar(
+      appBar: AppBar(actions: [ApplicationRefreshButton(onRefresh: _refresh)],
 
         title: const Text(
 

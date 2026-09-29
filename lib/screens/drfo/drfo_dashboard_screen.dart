@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -269,7 +270,7 @@ Widget build(BuildContext context) {
         IconButton(
           icon: const Icon(Icons.refresh),
           tooltip: 'Refresh',
-          onPressed: _refresh,
+          onPressed: workflowAction(context, _refresh),
         ),
       ],
 

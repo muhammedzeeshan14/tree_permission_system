@@ -1,3 +1,4 @@
+import 'felling_exempted_species_screen.dart';
 import 'package:flutter/material.dart';
 
 import 'generic_master_screen.dart';
@@ -246,6 +247,7 @@ Card(
   ),
 ),
 
+Card(child: ListTile(leading: const Icon(Icons.forest), title: const Text('Felling Exempted Species'), trailing: const Icon(Icons.arrow_forward_ios), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FellingExemptedSpeciesScreen())))),
 masterTile(
   context,
   "Tree Status",

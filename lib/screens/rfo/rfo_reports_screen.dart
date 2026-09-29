@@ -1,3 +1,5 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -326,6 +328,7 @@ class _RfoReportsScreenState extends State<RfoReportsScreen> {
         centerTitle: true,
         title: const Text('RFO Reports'),
         actions: [
+          ApplicationRefreshButton(onRefresh: _generate),
           if (_generated)
             IconButton(
               icon: _printing
@@ -339,7 +342,7 @@ class _RfoReportsScreenState extends State<RfoReportsScreen> {
                     )
                   : const Icon(Icons.print),
               tooltip: 'Print',
-              onPressed: _printing ? null : _print,
+              onPressed: workflowAction(context, _printing ? null : _print),
             ),
         ],
       ),
@@ -370,7 +373,7 @@ class _RfoReportsScreenState extends State<RfoReportsScreen> {
                     width: double.infinity,
                     height: 48,
                     child: ElevatedButton.icon(
-                      onPressed: _loading ? null : _generate,
+                      onPressed: workflowAction(context, _loading ? null : _generate),
                       icon: _loading
                           ? const SizedBox(
                               width: 18,
@@ -407,7 +410,7 @@ class _RfoReportsScreenState extends State<RfoReportsScreen> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: _printing ? null : _print,
+                onPressed: workflowAction(context, _printing ? null : _print),
                 icon: const Icon(Icons.print),
                 label: const Text('Print (A4 Landscape)'),
               ),

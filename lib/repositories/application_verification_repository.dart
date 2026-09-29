@@ -168,18 +168,10 @@ String? documentsStatus,
           "documentsStatus": documentsStatus,
           "verifiedBy": verifiedBy,
         };
-        await OnlineDatabase.delete(
-          "application_verifications",
-          column: "applicationId",
-          value: applicationId,
-        );
-        await OnlineDatabase.insert(
-          "application_verifications",
-          row,
-        );
+        await OnlineDatabase.upsert('application_verifications', row, onConflict: 'applicationId');
         return;
       } catch (_) {
-        /* fall through to local */
+        rethrow;
       }
     }
     final db = await _db;

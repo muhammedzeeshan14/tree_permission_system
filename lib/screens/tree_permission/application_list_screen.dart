@@ -1,3 +1,4 @@
+import '../../widgets/application_refresh_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -207,6 +208,7 @@ case "Approved":
     return Scaffold(
 
       appBar: AppBar(
+        actions: [ApplicationRefreshButton(onRefresh: loadApplications)],
 
         centerTitle: true,
 

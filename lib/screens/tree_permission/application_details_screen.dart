@@ -1,3 +1,5 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../widgets/workflow_action.dart';
 import 'revenue_reply_screen.dart';
 import 'government_approval_screen.dart';
 import '../../repositories/government_approval_repository.dart';
@@ -28,6 +30,16 @@ State<ApplicationDetailsScreen> createState() =>
 
 class _ApplicationDetailsScreenState
     extends State<ApplicationDetailsScreen> {
+late ApplicationModel _application;
+Future<void> _refreshApplication() async {
+  final latest = await ApplicationRepository().getById(_application.id!);
+  if (!mounted) return;
+  if (latest == null) throw StateError('Application no longer available.');
+  _application = latest;
+  await Future.wait([loadHistory(), loadAdditionalApplicationDetails()]);
+  if (mounted) setState(() {});
+}
+
 
 List<Map<String,dynamic>> history=[];
 final session = SessionService.instance;
@@ -38,7 +50,7 @@ String structureTypeName = "";
 
 bool get isGovernmentCategory {
   final type =
-      widget.application.applicationType.trim().toUpperCase();
+      _application.applicationType.trim().toUpperCase();
 
   return type == "GL" ||
       type == "STGL" ||
@@ -48,7 +60,7 @@ bool get isGovernmentCategory {
 }
 
 bool get isMcc {
-  return widget.application.applicationType
+  return _application.applicationType
           .trim()
           .toUpperCase() ==
       "MCC";
@@ -56,7 +68,7 @@ bool get isMcc {
 
 bool get isPrivateCategory {
   final type =
-      widget.application.applicationType.trim().toUpperCase();
+      _application.applicationType.trim().toUpperCase();
 
   return type == "PL" || type == "SPL";
 }
@@ -76,6 +88,7 @@ bool get isRFO => session.role == "RFO";
 void initState(){
 
   super.initState();
+  _application = widget.application;
 
   loadHistory();
   loadAdditionalApplicationDetails();
@@ -85,9 +98,9 @@ void initState(){
 Future<void> loadHistory() async{
 
   history=await HistoryRepository().getHistory(
-      widget.application.officeNumber);
+      _application.officeNumber);
 
-  setState((){});
+  if (mounted) setState((){});
 
 }
 
@@ -96,17 +109,17 @@ Future<void> loadAdditionalApplicationDetails() async {
 
   final governmentAgency =
       await repository.getMasterById(
-    widget.application.governmentAgencyId,
+    _application.governmentAgencyId,
   );
 
   final urbanRural =
       await repository.getMasterById(
-    widget.application.urbanRuralId,
+    _application.urbanRuralId,
   );
 
   final structureType =
       await repository.getMasterById(
-    widget.application.structureTypeId,
+    _application.structureTypeId,
   );
 
    String displayName(
@@ -157,7 +170,7 @@ Future<void> loadAdditionalApplicationDetails() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(actions: [ApplicationRefreshButton(onRefresh: _refreshApplication)],
         title: const Text("Application Details"),
       ),
       body: SingleChildScrollView(
@@ -169,20 +182,20 @@ Future<void> loadAdditionalApplicationDetails() async {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                detail("Office Number", widget.application.officeNumber),
-                detail("Application Type", widget.application.applicationType),
-                detail("Date of Application", widget.application.applicationDate),
-                detail("Date Received", widget.application.receivedDate),
-                detail("Applicant Name", widget.application.applicantName),
-                detail("Address", widget.application.applicantAddress),
-                detail("Mobile", widget.application.mobile),
-                detail("Section", widget.application.section),
-                detail("Beat", widget.application.beat),
-                detail("Assigned BFO", widget.application.assignedBFO),
-                detail("Assigned DRFO", widget.application.assignedDRFO),
+                detail("Office Number", _application.officeNumber),
+                detail("Application Type", _application.applicationType),
+                detail("Date of Application", _application.applicationDate),
+                detail("Date Received", _application.receivedDate),
+                detail("Applicant Name", _application.applicantName),
+                detail("Address", _application.applicantAddress),
+                detail("Mobile", _application.mobile),
+                detail("Section", _application.section),
+                detail("Beat", _application.beat),
+                detail("Assigned BFO", _application.assignedBFO),
+                detail("Assigned DRFO", _application.assignedDRFO),
                 detail(
   "Purpose",
-  widget.application.purpose,
+  _application.purpose,
 ),
 
 if (isGovernmentCategory && !isMcc)
@@ -206,12 +219,12 @@ if (showsAdditionalWorkDetails)
 if (showsAdditionalWorkDetails)
   detail(
     "Name of Work",
-    widget.application.workName,
+    _application.workName,
   ),
 
 detail(
   "Status",
-  widget.application.status,
+  _application.status,
 ),
 
                 const Divider(),
@@ -282,16 +295,16 @@ history.isEmpty
 // ===============================
 
 if (isCaseWorker &&
-    widget.application.status == "Draft") ...[
+    _application.status == "Draft") ...[
 
   SizedBox(
   width: double.infinity,
   child: ElevatedButton(
-    onPressed: () async {
+    onPressed: workflowAction(context, () async {
 
       final latestApplication =
           await ApplicationRepository().getById(
-        widget.application.id!,
+        _application.id!,
       );
 
       if (!mounted) return;
@@ -338,7 +351,7 @@ if (isCaseWorker &&
 
       }
 
-    },
+    }),
 
     child: const Text(
       "EDIT",
@@ -352,19 +365,9 @@ if (isCaseWorker &&
   SizedBox(
     width: double.infinity,
     child: ElevatedButton(
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
 
-    // Date on which Case Worker forwards
-    // the application to DRFO
-    widget.application.drfoAssignmentDate =
-        DateTime.now().toIso8601String();
-
-    widget.application.status =
-        "Pending DRFO Assignment";
-
-    await ApplicationRepository()
-        .updateApplication(
-            widget.application);
+    await ApplicationRepository().submitToDRFO(_application);
 
         if (!mounted) return;
 
@@ -383,7 +386,7 @@ if (isCaseWorker &&
 
         Navigator.pop(context, true);
 
-      },
+      }),
 
       child: const Text(
         "SUBMIT TO DRFO",
@@ -402,9 +405,9 @@ if (isCaseWorker &&
         backgroundColor: Colors.red,
         foregroundColor: Colors.white,
       ),
-      onPressed: () {
+      onPressed: workflowAction(context, () {
 
-      },
+      }),
       child: const Text(
         "DELETE",
       ),
@@ -418,21 +421,21 @@ if (isCaseWorker &&
 // ===============================
 
 if (isRFO &&
-    widget.application.status ==
+    _application.status ==
         WorkflowStatus.pendingRFOApproval) ...[
 
   SizedBox(
     width: double.infinity,
     child: ElevatedButton(
-      onPressed: () async {
-  final governmentReply = await GovernmentApprovalRepository().get(widget.application.id!);
-  final revenueReply = await RevenueReplyRepository().current(widget.application.id!);
+      onPressed: workflowAction(context, () async {
+  final governmentReply = await GovernmentApprovalRepository().get(_application.id!);
+  final revenueReply = await RevenueReplyRepository().current(_application.id!);
   if (!context.mounted) return;
   final result = await Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => governmentReply?.stage == 'review' ? GovernmentApprovalScreen(application: widget.application, rfo: true) : revenueReply?.stage == 'review' ? RevenueReplyWorkflowScreen(application: widget.application, rfo: true) : RFODecisionScreen(
-        application: widget.application,
+      builder: (_) => governmentReply?.stage == 'review' ? GovernmentApprovalScreen(application: _application, rfo: true) : revenueReply?.stage == 'review' ? RevenueReplyWorkflowScreen(application: _application, rfo: true) : RFODecisionScreen(
+        application: _application,
       ),
     ),
   );
@@ -444,7 +447,7 @@ if (isRFO &&
   if (result == true) {
     Navigator.pop(context, true);
   }
-},
+}),
       child: const Text(
         "OPEN RFO DECISION",
       ),

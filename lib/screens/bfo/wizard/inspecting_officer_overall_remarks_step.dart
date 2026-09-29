@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -14,7 +16,7 @@ class InspectingOfficerOverallRemarksStep
 
   final VoidCallback onBack;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   const InspectingOfficerOverallRemarksStep({
     super.key,
@@ -144,7 +146,7 @@ class _InspectingOfficerOverallRemarksStepState
       saving = false;
     });
 
-    widget.onNext();
+    await widget.onNext();
   }
 
   @override
@@ -226,16 +228,16 @@ class _InspectingOfficerOverallRemarksStepState
                     children: [
                       ElevatedButton(
                           onPressed:
-                              saving
+                              workflowAction(context, saving
                                   ? null
-                                  : widget.onBack,
+                                  : widget.onBack),
                           child: const Text("BACK"),
                         ),
                       ElevatedButton(
                           onPressed:
-                              saving || remarks.isEmpty
+                              workflowAction(context, saving || remarks.isEmpty
                                   ? null
-                                  : saveAndContinue,
+                                  : saveAndContinue),
                           child: saving
                               ? const SizedBox(
                                   width: 22,

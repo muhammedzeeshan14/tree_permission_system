@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -273,7 +274,7 @@ class _DRFOAssignmentScreenState
 
                   child: OutlinedButton(
 
-                    onPressed: saving
+                    onPressed: workflowAction(context, saving
 
                         ? null
                         : () {
@@ -284,7 +285,7 @@ class _DRFOAssignmentScreenState
 
                             );
 
-                          },
+                          }),
 
                     child: const Text(
 
@@ -302,10 +303,10 @@ class _DRFOAssignmentScreenState
 
                   child: ElevatedButton(
 
-                    onPressed: saving
+                    onPressed: workflowAction(context, saving
 
                         ? null
-                        : continueWorkflow,
+                        : continueWorkflow),
 
                     child: saving
 

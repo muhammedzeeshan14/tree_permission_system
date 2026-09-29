@@ -1,3 +1,4 @@
+import '../../widgets/application_refresh_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -61,6 +62,7 @@ class _ApprovedRfoLettersScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        actions: [ApplicationRefreshButton(onRefresh: _loadApplications)],
         title: const Text(
           "Approved RFO - Print Letters",
         ),

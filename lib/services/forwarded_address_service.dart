@@ -47,13 +47,10 @@ class ForwardedAddressService {
     return null;
   }
 
-  static String _twoLines(String first, String second) {
-    final a = first.replaceAll(RegExp(r'\s+'), ' ').trim();
-    final b = second.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (a.isEmpty) return b;
-    if (b.isEmpty) return a;
-    return '$a\n$b';
-  }
+  static String _twoLines(String first, String second) => [first, second]
+      .expand((part) => part.split(RegExp(r'[\r\n]+')))
+      .map((line) => line.replaceAll(RegExp(r'\s+'), ' ').trim())
+      .where((line) => line.isNotEmpty).join('\n');
 
   /// 2-line To address. Falls back to [fallback] text.
   static Future<String> toAddress({
@@ -62,30 +59,16 @@ class ForwardedAddressService {
     required String fallback,
   }) async {
     final normalizedKind = kind.trim().toUpperCase();
-    if (sourceId == null) return fallback;
+    if (sourceId == null || normalizedKind == 'OTHER') return _twoLines(fallback, '');
     if (normalizedKind == 'AGENCY') {
       final row = await _row('revenue_opinion_master', sourceId);
       if (row == null) return fallback;
-      final name =
-          row['kannadaName']?.toString().trim() ?? '';
-      final designation =
-          row['kannadaDesignation']?.toString().trim() ?? '';
-      final address =
-          row['kannadaOfficeAddress']?.toString().trim() ?? '';
-      final first = [name, designation]
-          .where((s) => s.isNotEmpty)
-          .join(', ');
-      final resolved = _twoLines(first, address);
-      if (resolved.isNotEmpty) return resolved;
-      return _twoLines(
-        (row['officeName']?.toString() ?? ''),
-        (row['officeAddress']?.toString() ?? ''),
-      ).isNotEmpty
-          ? _twoLines(
-              (row['officeName']?.toString() ?? ''),
-              (row['officeAddress']?.toString() ?? ''),
-            )
-          : fallback;
+      final designation = row['kannadaDesignation']?.toString().trim() ?? '';
+      final address = row['kannadaOfficeAddress']?.toString().trim() ?? '';
+      if (designation.isEmpty || address.isEmpty) {
+        throw StateError('Complete Kannada designation and office address in the Revenue Opinion master.');
+      }
+      return _twoLines(designation, address);
     }
     if (normalizedKind == 'OFFICER') {
       final row = await _row('officer_directory', sourceId);
@@ -119,21 +102,9 @@ class ForwardedAddressService {
   }) async {
     final normalizedKind = kind.trim().toUpperCase();
     if (sourceId == null) return _oneLine(fallback);
+    if (normalizedKind == 'OTHER') return _oneLine(fallback);
     if (normalizedKind == 'AGENCY') {
-      final row = await _row('revenue_opinion_master', sourceId);
-      if (row == null) return _oneLine(fallback);
-      final name =
-          row['kannadaName']?.toString().trim() ?? '';
-      final designation =
-          row['kannadaDesignation']?.toString().trim() ?? '';
-      final address =
-          row['kannadaOfficeAddress']?.toString().trim() ?? '';
-      final parts = [name, designation, address]
-          .where((s) => s.isNotEmpty)
-          .join(', ');
-      if (parts.isNotEmpty) return parts;
-      return _oneLine(await OfficerRepository()
-          .sourceAddress(sourceId, fallback, copyTo: true));
+      return _oneLine(await toAddress(kind: kind, sourceId: sourceId, fallback: fallback));
     }
     if (normalizedKind == 'OFFICER') {
       final row = await _row('officer_directory', sourceId);

@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -122,9 +123,9 @@ class _BFOInspectionScreenState
 
                     ),
 
-                    onPressed: () {
+                    onPressed: workflowAction(context, () {
 
-                    },
+                    }),
 
                   ),
 

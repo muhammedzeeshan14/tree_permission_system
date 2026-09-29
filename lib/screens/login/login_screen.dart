@@ -71,7 +71,9 @@ class _LoginScreenState
 
     });
 
-    final user =
+    Map<String,dynamic>? user;
+    try {
+      user =
         await userRepository.login(
 
       username:
@@ -82,6 +84,12 @@ class _LoginScreenState
 
     );
 
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to verify cloud login. Check your connection and try again.')));
+      return;
+    }
     if (!mounted) return;
 
     setState(() {

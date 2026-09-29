@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -14,7 +16,7 @@ class RevenueOpinionStep extends StatefulWidget {
 
   final VoidCallback onBack;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   const RevenueOpinionStep({
 
@@ -115,7 +117,7 @@ if (mounted) {
 
   debugPrint("STEP 5 - Going Next");
 
-  widget.onNext();
+  await widget.onNext();
 
 }
 
@@ -192,7 +194,7 @@ setState(() {
                   ElevatedButton(
 
                     onPressed:
-                        widget.onBack,
+                        workflowAction(context, widget.onBack),
 
                     child:
                         const Text("BACK"),
@@ -201,7 +203,7 @@ setState(() {
 
                   ElevatedButton(
 
-                    onPressed:save,
+                    onPressed:workflowAction(context, save),
 
                     child: const Text(
 

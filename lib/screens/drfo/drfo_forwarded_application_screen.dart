@@ -1,3 +1,5 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../widgets/workflow_action.dart';
 import '../../repositories/application_repository.dart';
 import '../../repositories/revenue_reply_repository.dart';
 import '../../models/revenue_reply_model.dart';
@@ -31,6 +33,8 @@ class DRFOForwardedApplicationScreen extends StatefulWidget {
 
 class _DRFOForwardedApplicationScreenState
     extends State<DRFOForwardedApplicationScreen> {
+  late ApplicationModel _application;
+
 
   final DrfoDocumentService documentService =
       DrfoDocumentService();
@@ -48,6 +52,7 @@ class _DRFOForwardedApplicationScreenState
   @override
   void initState() {
     super.initState();
+    _application = widget.application;
 
     _loadGeneratedDocuments();
   }
@@ -55,18 +60,27 @@ class _DRFOForwardedApplicationScreenState
   String _baseName(String path) =>
       path.split(RegExp(r'[/\\]')).last;
 
+  Future<void> _refreshApplicationDocuments() async {
+    final latest = await ApplicationRepository().getById(_application.id!);
+    if (!mounted) return;
+    if (latest == null) throw StateError('Application no longer available.');
+    _application = latest;
+    revenueReply = null;
+    await _loadGeneratedDocuments();
+  }
+
   Future<void> _loadGeneratedDocuments() async {
     try {
       final allFiles =
     await documentService.getGeneratedDocuments(
-  widget.application.officeNumber,
+  _application.officeNumber,
 );
 
-if (widget.rfoApprovedOnly && widget.application.status == WorkflowStatus.pendingRevenueOpinion) {
-  final current = await RevenueReplyRepository().current(widget.application.id!);
+if (widget.rfoApprovedOnly && _application.status == WorkflowStatus.pendingRevenueOpinion) {
+  final current = await RevenueReplyRepository().current(_application.id!);
   final requests = allFiles.where((f) => f.path.toUpperCase().contains('RFO_REVENUE_OPINION_REQUEST')).toList();
   if (current != null) { revenueReply = current; }
-  else if (requests.isNotEmpty) { revenueReply = await RevenueReplyRepository().ensureLegacyRequest(widget.application, requests.first.path); }
+  else if (requests.isNotEmpty) { revenueReply = await RevenueReplyRepository().ensureLegacyRequest(_application, requests.first.path); }
 }
 final files = widget.rfoApprovedOnly
     ? allFiles.where((file) {
@@ -75,7 +89,7 @@ final files = widget.rfoApprovedOnly
             .last
             .toUpperCase();
 
-        if (widget.application.status == WorkflowStatus.pendingRevenueOpinion && revenueReply != null) return _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase();
+        if (_application.status == WorkflowStatus.pendingRevenueOpinion && revenueReply != null) return _baseName(file.path).toUpperCase() == _baseName(revenueReply!.requestLetterPath).toUpperCase();
         return fileName.contains("_RFO_");
       }).toList()
     : allFiles;
@@ -89,13 +103,13 @@ final files = widget.rfoApprovedOnly
 
       final photos =
           await InspectionAttachmentPdfService.photoCount(
-        widget.application.id!,
-        officeNumber: widget.application.officeNumber,
+        _application.id!,
+        officeNumber: _application.officeNumber,
       );
       final uploads =
           await InspectionAttachmentPdfService.documentCount(
-        widget.application.id!,
-        officeNumber: widget.application.officeNumber,
+        _application.id!,
+        officeNumber: _application.officeNumber,
       );
       if (!mounted) return;
       setState(() {
@@ -194,16 +208,16 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
   try {
     final printed = await documentService.openPdf(file);
     if (printed && widget.rfoApprovedOnly &&
-        widget.application.applicationType.trim().toUpperCase() == 'PL' &&
-        widget.application.status == WorkflowStatus.approved &&
+        _application.applicationType.trim().toUpperCase() == 'PL' &&
+        _application.status == WorkflowStatus.approved &&
         _baseName(file.path).toUpperCase().endsWith('_RFO_PRIVATE_LAND_BRANCH_PERMISSION.PDF')) {
       // Only this final letter completes this route; viewing/cancellation does not.
       final repository = ApplicationRepository();
-      final saved = await repository.getByOfficeNumber(widget.application.officeNumber);
+      final saved = await repository.getByOfficeNumber(_application.officeNumber);
       if (saved != null && saved.status == WorkflowStatus.approved) {
         saved.status = WorkflowStatus.completed;
         await repository.updateApplication(saved);
-        widget.application.status = WorkflowStatus.completed;
+        _application.status = WorkflowStatus.completed;
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Letter printed. Application completed.')));
         Navigator.pop(context, true);
@@ -227,12 +241,12 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
     try {
       final file = photos
           ? await InspectionAttachmentPdfService.buildPhotoPdf(
-              applicationId: widget.application.id!,
-              officeNumber: widget.application.officeNumber,
+              applicationId: _application.id!,
+              officeNumber: _application.officeNumber,
             )
           : await InspectionAttachmentPdfService.buildDocumentsPdf(
-              applicationId: widget.application.id!,
-              officeNumber: widget.application.officeNumber,
+              applicationId: _application.id!,
+              officeNumber: _application.officeNumber,
             );
       await OpenFilex.open(file.path);
     } catch (e) {
@@ -252,12 +266,12 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
     try {
       final file = photos
           ? await InspectionAttachmentPdfService.buildPhotoPdf(
-              applicationId: widget.application.id!,
-              officeNumber: widget.application.officeNumber,
+              applicationId: _application.id!,
+              officeNumber: _application.officeNumber,
             )
           : await InspectionAttachmentPdfService.buildDocumentsPdf(
-              applicationId: widget.application.id!,
-              officeNumber: widget.application.officeNumber,
+              applicationId: _application.id!,
+              officeNumber: _application.officeNumber,
             );
       await Printing.layoutPdf(
         onLayout: (_) async => file.readAsBytes(),
@@ -299,16 +313,16 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
                   OutlinedButton.icon(
                     icon: const Icon(Icons.visibility),
                     label: const Text('VIEW'),
-                    onPressed: buildingAttachments
+                    onPressed: workflowAction(context, buildingAttachments
                         ? null
-                        : () => _openAttachmentPdf(photos),
+                        : () => _openAttachmentPdf(photos)),
                   ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.print),
                     label: const Text('PRINT'),
-                    onPressed: buildingAttachments
+                    onPressed: workflowAction(context, buildingAttachments
                         ? null
-                        : () => _printAttachmentPdf(photos),
+                        : () => _printAttachmentPdf(photos)),
                   ),
                 ],
               ),
@@ -321,6 +335,7 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
     return Scaffold(
 
       appBar: AppBar(
+        actions: [ApplicationRefreshButton(onRefresh: _refreshApplicationDocuments)],
         title: Text(
   widget.screenTitle,
 ),
@@ -361,37 +376,37 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
 
                   _detail(
                     'Office Number',
-                    widget.application.officeNumber,
+                    _application.officeNumber,
                   ),
 
                   _detail(
                     'Applicant Name',
-                    widget.application.applicantName,
+                    _application.applicantName,
                   ),
 
                   _detail(
                     'Application Type',
-                    widget.application.applicationType,
+                    _application.applicationType,
                   ),
 
                   _detail(
                     'Address',
-                    widget.application.applicantAddress,
+                    _application.applicantAddress,
                   ),
 
                   _detail(
                     'Section',
-                    widget.application.section,
+                    _application.section,
                   ),
 
                   _detail(
                     'Beat',
-                    widget.application.beat,
+                    _application.beat,
                   ),
 
                   _detail(
                     'Status',
-                    widget.application.status,
+                    _application.status,
                   ),
                 ],
               ),
@@ -491,9 +506,9 @@ trailing: Wrap(
       label: const Text(
         'VIEW',
       ),
-      onPressed: () {
+      onPressed: workflowAction(context, () {
         _openDocument(file);
-      },
+      }),
     ),
     ElevatedButton.icon(
       icon: const Icon(
@@ -502,9 +517,9 @@ trailing: Wrap(
       label: const Text(
         'PRINT',
       ),
-      onPressed: printing ? null : () {
+      onPressed: workflowAction(context, printing ? null : () {
         _printDocument(file);
-      },
+      }),
     ),
   ],
 ),

@@ -1,3 +1,4 @@
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -52,11 +53,11 @@ class DRFOForwardedTab extends StatelessWidget {
 
             child: ElevatedButton(
 
-              onPressed: () {
+              onPressed: workflowAction(context, () {
 
                 onOpen(app);
 
-              },
+              }),
 
               child: const Text(
                 "VIEW APPLICATION",

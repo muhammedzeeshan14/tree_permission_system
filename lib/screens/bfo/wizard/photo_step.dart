@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -14,7 +16,7 @@ class PhotoStep extends StatefulWidget {
 
   final VoidCallback onBack;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   const PhotoStep({
 
@@ -141,7 +143,7 @@ class _PhotoStepState
                       "Camera",
                     ),
 
-                    onPressed: () async {
+                    onPressed: workflowAction(context, () async {
 
   final file = await photoService.takePhoto(
 
@@ -187,7 +189,7 @@ class _PhotoStepState
 
   await loadPhotos();
 
-},
+}),
 
                   ),
 
@@ -201,7 +203,7 @@ class _PhotoStepState
                       "Gallery",
                     ),
 
-                    onPressed: () async {
+                    onPressed: workflowAction(context, () async {
 
   final file =
       await photoService.pickFromGallery(
@@ -249,7 +251,7 @@ class _PhotoStepState
 
   await loadPhotos();
 
-},
+}),
 
                   ),
 
@@ -331,7 +333,7 @@ class _PhotoStepState
         Icons.visibility,
         color: Colors.blue,
       ),
-      onPressed: () {
+      onPressed: workflowAction(context, () {
 
         showDialog(
 
@@ -391,7 +393,7 @@ class _PhotoStepState
 
         );
 
-      },
+      }),
 
     ),
 
@@ -404,7 +406,7 @@ class _PhotoStepState
         color: Colors.red,
       ),
 
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
 
         final result = await showDialog<bool>(
 
@@ -478,7 +480,7 @@ class _PhotoStepState
 
         await loadPhotos();
 
-      },
+      }),
 
     ),
 
@@ -500,7 +502,7 @@ class _PhotoStepState
                 ElevatedButton(
 
                     onPressed:
-                        widget.onBack,
+                        workflowAction(context, widget.onBack),
 
                     child: const Text(
                       "BACK",
@@ -511,7 +513,7 @@ class _PhotoStepState
                 ElevatedButton(
 
                     onPressed:
-                        widget.onNext,
+                        workflowAction(context, widget.onNext),
 
                     child: const Text(
                       "NEXT",

@@ -1,3 +1,5 @@
+import '../../widgets/inspection_exit_guard.dart';
+import '../../widgets/workflow_action.dart';
 import '../../repositories/revenue_reply_repository.dart';
 import '../../repositories/government_approval_repository.dart';
 import '../../models/government_approval_model.dart';
@@ -1006,6 +1008,7 @@ overallRemarkDisplay =
 
     approvalReasons[mapKey] =
         row["reason"]?.toString();
+    _savedApprovalValues[mapKey] = (approvalDecisions[mapKey], approvalReasons[mapKey]);
   }
 
   if (mounted) {
@@ -1045,18 +1048,7 @@ Future<void> _saveApprovalDecision({
             : null;
   });
 
-  await rfoApprovalRepository.saveDecision(
-    applicationId: applicationId,
-    itemKey: itemKey,
-    itemId: itemId,
-    decision: decision,
-    reason:
-        decision == "Re-inspect"
-            ? reason
-            : null,
-    approvedBy:
-        SessionService.instance.name,
-  );
+  await _persistApprovalValue(mapKey, decision, approvalReasons[mapKey]);
 }
 
 Future<void> _saveModifiedRevenueOpinion(
@@ -1499,7 +1491,45 @@ Future<void> _finalizeGovernmentApproval() async {
   } finally { if (mounted) setState(() => governmentBusy = false); }
 }
 
+final Map<String, (String?, String?)> _savedApprovalValues = {};
+Future<void> _approvalSaveQueue = Future<void>.value();
+
+Future<void> _persistApprovalValue(String key, String decision, String? reason) {
+  final write = _approvalSaveQueue.then((_) async {
+    final separator = key.lastIndexOf('_');
+    await rfoApprovalRepository.saveDecision(
+      applicationId: widget.application.id!,
+      itemKey: key.substring(0, separator),
+      itemId: int.parse(key.substring(separator + 1)),
+      decision: decision, reason: reason,
+      approvedBy: SessionService.instance.name,
+    );
+    _savedApprovalValues[key] = (decision, reason);
+  });
+  // Preserve the failure for the caller but keep the queue usable for retry.
+  _approvalSaveQueue = write.catchError((Object _) {});
+  return write;
+}
+
+Future<void> _saveApprovalCheckpoint() async {
+  await _approvalSaveQueue;
+  if (approvalDecisions[_approvalMapKey('WORK_NAME')] == 'Modify') {
+    widget.application.workName = workNameController.text.trim();
+  }
+  if (approvalDecisions[_approvalMapKey('GPS')] == 'Modify') {
+    widget.application.gpsCoordinates = gpsController.text.trim();
+  }
+  await applicationRepository.updateApplication(widget.application);
+  for (final entry in approvalDecisions.entries.toList()) {
+    if (entry.value == null) continue;
+    final reason = approvalReasons[entry.key];
+    if (_savedApprovalValues[entry.key] == (entry.value, reason)) continue;
+    await _persistApprovalValue(entry.key, entry.value!, reason);
+  }
+}
+
 Future<void> _saveRfoDraft() async {
+  await _saveApprovalCheckpoint();
   if (needsGovernmentFinal && !await _saveGovernmentOptions()) return;
   final saved =
       await _saveDeferredRfoRecipients(
@@ -1662,10 +1692,11 @@ if (applicationType == "RTC") {
   );
 }
 
-// Branch permission completes only after successful printing.
-widget.application.status = needsBranchPermission
-    ? WorkflowStatus.approved
-    : WorkflowStatus.completed;
+// Branch permission remains Approved until its letter prints successfully.
+  // Preserve the existing finalization behavior for other routes.
+  if (needsBranchPermission || widget.application.status != WorkflowStatus.completed) {
+    widget.application.status = WorkflowStatus.approved;
+  }
 
   await applicationRepository.updateApplication(
     widget.application,
@@ -2205,13 +2236,13 @@ _approvalCard(
             label: const Text(
               "Save",
             ),
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
               widget.application.workName =
                   workNameController.text
                       .trim();
 
               await _saveRfoModifiedApplication();
-            },
+            }),
           ),
         ),
       ],
@@ -2289,9 +2320,9 @@ Future<void> _showInspectionPhotos() async {
         ),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: workflowAction(dialogContext, () {
               Navigator.pop(dialogContext);
-            },
+            }),
             child: const Text("CLOSE"),
           ),
         ],
@@ -2348,9 +2379,9 @@ Future<void> _showUploadedDocuments() async {
         ),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: workflowAction(dialogContext, () {
               Navigator.pop(dialogContext);
-            },
+            }),
             child: const Text("CLOSE"),
           ),
         ],
@@ -2402,7 +2433,7 @@ Widget _buildEvidenceApprovalPage() {
         tooltip: "Save corrected GPS",
         icon:
             const Icon(Icons.save),
-        onPressed: () async {
+        onPressed: workflowAction(context, () async {
           final correctedGps =
               gpsController.text.trim();
 
@@ -2423,7 +2454,7 @@ Widget _buildEvidenceApprovalPage() {
               correctedGps;
 
           await _saveRfoModifiedApplication();
-        },
+        }),
       ),
     ),
     onFieldSubmitted: (value) async {
@@ -2455,7 +2486,7 @@ Widget _buildEvidenceApprovalPage() {
       label: const Text(
         "Edit Inspection Photos",
       ),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -2485,7 +2516,7 @@ Widget _buildEvidenceApprovalPage() {
         if (mounted) {
           setState(() {});
         }
-      },
+      }),
     ),
   ),
 ),
@@ -2503,7 +2534,7 @@ Widget _buildEvidenceApprovalPage() {
       label: const Text(
         "Edit Uploaded Documents",
       ),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -2536,7 +2567,7 @@ Widget _buildEvidenceApprovalPage() {
         if (mounted) {
           setState(() {});
         }
-      },
+      }),
     ),
   ),
 ),
@@ -2647,7 +2678,7 @@ Widget _buildMahazarApprovalPage() {
       label: const Text(
         "Edit Mahazar Details",
       ),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -2692,7 +2723,7 @@ Widget _buildMahazarApprovalPage() {
         if (mounted) {
           setState(() {});
         }
-      },
+      }),
     ),
   ),
 ),
@@ -2831,7 +2862,7 @@ Widget _buildDeferredApprovalPage() {
             label: const Text(
               "Edit Deferred Reasons",
             ),
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -2863,7 +2894,7 @@ Widget _buildDeferredApprovalPage() {
               if (mounted) {
                 setState(() {});
               }
-            },
+            }),
           ),
         ),
       ),
@@ -2921,7 +2952,7 @@ Widget _buildRtcTreeCountApprovalPage() {
       label: const Text(
         "Edit RTC Tree Count",
       ),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -2936,7 +2967,7 @@ Widget _buildRtcTreeCountApprovalPage() {
         if (mounted) {
           setState(() {});
         }
-      },
+      }),
     ),
   ),
 ),
@@ -2997,7 +3028,7 @@ modifyField: Align(
       label: const Text(
         "Edit Tree",
       ),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -3027,7 +3058,7 @@ if (mounted) {
   setState(() {});
 }
 
-      },
+      }),
     ),
   ),
 );
@@ -3372,7 +3403,9 @@ Widget _buildRfoFinalDecisionPage() {
 }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => InspectionExitGuard(child: _buildScreen(context));
+
+  Widget _buildScreen(BuildContext context) {
 
 final approvalPages = <Widget>[
   _buildInspectionSummaryPage(),
@@ -3512,7 +3545,7 @@ final approvalPages = <Widget>[
 
                   ElevatedButton(
 
-                    onPressed: () {
+                    onPressed: workflowAction(context, () {
 
                       pageController.previousPage(
 
@@ -3528,7 +3561,7 @@ final approvalPages = <Widget>[
 
                       );
 
-                    },
+                    }),
 
                     child: const Text(
 
@@ -3544,9 +3577,10 @@ final approvalPages = <Widget>[
 
                   ElevatedButton(
 
-                    onPressed: () {
-
-                      pageController.nextPage(
+                    onPressed: workflowAction(context, () async {
+                      await _saveApprovalCheckpoint();
+                      if (!mounted) return;
+                      await pageController.nextPage(
 
                         duration:
                             const Duration(
@@ -3560,7 +3594,7 @@ final approvalPages = <Widget>[
 
                       );
 
-                    },
+                    }),
 
                     child: const Text(
 
@@ -3581,7 +3615,7 @@ final approvalPages = <Widget>[
         label: const Text(
           "SAVE DRAFT",
         ),
-        onPressed: _saveRfoDraft,
+        onPressed: workflowAction(context, _saveRfoDraft),
       ),
 
       if (_hasRfoReinspection) ...[
@@ -3592,7 +3626,7 @@ final approvalPages = <Widget>[
           label: const Text(
             "SEND FOR RE-INSPECTION",
           ),
-          onPressed: _finalizeRfoApproval,
+          onPressed: workflowAction(context, _finalizeRfoApproval),
         ),
       ] else if (_allRfoItemsApproved) ...[
         ElevatedButton.icon(
@@ -3607,9 +3641,9 @@ label: Text(
       : "FINAL APPROVAL",
 ),
                     onPressed:
-              _deferredRfoRecipientReady && !governmentBusy
+              workflowAction(context, _deferredRfoRecipientReady && !governmentBusy
                   ? _finalizeRfoApproval
-                  : null,
+                  : null),
         ),
       ],
     ],

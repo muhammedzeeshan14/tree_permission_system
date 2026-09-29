@@ -1,3 +1,6 @@
+import '../repositories/history_repository.dart';
+import '../repositories/section_repository.dart';
+import '../repositories/beat_repository.dart';
 import '../models/revenue_reply_model.dart';
 import '../models/government_approval_model.dart';
 import '../repositories/government_approval_repository.dart';
@@ -255,6 +258,13 @@ class DrfoDocumentService {
   // ==========================================================
 
   String _replace(String template, String placeholder, String value) {
+    if (placeholder.endsWith('_DATE}}') && value.isEmpty) {
+      return _omitMissingDatePhrase(template, placeholder);
+    }
+    if (placeholder == '{{APPLICANT_ADDRESS}}') {
+      return template.replaceAllMapped(RegExp(RegExp.escape(placeholder)),
+          (match) => _applicantAddressForOccurrence(match, value));
+    }
     return template.replaceAll(placeholder, value);
   }
 
@@ -262,7 +272,42 @@ class DrfoDocumentService {
   // SAFE TEXT
   // ==========================================================
 
+  Future<String> _forwardedAuthorityReference(ApplicationReferenceModel reference) async {
+    return ForwardedAddressService.copyToAddress(
+      kind: reference.sourceKind, sourceId: reference.sourceId,
+      fallback: reference.forwardedBy);
+  }
+
+  // Only the To block preserves address lines. All other occurrences,
+  // including standalone list headings, use comma-separated text.
+  String _applicantAddressForOccurrence(Match match, String address) {
+    final before = match.input.substring(0, match.start).split('\n').last.trim();
+    final after = match.input.substring(match.end).split('\n').first.trim();
+    final preceding = match.input.substring(0, match.start);
+    final toStart = preceding.lastIndexOf('ರವರಿಗೆ');
+    final lastOtherBlock = ['ವಿಷಯ', 'ಉಲ್ಲೇಖ', 'ಪ್ರತಿ:', 'ಪ್ರತಿ :']
+        .map(preceding.lastIndexOf).fold<int>(-1, (a, b) => a > b ? a : b);
+    if (before.isEmpty && after.isEmpty && toStart >= 0 && toStart > lastOtherBlock) {
+      return address.split(RegExp(r'[\r\n]+')).map((line) => line.trim())
+          .where((line) => line.isNotEmpty).join('\n');
+    }
+    return _authorityReferenceLine(address);
+  }
+
+  String _authorityReferenceLine(String value) => value
+      .split(RegExp(r'[\r\n]+'))
+      .map((line) => line.replaceAll(RegExp(r'\s+'), ' ').trim())
+      .where((line) => line.isNotEmpty).join(', ');
+
+  String _kannadaPrintName(Map<String, dynamic>? row) {
+    final name = row?['kannadaName']?.toString().trim() ?? '';
+    if (name.isNotEmpty && RegExp(r'[\u0C80-\u0CFF]').hasMatch(name) && !RegExp(r'[A-Za-z]').hasMatch(name)) return name;
+    final label = row?['value']?.toString() ?? row?['id']?.toString() ?? 'selected entry';
+    return '\uFFF9${label.replaceAll(RegExp(r'[\r\n\uFFF9\uFFFB]'), ' ')}\uFFFB';
+  }
+
   String _safeText(String value) {
+    if (value.trim() == '—' || value.trim() == '--') return '';
     try {
       return String.fromCharCodes(value.runes);
     } catch (_) {
@@ -275,54 +320,34 @@ class DrfoDocumentService {
   // Falls back to the saved English name when Kannada is blank.
   // ==========================================================
 
-  Future<String> _printSectionName(
-    ApplicationModel application,
-  ) async {
-    try {
-      final id = application.sectionId;
-      if (id != null) {
-        final db = await DatabaseHelper.instance.database;
-        final rows = await db.query(
-          'section_master',
-          where: 'id=?',
-          whereArgs: [id],
-          limit: 1,
-        );
-        if (rows.isNotEmpty) {
-          final kannada =
-              rows.first['kannadaName']?.toString().trim() ?? '';
-          if (kannada.isNotEmpty) return _safeText(kannada);
-        }
-      }
-    } catch (_) {
-      // Fall through to English name.
+  Future<String> _printSectionName(ApplicationModel application) async {
+    final rows = await SectionRepository().getAll();
+    for (final row in rows) {
+      if (row['id'] != application.sectionId) continue;
+      final kannada = row['kannadaName']?.toString().trim() ?? '';
+      return kannada.isNotEmpty ? kannada : (row['sectionName']?.toString().trim() ?? application.section);
     }
-    return _safeText(application.section);
+    return application.section.trim();
   }
 
-  Future<String> _printBeatName(
-    ApplicationModel application,
-  ) async {
-    try {
-      final id = application.beatId;
-      if (id != null) {
-        final db = await DatabaseHelper.instance.database;
-        final rows = await db.query(
-          'beat_master',
-          where: 'id=?',
-          whereArgs: [id],
-          limit: 1,
-        );
-        if (rows.isNotEmpty) {
-          final kannada =
-              rows.first['kannadaName']?.toString().trim() ?? '';
-          if (kannada.isNotEmpty) return _safeText(kannada);
-        }
-      }
-    } catch (_) {
-      // Fall through to English name.
+  Future<String> _printBeatName(ApplicationModel application) async {
+    final rows = await BeatRepository().getAll();
+    for (final row in rows) {
+      if (row['id'] != application.beatId) continue;
+      final kannada = row['kannadaName']?.toString().trim() ?? '';
+      return kannada.isNotEmpty ? kannada : (row['beatName']?.toString().trim() ?? application.beat);
     }
-    return _safeText(application.beat);
+    return application.beat.trim();
+  }
+
+  // Fail before publishing a DRFO document if its editable template has
+  // unsupported fields. Preserve graphical table markers for the renderer.
+  String _checkedDrfoMaster(String master) {
+    const tables = {'{{RTC_TREE_TABLE}}', '{{NOT_RECOMMENDED_TREE_TABLE}}', '{{GL_TREE_ENUMERATION_TABLE}}', '{{SANDAL_TREE_TABLE}}'};
+    final unresolved = RegExp(r'\{\{[A-Z_]+\}\}').allMatches(master)
+        .map((match) => match.group(0)!).where((key) => !tables.contains(key)).toSet();
+    if (unresolved.isNotEmpty) throw StateError('Unmapped DRFO document fields: ${unresolved.join(', ')}');
+    return master.replaceAll(RegExp(r'(?<!\S)(?:—|--)(?!\S)'), '');
   }
 
   // ==========================================================
@@ -339,12 +364,7 @@ class DrfoDocumentService {
       try {
         final item =
             await MasterRepository().getMasterById(id);
-        final kannada =
-            item?['kannadaName']?.toString().trim() ?? '';
-        if (kannada.isNotEmpty) return _safeText(kannada);
-        final value =
-            item?['value']?.toString().trim() ?? '';
-        if (value.isNotEmpty) return _safeText(value);
+        return _kannadaPrintName(item);
       } catch (_) {
         // Fall through to custom text.
       }
@@ -358,18 +378,52 @@ class DrfoDocumentService {
 
   String _date(String value) {
     final text = value.trim();
-    if (text.isEmpty) return '';
-
-    try {
-      final date = DateTime.parse(text);
-
-      // Letter/list date format: dd-MM-yyyy.
-      return '${date.day.toString().padLeft(2, '0')}-'
-          '${date.month.toString().padLeft(2, '0')}-'
-          '${date.year}';
-    } catch (_) {
-      return text.replaceAll('/', '-');
+    final entered = RegExp(r'^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$').firstMatch(text);
+    DateTime? date;
+    if (entered != null) {
+      final day = int.parse(entered[1]!);
+      final month = int.parse(entered[2]!);
+      final year = int.parse(entered[3]!);
+      date = DateTime(year, month, day);
+      if (date.day != day || date.month != month || date.year != year) return '';
+    } else if (RegExp(r'^\d{4}-\d{2}-\d{2}(?:T| |$)').hasMatch(text)) {
+      date = DateTime.tryParse(text);
+      final calendar = DateTime.tryParse(text.substring(0, 10));
+      if (calendar == null || calendar.month != int.parse(text.substring(5, 7)) ||
+          calendar.day != int.parse(text.substring(8, 10))) return '';
     }
+    // Empty picker hints (DD-MM-YYYY), dashes and invalid dates are not dates.
+    if (date == null) return '';
+    return '${date.day.toString().padLeft(2, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-${date.year}';
+  }
+
+  String _drfoAssignmentReferenceDate(ApplicationModel application) {
+    final date = _date(application.drfoAssignmentDate);
+    if (date.isEmpty) {
+      throw StateError('The date this application was forwarded for DRFO assignment is missing. Restore the actual forwarding date before generating the letter.');
+    }
+    return date;
+  }
+
+  Future<String> _drfoReportReferenceDate(ApplicationModel application) async {
+    final history = await HistoryRepository().getHistory(application.officeNumber);
+    // Use the latest verification/forwarding cycle, never the inspection date.
+    final dates = history.where((row) => row['action'] == 'Forwarded to RFO')
+        .map((row) => DateTime.tryParse(row['actionDate']?.toString() ?? ''))
+        .whereType<DateTime>().toList()..sort();
+    if (dates.isEmpty) {
+      throw StateError('The verified forwarding date to RFO is missing from application history. Restore the actual Forwarded to RFO record before generating the RFO letter.');
+    }
+    return _date(dates.last.toIso8601String());
+  }
+
+  String _omitMissingDatePhrase(String template, String placeholder) {
+    final token = RegExp.escape(placeholder);
+    // Remove the complete receipt-date parenthesis, but keep other reference text.
+    var result = template.replaceAll(RegExp(r'[ \t]*\([^()\n]*ಸ್ವೀಕೃತಿ[^()\n]*' + token + r'[^()\n]*\)'), '');
+    result = result.replaceAll(RegExp(r'[, \t]*ದಿನಾಂಕ[ \t]*:?[ \t]*' + token), '');
+    return result.replaceAll(placeholder, '');
   }
 
   // ==========================================================
@@ -395,6 +449,8 @@ class DrfoDocumentService {
       'RECEIVED_DATE': _date(receivedDate).isNotEmpty,
       'DRFO_REPORT_DATE': _date(drfoReportDate).isNotEmpty,
       'REVENUE_LETTER_DATE': _date(revenueLetterDate).isNotEmpty,
+      'REPLY_LETTER_DATE': _date(revenueLetterDate).isNotEmpty,
+      'REPLY_RECEIVED_DATE': _date(revenueReceivedDate).isNotEmpty,
       'REVENUE_RECEIVED_DATE':
           _date(revenueReceivedDate).isNotEmpty,
     };
@@ -403,6 +459,7 @@ class DrfoDocumentService {
         RegExp('\\[IF_' + flag + '\\]([\\s\\S]*?)\\[/IF_' + flag + '\\]'),
         (match) => has ? match.group(1)! : '',
       );
+      if (!has) result = _omitMissingDatePhrase(result, '{{' + flag + '}}');
     });
     return result;
   }
@@ -413,10 +470,10 @@ class DrfoDocumentService {
 
   String _location(ApplicationModel application) {
     if (application.treeLocationSame) {
-      return application.applicantAddress;
+      return _authorityReferenceLine(application.applicantAddress);
     }
 
-    return application.treeLocationAddress;
+    return _authorityReferenceLine(application.treeLocationAddress);
   }
 
   // ==========================================================
@@ -516,15 +573,15 @@ class DrfoDocumentService {
   /// "(ಈ ಕಛೇರಿ ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: <date>)" suffix for references
   /// that carry a received date.
   String _receivedSuffix(ApplicationReferenceModel ref) {
-    final received = ref.receivedDate.trim();
+    final received = _date(ref.receivedDate);
     if (received.isEmpty) return '';
     return ' (ಈ ಕಛೇರಿ ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: ${_date(received)})';
   }
 
-  String _buildForwardedReference(
+  Future<String> _buildForwardedReference(
     ApplicationModel application, {
     int startNumber = 2,
-  }) {
+  }) async {
     final lines = <String>[];
 
     int number = startNumber;
@@ -534,11 +591,11 @@ class DrfoDocumentService {
     // --------------------------------------------------------
 
     for (final ref in application.forwardingReferences) {
-      final sourceName = ref.forwardedBy.trim();
+      final sourceName = await _forwardedAuthorityReference(ref);
 
       final referenceNumber = ref.referenceNumber.trim();
 
-      final referenceDate = ref.referenceDate.trim();
+      final referenceDate = _date(ref.referenceDate);
 
       // Ignore incomplete references.
       if (sourceName.isEmpty &&
@@ -578,7 +635,7 @@ class DrfoDocumentService {
     // RFO ORDER DATE
     // --------------------------------------------------------
 
-    final forwardingDate = application.drfoAssignmentDate.trim();
+    final forwardingDate = _drfoAssignmentReferenceDate(application);
 
     if (forwardingDate.isNotEmpty) {
       lines.add(
@@ -633,11 +690,11 @@ class DrfoDocumentService {
     if (validReferences.isNotEmpty) {
       final reference = validReferences.first;
 
-      final forwardedBy = reference.forwardedBy.trim();
+      final forwardedBy = await _forwardedAuthorityReference(reference);
 
       final isSameAsRecipient =
           recipient.isNotEmpty &&
-          forwardedBy.toLowerCase() == recipient.toLowerCase();
+          reference.forwardedBy.trim().toLowerCase() == recipient.toLowerCase();
 
       String firstLine = "1. ";
 
@@ -653,7 +710,7 @@ class DrfoDocumentService {
         firstLine += " ಸಂಖ್ಯೆ ${reference.referenceNumber.trim()}";
       }
 
-      if (reference.referenceDate.trim().isNotEmpty) {
+      if (_date(reference.referenceDate).isNotEmpty) {
         firstLine += ", ದಿನಾಂಕ: ${_date(reference.referenceDate.trim())}";
       }
 
@@ -664,7 +721,7 @@ class DrfoDocumentService {
 
     final section = await _printSectionName(application);
 
-    final drfoReportDate = _date(application.drfoInspectionDate.trim());
+    final drfoReportDate = await _drfoReportReferenceDate(application);
 
     lines.add(
       "${lines.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, "
@@ -704,7 +761,7 @@ class DrfoDocumentService {
     } else {
       var applicantReference =
           "1. ${application.applicantName}, "
-          "${application.applicantAddress} "
+          "${_authorityReferenceLine(application.applicantAddress)} "
           "ರವರ ಮನವಿ";
       if (applicationDate.isNotEmpty) {
         applicantReference += " ದಿನಾಂಕ: $applicationDate";
@@ -719,7 +776,7 @@ class DrfoDocumentService {
 
     if (isForwarded) {
       for (final reference in application.forwardingReferences) {
-        final forwardedBy = reference.forwardedBy.trim();
+        final forwardedBy = await _forwardedAuthorityReference(reference);
 
         final letterNumber = reference.referenceNumber.trim();
 
@@ -762,7 +819,7 @@ class DrfoDocumentService {
 
     final section = await _printSectionName(application);
 
-    final drfoReportDate = _date(application.drfoInspectionDate.trim());
+    final drfoReportDate = await _drfoReportReferenceDate(application);
 
     lines.add(
       "$referenceNumber. "
@@ -795,15 +852,10 @@ class DrfoDocumentService {
       print('DEFERRED REASON ROW: $reason');
     }
 
-    final names = reasons
-        .map(
-          (e) =>
-              e["documentReasonName"]?.toString().trim() ??
-              e["reasonName"]?.toString().trim() ??
-              '',
-        )
-        .where((name) => name.isNotEmpty)
-        .toList();
+    final names = <String>[];
+    for (final reason in reasons) {
+      names.add(_kannadaPrintName(await MasterRepository().getMasterById((reason['reasonId'] as num?)?.toInt())));
+    }
 
     print('DEFERRED REASONS NAMES = $names');
 
@@ -846,9 +898,7 @@ class DrfoDocumentService {
     final speciesNames = <int, String>{
       for (final item in speciesList)
         item['id']
-            as int: item['kannadaName']?.toString().trim().isNotEmpty == true
-            ? item['kannadaName'].toString().trim()
-            : item['value']?.toString().trim() ?? '',
+            as int: _kannadaPrintName(item),
     };
 
     final detailRepository = TreeCountDetailRepository();
@@ -923,9 +973,7 @@ class DrfoDocumentService {
     );
 
     String kannadaName(Map<String, dynamic> item) {
-      final name = item['kannadaName']?.toString().trim() ?? '';
-
-      return name.isNotEmpty ? name : '';
+      return _kannadaPrintName(item);
     }
 
     final speciesNames = <int, String>{
@@ -957,7 +1005,7 @@ class DrfoDocumentService {
         _NotRecommendedTreeTableRow(
           serialNumber: index + 1,
           applicantAndLocation: applicantAndLocation,
-          speciesName: speciesNames[tree.speciesId] ?? '—',
+          speciesName: speciesNames[tree.speciesId] ?? '',
           reasonNames: _joinKannadaNames(selectedReasons),
         ),
       );
@@ -1018,9 +1066,7 @@ class DrfoDocumentService {
     final reasonNameById = <int, String>{
       for (final item in recommendationReasons)
         item['id']
-            as int: item['kannadaName']?.toString().trim().isNotEmpty == true
-            ? item['kannadaName'].toString().trim()
-            : item['value']?.toString().trim() ?? '',
+            as int: _kannadaPrintName(item),
     };
 
     const includedRecommendationCodes = <String>{
@@ -1059,14 +1105,10 @@ class DrfoDocumentService {
           recommendation?['code']?.toString().trim().toUpperCase() ?? '';
 
       final speciesName =
-          species?['kannadaName']?.toString().trim().isNotEmpty == true
-          ? species!['kannadaName'].toString().trim()
-          : species?['value']?.toString().trim() ?? '—';
+          _kannadaPrintName(species);
 
       final recommendationKannadaName =
-          recommendation?['kannadaName']?.toString().trim().isNotEmpty == true
-          ? recommendation!['kannadaName'].toString().trim()
-          : recommendation?['value']?.toString().trim() ?? '';
+          _kannadaPrintName(recommendation);
 
       final reasonNames = tree.recommendationReasonIds
           .map((id) => reasonNameById[id] ?? '')
@@ -1185,7 +1227,7 @@ class DrfoDocumentService {
       final recommendationLines = <String>[
         if (reasonText.isNotEmpty && reasonText != '—') reasonText,
         if (recommendationKannadaName.isNotEmpty) recommendationKannadaName,
-        if (tree.notFitForTimber) 'ನಾಟಿಗಾಗಿ ಯೋಗ್ಯವಿಲ್ಲ',
+        if (tree.notFitForTimber) 'ನಾಟಗಾಗಿ ಯೋಗ್ಯವಿಲ್ಲ',
       ];
 
       rows.add(
@@ -1291,9 +1333,7 @@ class DrfoDocumentService {
     );
 
     final whyRemovingKannada =
-        whyRemovingItem?['kannadaName']?.toString().trim().isNotEmpty == true
-        ? whyRemovingItem!['kannadaName'].toString().trim()
-        : whyRemovingItem?['value']?.toString().trim() ?? '';
+        _kannadaPrintName(whyRemovingItem);
 
     final whyRemovingCode =
         whyRemovingItem?['code']?.toString().trim().toUpperCase() ?? '';
@@ -1304,7 +1344,7 @@ class DrfoDocumentService {
 
     final additionalTreeLocation = application.treeLocationSame
         ? ''
-        : application.treeLocationAddress.trim();
+        : _authorityReferenceLine(application.treeLocationAddress);
 
     // ----------------------------------------------------------
     // DOCUMENT GENERATION DATE
@@ -1321,7 +1361,7 @@ class DrfoDocumentService {
     // FORWARDING REFERENCES + RFO ORDER
     // ----------------------------------------------------------
 
-    final forwardedReference = _buildForwardedReference(
+    final forwardedReference = await _buildForwardedReference(
       application,
       startNumber: application.applicationType.trim().toUpperCase() == 'RTC'
           ? 1
@@ -1396,9 +1436,7 @@ class DrfoDocumentService {
       final speciesNameById = <int, String>{
         for (final item in speciesMaster)
           item['id']
-              as int: item['kannadaName']?.toString().trim().isNotEmpty == true
-              ? item['kannadaName'].toString().trim()
-              : item['value']?.toString().trim() ?? '',
+              as int: _kannadaPrintName(item),
       };
 
       final speciesCounts = <String, int>{};
@@ -1422,9 +1460,7 @@ class DrfoDocumentService {
       final treeStatusNameById = <int, String>{
         for (final item in treeStatusMaster)
           item['id']
-              as int: item['kannadaName']?.toString().trim().isNotEmpty == true
-              ? item['kannadaName'].toString().trim()
-              : item['value']?.toString().trim() ?? '',
+              as int: _kannadaPrintName(item),
       };
 
       final treeStatusCounts = <String, int>{};
@@ -1455,9 +1491,7 @@ class DrfoDocumentService {
       final reasonNameById = <int, String>{
         for (final item in reasonMaster)
           item['id']
-              as int: item['kannadaName']?.toString().trim().isNotEmpty == true
-              ? item['kannadaName'].toString().trim()
-              : item['value']?.toString().trim() ?? '',
+              as int: _kannadaPrintName(item),
       };
 
       // A Dart Set preserves insertion order and removes duplicates.
@@ -1764,7 +1798,7 @@ class DrfoDocumentService {
     final bodyApplicantPhrase = toApplicant
         ? "ನೀವು"
         : "${application.applicantName}, "
-              "${application.applicantAddress} ಇವರು";
+              "${_authorityReferenceLine(application.applicantAddress)} ಇವರು";
 
     String copyBlock = "";
 
@@ -1868,9 +1902,13 @@ class DrfoDocumentService {
       addressOpinion.kannadaDesignation.trim(),
       addressOpinion.kannadaOfficeAddress.trim(),
     ].where((value) => value.isNotEmpty).join('\n');
-    final toAddress = {'ACF', 'DCF'}.contains(recipientRole)
-        ? await OfficerRepository().addressForRole(recipientRole)
-        : kannadaTo;
+    // Revenue requests always use the selected Revenue Opinion master,
+    // including authorities whose codes are RFO, ACF or DCF.
+    if (addressOpinion.kannadaDesignation.trim().isEmpty ||
+        addressOpinion.kannadaOfficeAddress.trim().isEmpty) {
+      throw StateError('Enter the Kannada designation and Kannada office address in the selected Revenue Opinion master.');
+    }
+    final toAddress = kannadaTo;
 
     template = _replace(template, '{{DCF_COPY_LINE}}',
         recipientRole == 'DCF' ? await _dcfCopyLine() : '');
@@ -1881,15 +1919,13 @@ class DrfoDocumentService {
 
     final additionalTreeLocation = application.treeLocationSame
         ? ""
-        : application.treeLocationAddress.trim();
+        : _authorityReferenceLine(application.treeLocationAddress);
 
     final treeLocationSubjectPhrase = additionalTreeLocation;
 
     final treeLocationBodyPhrase = additionalTreeLocation;
 
-    final revenueOpinionRemarks = opinion.remarks.trim().isNotEmpty
-        ? opinion.remarks.trim()
-        : opinion.revenueOpinion.trim();
+    final revenueOpinionRemarks = addressOpinion.kannadaName.trim();
 
     String copyBlock = "";
 
@@ -1899,7 +1935,7 @@ class DrfoDocumentService {
         "ಪ್ರತಿ:",
         "[/BOLD]",
         "${application.applicantName}, "
-            "${application.applicantAddress} ರವರಿಗೆ "
+            "${_authorityReferenceLine(application.applicantAddress)} ರವರಿಗೆ "
             "ಮಾಹಿತಿಗಾಗಿ ಕಳುಹಿಸುತ್ತಾ ಸದರಿ ಮರಗಳನ್ನು "
             "ತೆರವುಗೊಳಿಸಲು ಇ-ಕಟಾವಣೆ ತಂತ್ರಾಂಶದಲ್ಲಿ "
             "ಅರ್ಜಿಯನ್ನು ಸಲ್ಲಿಸಲು ತಿಳಿಸಿದೆ.",
@@ -1926,11 +1962,11 @@ class DrfoDocumentService {
       revenueOpinionRemarks,
     );
 
-    template = _replace(
-      template,
-      "{{DRFO_REPORT_DATE}}",
-      _date(application.drfoInspectionDate),
-    );
+    final reportDate = await _drfoReportReferenceDate(application);
+    template = _resolveDateBlocks(template,
+      applicationDate: application.applicationDate, receivedDate: application.receivedDate,
+      drfoReportDate: reportDate);
+    template = _replace(template, '{{DRFO_REPORT_DATE}}', reportDate);
 
     template = _replace(
       template,
@@ -1991,7 +2027,7 @@ class DrfoDocumentService {
     // FORWARDING REFERENCES + RFO ORDER
     // ----------------------------------------------------------
 
-    final forwardedReference = _buildForwardedReference(
+    final forwardedReference = await _buildForwardedReference(
       application,
       startNumber: application.applicationType.trim().toUpperCase() == 'RTC'
           ? 1
@@ -2134,6 +2170,10 @@ class DrfoDocumentService {
     bool bold = false,
     double lineHeight = 1.45,
   }) async {
+    final missingKannada = RegExp('\uFFF9([^\uFFFB]*)\uFFFB').firstMatch(text);
+    if (missingKannada != null) {
+      throw StateError('Enter Kannada text in Administration > Masters for: ${missingKannada.group(1)}. Then regenerate the document.');
+    }
     final paragraphStyle = ui.ParagraphStyle(
       textAlign: alignment,
       fontFamily: _fontFamily,
@@ -2575,7 +2615,7 @@ class DrfoDocumentService {
         row.speciesName,
         row.gbh,
         row.height,
-        row.remarks.isEmpty ? '—' : row.remarks,
+        row.remarks,
       ]);
 
       final rowHeight = rowHeightFor(rowCells);
@@ -3729,9 +3769,9 @@ class DrfoDocumentService {
           "e-mail: ${rfoLetterhead.rangeEmail}",
       ];
       final leftParagraph = await _buildParagraph(
-        text: rfoLetterhead.doSenderName == null ? leftHeader : rfoLetterhead.doSenderAddress + "\nಪತ್ರ ಸಂಖ್ಯೆ: " + rfoLetterhead.letterNumber,
+        text: rfoLetterhead.doSenderName == null ? leftHeader : rfoLetterhead.doSenderAddress + "\n\n\nಪತ್ರ ಸಂಖ್ಯೆ: " + rfoLetterhead.letterNumber,
         width: leftColumnWidth,
-        lineHeight: rfoLetterhead.doSenderName == null ? 1.45 : 1.1,
+        lineHeight: rfoLetterhead.doSenderName == null ? 1.45 : 1.48,
         fontSize: defaultFontSize * _scale,
         alignment: ui.TextAlign.left,
         bold: false,
@@ -3795,7 +3835,7 @@ class DrfoDocumentService {
       if (rfoLetterhead.doSenderName != null) {
         final senderName = await _buildParagraph(text: rfoLetterhead.doSenderName!,
           width: leftColumnWidth, fontSize: (defaultFontSize + 1) * _scale,
-          alignment: ui.TextAlign.left, bold: true, lineHeight: 1.1);
+          alignment: ui.TextAlign.left, bold: true, lineHeight: 1.48);
         canvas.drawParagraph(senderName, ui.Offset(leftX, y));
         senderNameHeight = senderName.height;
       }
@@ -3971,18 +4011,32 @@ class DrfoDocumentService {
         }
         final thanks = await _buildParagraph(text: parts['thanks']!.join('\n').trim(),
           width: contentWidth, fontSize: defaultFontSize * _scale, alignment: ui.TextAlign.center, bold: false);
-        final recipient = await _buildParagraph(text: parts['to']!.join('\n').trim(),
-          width: signatureBlockX - bodyX - 12 * _scale, fontSize: defaultFontSize * _scale,
+        final recipientLines = parts['to']!.where((line) => line.isNotEmpty).toList();
+        final recipientIndent = 18 * _scale;
+        final recipientWidth = signatureBlockX - bodyX - 12 * _scale;
+        final recipientLabel = await _buildParagraph(
+          text: recipientLines.isEmpty ? '' : recipientLines.first,
+          width: recipientWidth, fontSize: defaultFontSize * _scale,
+          alignment: ui.TextAlign.left, bold: false, lineHeight: 1.18);
+        final recipientName = await _buildParagraph(
+          text: recipientLines.length > 1 ? recipientLines[1] : '',
+          width: recipientWidth - recipientIndent, fontSize: defaultFontSize * _scale,
+          alignment: ui.TextAlign.left, bold: true, lineHeight: 1.18);
+        final recipient = await _buildParagraph(
+          text: recipientLines.skip(2).join('\n'),
+          width: recipientWidth - recipientIndent, fontSize: defaultFontSize * _scale,
           alignment: ui.TextAlign.left, bold: false, lineHeight: 1.18);
         final signature = await _buildParagraph(text: parts['signature']!.join('\n').trim(),
           width: signatureBlockWidth, fontSize: defaultFontSize * _scale,
           alignment: ui.TextAlign.center, bold: true, lineHeight: 1.18);
         final gap = 25 * _scale;
-        final height = thanks.height + gap + math.max(recipient.height, signature.height);
+        final height = thanks.height + gap + math.max(recipientLabel.height + recipientName.height + recipient.height, signature.height);
         y = _pagePosition(y, height);
         canvas.drawParagraph(thanks, ui.Offset(bodyX, y));
         final footerTop = y + thanks.height + gap;
-        canvas.drawParagraph(recipient, ui.Offset(bodyX, footerTop));
+        canvas.drawParagraph(recipientLabel, ui.Offset(bodyX, footerTop));
+        canvas.drawParagraph(recipientName, ui.Offset(bodyX + recipientIndent, footerTop + recipientLabel.height));
+        canvas.drawParagraph(recipient, ui.Offset(bodyX + recipientIndent, footerTop + recipientLabel.height + recipientName.height));
         canvas.drawParagraph(signature, ui.Offset(signatureBlockX, footerTop));
         y += height + 4 * _scale;
         i = end;
@@ -4014,6 +4068,12 @@ class DrfoDocumentService {
             .trim();
         if (inner.isEmpty) {
           continue;
+        }
+        // DCF routing needs one blank line after the To address.
+        // The editable templates already supply one blank line after this
+        // centered line, before the salutation. Empty routing adds no gap.
+        if (inner.endsWith('ರವರ ಮುಖಾಂತರ')) {
+          y += 9 * _scale;
         }
         final inlineCenter = await _buildParagraph(
           text: _safeText(inner),
@@ -4998,7 +5058,7 @@ class DrfoDocumentService {
     // RENDER KANNADA THROUGH FLUTTER TEXT ENGINE
     // ----------------------------------------------------------
 
-    final pngBytes = await _renderMasterToPng(master);
+    final pngBytes = await _renderMasterToPng(_checkedDrfoMaster(master));
 
     // ----------------------------------------------------------
     // CREATE FINAL PDF
@@ -5111,7 +5171,7 @@ class DrfoDocumentService {
     final master = await _buildRecommendedReportMaster(template, application);
 
     final pngBytes = await _renderMasterToPng(
-      master,
+      _checkedDrfoMaster(master),
       rtcTreeRows: rtcTreeRows,
       notRecommendedTreeRows: notRecommendedTreeRows,
     );
@@ -5490,7 +5550,25 @@ class DrfoDocumentService {
       return Future.wait(List.generate(values.length, (i) => paragraph(values[i], widths[i]-4*_scale,bold:bold)));
     }
     final header = await cells(headings,bold:true);
-    final headerHeight = header.map((p)=>p.height).reduce(math.max)+10*_scale;
+    final quantityWidth = widths[5] + widths[6] + widths[7];
+    final quantityHeading = await paragraph('ಪರಿಮಾಣ', quantityWidth - 4 * _scale, bold: true);
+    final quantityHeadingHeight = quantityHeading.height + 8 * _scale;
+    final quantitySubHeight = header.sublist(5, 8).map((p) => p.height).reduce(math.max) + 10 * _scale;
+    final headerHeight = math.max(
+      header.map((p) => p.height).reduce(math.max) + 10 * _scale,
+      quantityHeadingHeight + quantitySubHeight,
+    );
+    void drawHeader() {
+      for (var i = 0; i < header.length; i++) {
+        final quantity = i >= 5 && i <= 7;
+        final top = quantity ? y + quantityHeadingHeight : y;
+        final h = quantity ? headerHeight - quantityHeadingHeight : headerHeight;
+        canvas.drawRect(ui.Rect.fromLTWH(x[i], top, widths[i], h), border);
+        canvas.drawParagraph(header[i], ui.Offset(x[i] + 2 * _scale, top + 4 * _scale));
+      }
+      canvas.drawRect(ui.Rect.fromLTWH(x[5], y, quantityWidth, quantityHeadingHeight), border);
+      canvas.drawParagraph(quantityHeading, ui.Offset(x[5] + 2 * _scale, y + 4 * _scale));
+    }
     void drawCells(List<ui.Paragraph> paragraphs, double h, {bool skipLot=false}) {
       for(var i=skipLot?1:0;i<paragraphs.length;i++) {
         canvas.drawRect(ui.Rect.fromLTWH(x[i],y,widths[i],h),border);
@@ -5524,7 +5602,7 @@ class DrfoDocumentService {
         canvas.drawParagraph(description,ui.Offset(margin,y));y+=description.height+14*_scale;
       }
       if(y+headerHeight+30*_scale>bottom)throw StateError('Shorten the Taggu Bele Patti introductory text or column headings.');
-      drawCells(header,headerHeight);y+=headerHeight;
+      drawHeader();y+=headerHeight;
     }
     await startPage(first:true);
     for(var index=0;index<rows.length;index++) {
@@ -5574,7 +5652,7 @@ class DrfoDocumentService {
       if (reference.forwardedBy.trim().isEmpty && reference.referenceNumber.trim().isEmpty && reference.referenceDate.trim().isEmpty) continue;
       final number = reference.referenceNumber.trim();
       final date = _date(reference.referenceDate);
-      var line = (references.length + 1).toString() + '. ' + reference.forwardedBy.trim();
+      var line = (references.length + 1).toString() + '. ' + await _forwardedAuthorityReference(reference);
       if (number.isNotEmpty) {
         line += ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
       }
@@ -5585,7 +5663,7 @@ class DrfoDocumentService {
       references.add(line);
     }
     references.add((references.length + 1).toString() + '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
-      await _printSectionName(application) + ' ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ' + _date(application.drfoInspectionDate) + '.');
+      await _printSectionName(application) + ' ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ' + await _drfoReportReferenceDate(application) + '.');
     return references.join('\n');
   }
 
@@ -5608,7 +5686,7 @@ class DrfoDocumentService {
     final appDate = _date(application.applicationDate);
     final appReceived = _date(application.receivedDate);
     var first =
-        '1. ' + application.applicantName + ', ' + application.applicantAddress + ' ರವರ ಮನವಿ';
+        '1. ' + application.applicantName + ', ' + _authorityReferenceLine(application.applicantAddress) + ' ರವರ ಮನವಿ';
     if (appDate.isNotEmpty) {
       first += ' ದಿನಾಂಕ: ' + appDate;
       if (appReceived.isNotEmpty) {
@@ -5622,7 +5700,7 @@ class DrfoDocumentService {
     }
     final references = <String>[first];
     for (final reference in application.forwardingReferences) {
-      final by = reference.forwardedBy.trim();
+      final by = await _forwardedAuthorityReference(reference);
       final number = reference.referenceNumber.trim();
       final date = _date(reference.referenceDate);
       if (by.isEmpty && number.isEmpty && date.isEmpty) continue;
@@ -5635,15 +5713,15 @@ class DrfoDocumentService {
       line += _receivedSuffix(reference) + '.';
       references.add(line);
     }
-    final drfoDate = _date(application.drfoInspectionDate);
     if (drfoOrderLast) {
-      final orderDate = _date(application.drfoAssignmentDate);
+      final orderDate = _drfoAssignmentReferenceDate(application);
       var last = (references.length + 1).toString() + '. ತಮ್ಮ ಆದೇಶ';
       if (orderDate.isNotEmpty) last += ' ದಿನಾಂಕ: ' + orderDate;
       last += '.';
       references.add(last);
       return references.join('\n');
     }
+    final drfoDate = await _drfoReportReferenceDate(application);
     var last = (references.length + 1).toString() +
         '. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ' +
         await _printSectionName(application) +
@@ -5655,7 +5733,7 @@ class DrfoDocumentService {
   }
 
   Future<String> _auctionLayoutFingerprint() async =>
-      'taggu-landscape-v1\n' + await _loadRfoTemplate('RFO_GL_DO.txt') +
+      'patti-quantity-group-v4\n' + await _loadRfoTemplate('RFO_GL_DO.txt') +
       '\n' + await _loadRfoTemplate('RFO_GL_TAGGU_BELE_PATTI.txt');
 
   Future<List<File>> generateGovernmentLandLetters(ApplicationModel application, GovernmentApproval approval, {bool afterReply = false}) async {
@@ -5744,7 +5822,7 @@ class DrfoDocumentService {
       '{{APPLICANT_ADDRESS}}': application.applicantAddress,
       '{{APPLICATION_DATE}}': _date(application.applicationDate),
       '{{RECEIVED_DATE}}': _date(application.receivedDate),
-      '{{DRFO_REPORT_DATE}}': _date(application.drfoInspectionDate),
+      '{{DRFO_REPORT_DATE}}': await _drfoReportReferenceDate(application),
       '{{TREE_LOCATION}}': _location(application),
       '{{SECTION}}': await _printSectionName(application),
       '{{BEAT}}': await _printBeatName(application),
@@ -5774,6 +5852,7 @@ class DrfoDocumentService {
       master = master.replaceAll('{{LETTER_DATE}}', _date(application.rfoApprovalDate));
       master = _resolveDateBlocks(
         master,
+        drfoReportDate: values['{{DRFO_REPORT_DATE}}'] ?? '',
         applicationDate: application.applicationDate,
         receivedDate: application.receivedDate,
         revenueLetterDate: answers['letterDate'] ?? '',
@@ -5781,13 +5860,15 @@ class DrfoDocumentService {
       );
       if (isDo || isPatti || isValuation || request) master = await _buildRecommendedReportMaster(master, application, rfoApprovedOnly: auction || isValuation);
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
         final key = match.group(0)!;
         if (key == '{{GL_TREE_ENUMERATION_TABLE}}' || key == '{{MCC_VALUATION_TABLE}}' || key == '{{TAGGU_BELE_TABLE}}') return key;
         if (!values.containsKey(key)) throw StateError('Unknown government template placeholder: ' + key);
+        if (templateName == 'RFO_GL_VALUATION.txt' && key == '{{DCF_COPY_LINE}}') return values[key]!;
         if (key == '{{APPLICANT_REPLY_REFERENCE}}' || key == '{{APPLICANT_LETTER_NUMBER_PHRASE}}') return values[key]!;
         return values[key]!.trim().isEmpty ? '—' : values[key]!;
       });
-      final pages = isPatti ? await _renderTagguBelePatti(master, rows) : await _renderMasterToPng(master, glTreeEnumerationRows: rows, mccValuationApplicant: isMcc ? application.applicantName + '\n' + application.applicantAddress : '', rfoLetterhead: _RfoLetterheadData(
+      final pages = isPatti ? await _renderTagguBelePatti(master, rows) : await _renderMasterToPng(master, glTreeEnumerationRows: rows, mccValuationApplicant: isMcc ? application.applicantName + ', ' + _authorityReferenceLine(application.applicantAddress) : '', rfoLetterhead: _RfoLetterheadData(
         doSenderName: isDo ? senderName : null, doSenderAddress: isDo ? senderAddress : '',
         letterNumber: await _rfoLetterNumber(application), rangeName: range, rangeLocation: location,
         rangeOfficeAddress: config?['rangeOfficeAddress']?.toString() ?? '', rangeEmail: config?['rangeEmail']?.toString() ?? '',
@@ -5857,7 +5938,7 @@ class DrfoDocumentService {
     final config = await OfficeConfigurationRepository().getConfiguration();
     final range = config?['rangeName']?.toString() ?? '';
     final location = config?['rangeLocation']?.toString() ?? range;
-    final locationPhrase = application.treeLocationSame ? '' : application.treeLocationAddress.trim();
+    final locationPhrase = application.treeLocationSame ? '' : _authorityReferenceLine(application.treeLocationAddress);
     final values = <String, String>{
       '{{TREE_OFFICER_TO_ADDRESS}}': officerAddress,
       '{{APPLICANT_NAME}}': application.applicantName,
@@ -5875,6 +5956,7 @@ class DrfoDocumentService {
     };
     final template = await _loadRfoTemplate('RFO_BRANCH_PERMISSION_PL.txt');
     final master = template.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
       final key = match.group(0)!;
       if (key == '{{BRANCH_PERMISSION_TREE_TABLE}}') return key;
       if (!values.containsKey(key)) throw StateError('Unknown branch permission placeholder: $key');
@@ -5894,30 +5976,6 @@ class DrfoDocumentService {
     return _savePdf(officeNumber: application.officeNumber,
       fileName: _safeFileName(application.officeNumber) + '_RFO_PRIVATE_LAND_BRANCH_PERMISSION.pdf',
       bytes: await pdf.save());
-  }
-
-  /// Officer-master display name for a tree-officer role code.
-  /// Tree-officer mapping names are never printed; the mapping only
-  /// carries the felling-permission flag.
-  Future<String> _officerMasterDisplayName(
-    String roleCode,
-    String fallback,
-  ) async {
-    try {
-      final directory = await OfficerRepository().getAll();
-      for (final row in directory) {
-        if ((row['role']?.toString() ?? '').trim().toUpperCase() ==
-            roleCode.trim().toUpperCase()) {
-          final name = (row['name']?.toString() ?? '')
-              .replaceAll(RegExp(r'\s+'), ' ')
-              .trim();
-          if (name.isNotEmpty) return name;
-        }
-      }
-    } catch (_) {
-      // Fall through to mapping name.
-    }
-    return fallback;
   }
 
   Future<Map<String, String>> _privateLandApprovalValues(ApplicationModel application, RevenueReply reply, {bool addressTreeOfficer = true}) async {
@@ -5944,8 +6002,8 @@ class DrfoDocumentService {
     if (approvedCount == 0) throw StateError('No RFO-approved recommended trees are available for the approval letter.');
     final revenueSelection = await ApplicationRevenueOpinionRepository().getByApplication(applicationId);
     final opinion = revenueSelection == null ? null : await RevenueOpinionRepository().getById(revenueSelection.revenueOpinionId);
-    final revenueRemarks = opinion == null ? '' : (opinion.remarks.trim().isNotEmpty ? opinion.remarks.trim() : opinion.revenueOpinion.trim());
-    final locationPhrase = application.treeLocationSame ? '' : application.treeLocationAddress.trim();
+    final revenueRemarks = opinion?.kannadaName.trim() ?? '';
+    final locationPhrase = application.treeLocationSame ? '' : _authorityReferenceLine(application.treeLocationAddress);
     final whyRemoving = await _masterKannadaName(masterRepository, application.whyRemovingId);
     final replyDetails = ['ownership', 'reserved', 'taxes', 'dispute', 'extra']
         .map((key) => reply.answers[key]?.trim() ?? '').where((value) => value.isNotEmpty).join(', ');
@@ -5953,7 +6011,7 @@ class DrfoDocumentService {
     // appear in To address in the DO letter alone.
     String treeOfficerToAddress = '';
     if (addressTreeOfficer &&
-        {'ACF', 'DCF'}.contains(selected.first['code'])) {
+        {'RFO', 'ACF', 'DCF'}.contains(selected.first['code']?.toString().trim().toUpperCase())) {
       treeOfficerToAddress =
           await OfficerRepository().addressForRole(
                 selected.first['code'].toString(),
@@ -5967,7 +6025,7 @@ class DrfoDocumentService {
       '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
       '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
       '{{RECEIVED_DATE}}': _date(application.receivedDate),
-      '{{DRFO_REPORT_DATE}}': _date(application.drfoInspectionDate),
+      '{{DRFO_REPORT_DATE}}': await _drfoReportReferenceDate(application),
       '{{WHY_REMOVING_KANNADA}}': whyRemoving,
       '{{TOTAL_RECOMMENDED_TREES}}': recommended.length.toString(),
       '{{TOTAL_APPROVED_TREES}}': approvedCount.toString(),
@@ -6002,6 +6060,7 @@ class DrfoDocumentService {
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
     };
     master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
       final value = values[match.group(0)];
       if (value == null) {
         throw StateError(
@@ -6012,7 +6071,8 @@ class DrfoDocumentService {
     });
     master = _resolveDateBlocks(
       master,
-      applicationDate: application.applicationDate,
+      drfoReportDate: values['{{DRFO_REPORT_DATE}}'] ?? '',
+        applicationDate: application.applicationDate,
       receivedDate: application.receivedDate,
       revenueLetterDate: reply.answers['letterDate'] ?? '',
       revenueReceivedDate: reply.answers['receivedDate'] ?? '',
@@ -6051,7 +6111,7 @@ class DrfoDocumentService {
       throw StateError(
           'Sandal approval letter can be generated only for Sandal Private applications.');
     }
-    if (!reply.allApproved ||
+    if (!reply.allApprovedFor(includeOnline: false) ||
         reply.answers['nature'] == RevenueReply.wrongAuthority) {
       throw StateError(
           'Approve the revenue reply before generating a final decision.');
@@ -6066,7 +6126,7 @@ class DrfoDocumentService {
     final revenueReceived = _date(reply.answers['receivedDate'] ?? '');
     final applicantDate = _date(application.applicationDate);
     var sandalFirst =
-        '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ';
+        '1. ${application.applicantName}, ${_authorityReferenceLine(application.applicantAddress)} ರವರ ಮನವಿ';
     if (applicantDate.isNotEmpty) {
       sandalFirst += ' ದಿನಾಂಕ: $applicantDate';
     }
@@ -6076,7 +6136,7 @@ class DrfoDocumentService {
     final revenueLetterDate =
         _date(reply.answers['letterDate'] ?? '');
     var sandalThird =
-        '3. ${reply.answers['authority'] ?? ''} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}';
+        '3. ${_authorityReferenceLine(reply.answers['authority'] ?? '')} ರವರ ಕಂದಾಯ ಅಭಿಪ್ರಾಯ ಪತ್ರ ಸಂಖ್ಯೆ: ${reply.answers['letterNumber'] ?? ''}';
     if (revenueLetterDate.isNotEmpty) {
       sandalThird += ', ದಿನಾಂಕ: $revenueLetterDate';
     }
@@ -6085,17 +6145,13 @@ class DrfoDocumentService {
         : ' (ಸ್ವೀಕೃತಿ ದಿನಾಂಕ: $revenueReceived).';
     final references = <String>[
       sandalFirst,
-      '2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.',
+      '2. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${await _drfoReportReferenceDate(application)}.',
       sandalThird,
     ];
 
     // To is always the DCF officer from the officer master.
-    final dcfName = await _officerMasterDisplayName('DCF', '');
-    final dcfAddress =
-        await OfficerRepository().addressForRole('DCF');
-    final toAddress = dcfName.isEmpty
-        ? dcfAddress
-        : '$dcfName\n$dcfAddress';
+    // Normal RFO letters: designation, then postal address; no personal name.
+    final toAddress = await OfficerRepository().addressForRole('DCF');
 
     final whyRemoving = await _masterKannadaName(
         masterRepository, application.whyRemovingId);
@@ -6105,11 +6161,7 @@ class DrfoDocumentService {
         ? null
         : await RevenueOpinionRepository()
             .getById(opinionSelection.revenueOpinionId);
-    final revenueRemarks = opinion == null
-        ? ''
-        : (opinion.remarks.trim().isNotEmpty
-            ? opinion.remarks.trim()
-            : opinion.revenueOpinion.trim());
+    final revenueRemarks = opinion?.kannadaName.trim() ?? '';
     final replyDetails = [
       'ownership',
       'reserved',
@@ -6122,10 +6174,9 @@ class DrfoDocumentService {
         .join(', ');
     final locationPhrase = application.treeLocationSame
         ? ''
-        : application.treeLocationAddress.trim();
-    final recommendedCount =
-        (await _buildSandalTreeRows(application)).length;
-
+        : _authorityReferenceLine(application.treeLocationAddress);
+    final sandalRows = await _buildSandalTreeRows(application);
+    final recommendedCount = sandalRows.length;
     var master = await _loadRfoTemplate('RFO_APPROVED_SPL.txt');
     final values = <String, String>{
       '{{TREE_OFFICER_TO_ADDRESS}}': toAddress,
@@ -6143,24 +6194,24 @@ class DrfoDocumentService {
       '{{TOTAL_RECOMMENDED_TREES}}': recommendedCount.toString(),
       '{{WHY_REMOVING_KANNADA}}': whyRemoving,
       '{{REVENUE_OPINION_REMARKS}}': revenueRemarks,
-      '{{REVENUE_AUTHORITY}}': reply.answers['authority'] ?? '',
+      '{{REVENUE_AUTHORITY}}': _authorityReferenceLine(reply.answers['authority'] ?? ''),
       '{{REVENUE_REPLY_DETAILS}}': replyDetails,
       '{{SANDAL_FROM_LOCATION}}': _safeText(application.treeLocationSame
-          ? application.applicantAddress.trim()
-          : application.treeLocationAddress.trim()),
+          ? _authorityReferenceLine(application.applicantAddress)
+          : _authorityReferenceLine(application.treeLocationAddress)),
       '{{SANDAL_TO_LOCATION}}':
           await _sandalDestinationKannada(application),
     };
+    // Substitute data once; leave the table marker for the graphical renderer.
     master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
-      final value = values[match.group(0)];
-      if (value == null) {
-        throw StateError(
-            'Unknown sandal approval template placeholder: ' +
-                match.group(0)!);
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
+      final key = match.group(0)!;
+      if (key == '{{SANDAL_TREE_TABLE}}') return key;
+      if (!values.containsKey(key)) {
+        throw StateError('Unknown SPL approval template placeholder: $key');
       }
-      return value.trim().isEmpty ? '—' : value;
+      return values[key]!;
     });
-    final sandalRows = await _buildSandalTreeRows(application);
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
           letterNumber: await _rfoLetterNumber(application),
@@ -6202,11 +6253,28 @@ class DrfoDocumentService {
     final range = config?['rangeName']?.toString() ?? '';
     final location = config?['rangeLocation']?.toString() ?? range;
     final masterRepository = MasterRepository();
+    String masterName(List<Map<String, dynamic>> rows, int? id, String fallback, String nameKey) {
+      for (final row in rows) {
+        if (row['id'] != id) continue;
+        final kannada = row['kannadaName']?.toString().trim() ?? '';
+        if (kannada.isNotEmpty) return kannada;
+        final name = row[nameKey]?.toString().trim() ?? '';
+        if (name.isNotEmpty) return name;
+      }
+      return fallback.trim();
+    }
+    final sectionName = masterName(await SectionRepository().getAll(), application.sectionId, application.section, 'sectionName');
+    final beatName = masterName(await BeatRepository().getAll(), application.beatId, application.beat, 'beatName');
+    final destination = await _sandalDestinationKannada(application);
+
 
     final applicantReceived = _date(application.receivedDate);
     final applicantDate = _date(application.applicationDate);
     var sglFirst =
-        '1. ${application.applicantName}, ${application.applicantAddress} ರವರ ಮನವಿ';
+        '1. ${application.applicantName}, ${_authorityReferenceLine(application.applicantAddress)} ರವರ ಮನವಿ';
+    if (application.applicantLetterNumber.trim().isNotEmpty) {
+      sglFirst += ' ಪತ್ರ ಸಂಖ್ಯೆ: ${application.applicantLetterNumber.trim()}';
+    }
     if (applicantDate.isNotEmpty) {
       sglFirst += ' ದಿನಾಂಕ: $applicantDate';
     }
@@ -6217,13 +6285,14 @@ class DrfoDocumentService {
     for (final reference in application.forwardingReferences) {
       if (reference.forwardedBy.trim().isEmpty &&
           reference.referenceNumber.trim().isEmpty &&
-          reference.referenceDate.trim().isEmpty) {
+          reference.referenceDate.trim().isEmpty &&
+          reference.receivedDate.trim().isEmpty) {
         continue;
       }
       final number = reference.referenceNumber.trim();
       final date = _date(reference.referenceDate);
       var line =
-          '${references.length + 1}. ${reference.forwardedBy.trim()}';
+          '${references.length + 1}. ${await _forwardedAuthorityReference(reference)}';
       if (number.isNotEmpty) {
         line += ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
       }
@@ -6233,15 +6302,12 @@ class DrfoDocumentService {
       line += '${_receivedSuffix(reference)}.';
       references.add(line);
     }
+    final drfoDate = await _drfoReportReferenceDate(application);
     references.add(
-        '${references.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${await _printSectionName(application)} ಶಾಖೆ ರವರ ವರದಿ ದಿನಾಂಕ: ${_date(application.drfoInspectionDate)}.');
+        '${references.length + 1}. ಉಪ ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ -ವ- ಮೋಜಣಿದಾರರು, ${sectionName} ಶಾಖೆ ರವರ ವರದಿ${drfoDate.isEmpty ? '' : ' ದಿನಾಂಕ: $drfoDate'}.');
 
-    final dcfName = await _officerMasterDisplayName('DCF', '');
-    final dcfAddress =
-        await OfficerRepository().addressForRole('DCF');
-    final toAddress = dcfName.isEmpty
-        ? dcfAddress
-        : '$dcfName\n$dcfAddress';
+    // Normal RFO letters: designation, then postal address; no personal name.
+    final toAddress = await OfficerRepository().addressForRole('DCF');
 
     final structureTypeKannada = await _masterKannadaName(
       masterRepository,
@@ -6256,9 +6322,7 @@ class DrfoDocumentService {
       application.whyRemovingId,
     );
     final whyRemovingKannada =
-        whyRemovingItem?['kannadaName']?.toString().trim().isNotEmpty == true
-            ? whyRemovingItem!['kannadaName'].toString().trim()
-            : whyRemovingItem?['value']?.toString().trim() ?? '';
+        _kannadaPrintName(whyRemovingItem);
     final trees = await TreeRepository().getTrees(application.id!);
     final recommendationTypes = await masterRepository.getMasters(
       'Recommendation Type',
@@ -6282,9 +6346,7 @@ class DrfoDocumentService {
     final reasonById = <int, String>{
       for (final item in recommendationReasons)
         item['id'] as int:
-            item['kannadaName']?.toString().trim().isNotEmpty == true
-            ? item['kannadaName'].toString().trim()
-            : item['value']?.toString().trim() ?? '',
+            _kannadaPrintName(item),
     };
     final uniqueReasons = <String>{};
     for (final tree in recommendedTrees) {
@@ -6298,9 +6360,7 @@ class DrfoDocumentService {
     final statusById = <int, String>{
       for (final item in treeStatusMasters)
         item['id'] as int:
-            item['kannadaName']?.toString().trim().isNotEmpty == true
-            ? item['kannadaName'].toString().trim()
-            : item['value']?.toString().trim() ?? '',
+            _kannadaPrintName(item),
     };
     final statusCounts = <String, int>{};
     for (final tree in recommendedTrees) {
@@ -6315,7 +6375,7 @@ class DrfoDocumentService {
         await _governmentAgencyKannadaFor(application);
     final additionalTreeLocation = application.treeLocationSame
         ? ''
-        : application.treeLocationAddress.trim();
+        : _authorityReferenceLine(application.treeLocationAddress);
     final sandalRows = await _buildSandalTreeRows(application);
 
     var master = await _loadRfoTemplate('RFO_APPROVED_SGL.txt');
@@ -6328,14 +6388,21 @@ class DrfoDocumentService {
       '{{ADDITIONAL_TREE_LOCATION}}': additionalTreeLocation,
       '{{SANDAL_REFERENCES}}': references.join('\n'),
       '{{STRUCTURE_TYPE_KANNADA}}': structureTypeKannada,
+      '{{STRUCTURE_TYPE_PHRASE}}': structureTypeKannada.trim().isEmpty ? '' : '${structureTypeKannada}ಯ',
       '{{PURPOSE_KANNADA}}': purposeKannada,
       '{{WORK_NAME_TEXT}}': workNameText,
       '{{WHY_REMOVING_KANNADA}}': whyRemovingKannada,
-      '{{SECTION}}': await _printSectionName(application),
-      '{{BEAT}}': await _printBeatName(application),
+      '{{SECTION}}': sectionName,
+      '{{BEAT}}': beatName,
       '{{RANGE_NAME}}': range,
       '{{RANGE_LOCATION}}': location,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
+      '{{RFO_APPROVAL_DATE}}': _date(application.rfoApprovalDate),
+      '{{OFFICE_NUMBER}}': application.officeNumber,
+      '{{APPLICATION_DATE}}': applicantDate,
+      '{{RECEIVED_DATE}}': applicantReceived,
+      '{{APPLICANT_LETTER_NUMBER}}': application.applicantLetterNumber,
+      '{{DRFO_REPORT_DATE}}': drfoDate,
       '{{GOVERNMENT_AGENCY_KANNADA}}': governmentAgencyKannada,
       '{{TOTAL_RECOMMENDED_TREES}}': sandalRows.length.toString(),
       '{{TREE_STATUS_SUMMARY}}': _joinKannadaNames(statusCounts.entries
@@ -6343,20 +6410,22 @@ class DrfoDocumentService {
           .toList()),
       '{{UNIQUE_RECOMMENDATION_REASONS}}':
           _joinKannadaNames(uniqueReasons.toList()),
-      '{{SANDAL_FROM_LOCATION}}': _safeText(application.treeLocationSame
-          ? application.applicantAddress.trim()
-          : application.treeLocationAddress.trim()),
+      '{{SANDAL_FROM_LOCATION}}': (application.treeLocationSame
+          ? _authorityReferenceLine(application.applicantAddress)
+          : _authorityReferenceLine(application.treeLocationAddress)),
       '{{SANDAL_TO_LOCATION}}':
-          await _sandalDestinationKannada(application),
+          destination.trim() == '—' ? '' : destination,
     };
     master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
+      if (match.group(0) == '{{SANDAL_TREE_TABLE}}') return match.group(0)!;
       final value = values[match.group(0)];
       if (value == null) {
         throw StateError(
             'Unknown sandal government approval template placeholder: ' +
                 match.group(0)!);
       }
-      return value.trim().isEmpty ? '—' : value;
+      return value;
     });
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
@@ -6412,7 +6481,7 @@ class DrfoDocumentService {
         '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
         '{{RFO_APPROVAL_DATE}}': _date(application.rfoApprovalDate),
         '{{REVENUE_REQUEST_DATE}}': _date(reply.requestedAt),
-        '{{REVENUE_AUTHORITY}}': reply.answers['authority'] ?? '',
+        '{{REVENUE_AUTHORITY}}': _authorityReferenceLine(reply.answers['authority'] ?? ''),
         '{{REVENUE_LETTER_NUMBER}}': reply.answers['letterNumber'] ?? '',
         '{{REVENUE_LETTER_DATE}}': _date(reply.answers['letterDate'] ?? ''),
         '{{REVENUE_RECEIVED_DATE}}': _date(reply.answers['receivedDate'] ?? ''),
@@ -6430,7 +6499,7 @@ class DrfoDocumentService {
         final recommendationTypes = await MasterRepository().getMasters('Recommendation Type');
         final ids = recommendationTypes.where((row) => {'FULL','BRANCH','TWIG','TOP'}.contains(row['code']?.toString().trim().toUpperCase())).map((row)=>row['id']).toSet();
         final trees = await TreeRepository().getTrees(application.id!);
-        final locationPhrase = application.treeLocationSame ? '' : application.treeLocationAddress.trim();
+        final locationPhrase = application.treeLocationSame ? '' : _authorityReferenceLine(application.treeLocationAddress);
         values.addAll({
           '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
           '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
@@ -6446,6 +6515,7 @@ class DrfoDocumentService {
       );
       master = _resolveDateBlocks(
         master,
+        drfoReportDate: values['{{DRFO_REPORT_DATE}}'] ?? '',
         applicationDate: application.applicationDate,
         receivedDate: application.receivedDate,
         revenueLetterDate: reply.answers['letterDate'] ?? '',
@@ -6453,6 +6523,7 @@ class DrfoDocumentService {
       );
       // Substitute once so values containing placeholder-like text stay literal.
       master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
         final value = values[match.group(0)];
         if (value == null) throw StateError('Unknown private-land decision template placeholder: ' + match.group(0)!);
         if (match.group(0) == '{{APPLICANT_LETTER_NUMBER_PHRASE}}' || match.group(0) == '{{TREE_LOCATION_SUBJECT_PHRASE}}' || match.group(0) == '{{TREE_LOCATION_BODY_PHRASE}}') return value;
@@ -6664,6 +6735,8 @@ class DrfoDocumentService {
     final name = file.uri.pathSegments.last.toUpperCase();
     final rtc = name.contains('_RFO_APPROVED_RTC') || name.contains('_RFO_DEFERRED_RTC');
     final nonRtc = name.contains('_RFO_DEFERRED_NON_RTC') || name.contains('_RFO_NOT_RECOMMENDED_NON_RTC');
+    final sandalGovernment = name.endsWith('_RFO_APPROVED_SGL.PDF');
+    final sandalPrivate = RegExp(r'_RFO_APPROVED_SPL_CYCLE_\d+\.PDF$').hasMatch(name);
     final privateBranch = name.endsWith('_RFO_PRIVATE_LAND_BRANCH_PERMISSION.PDF');
     final privateRejected = name.contains('_RFO_PRIVATE_LAND_REJECTED');
     final governmentRequest = name.contains('_RFO_GL_DOCUMENT_REQUEST');
@@ -6675,9 +6748,9 @@ class DrfoDocumentService {
     final governmentValuation = name.contains('_RFO_GL_VALUATION') ||
         name.contains('_RFO_MCC_VALUATION');
     final mccValuation = name.contains('_RFO_MCC_VALUATION');
-    if (!privateBranch && !rtc && !nonRtc && !privateApproval && !revenueRequest && !governmentValuation && !governmentAuction && !governmentRequest && !privateRejected) return;
+    if (!sandalGovernment && !sandalPrivate && !privateBranch && !rtc && !nonRtc && !privateApproval && !revenueRequest && !governmentValuation && !governmentAuction && !governmentRequest && !privateRejected) return;
     final officers = OfficerRepository();
-    final fingerprint = await officers.fingerprint();
+    final fingerprint = 'kannada-master-print-v5\n' + await officers.fingerprint();
     final marker = File(file.path + '.officer-addresses');
     final layoutMarker = File(file.path + '.auction-layout');
     final rejectionMarker = File(file.path + '.rejection-layout');
@@ -6685,11 +6758,13 @@ class DrfoDocumentService {
     final valuationMarker = File(file.path + '.valuation-layout');
     final branchMarker = File(file.path + '.branch-layout');
     final branchTemplate = privateBranch ? await _loadRfoTemplate('RFO_BRANCH_PERMISSION_PL.txt') : '';
-    final layoutCurrent = (!privateBranch || (await branchMarker.exists() && await branchMarker.readAsString() == branchTemplate)) && (!privateRejected || (await rejectionMarker.exists() && await rejectionMarker.readAsString() == await _loadRfoTemplate('RFO_REJECTED_PL.txt'))) &&
+    final sandalMarker = File(file.path + (sandalGovernment ? '.sgl-layout' : '.spl-layout'));
+    final sandalLayout = sandalGovernment ? 'sgl-values-v2\n' + await _loadRfoTemplate('RFO_APPROVED_SGL.txt') : sandalPrivate ? 'spl-placeholders-v1\n' + await _loadRfoTemplate('RFO_APPROVED_SPL.txt') : '';
+    final layoutCurrent = (!(sandalPrivate || sandalGovernment) || (await sandalMarker.exists() && await sandalMarker.readAsString() == sandalLayout)) && (!privateBranch || (await branchMarker.exists() && await branchMarker.readAsString() == branchTemplate)) && (!privateRejected || (await rejectionMarker.exists() && await rejectionMarker.readAsString() == await _loadRfoTemplate('RFO_REJECTED_PL.txt'))) &&
         (!governmentRequest || (await requestMarker.exists() && await requestMarker.readAsString() == await _loadRfoTemplate('RFO_GL_DOCUMENT_REQUEST.txt'))) &&
         (!governmentAuction || (await layoutMarker.exists() && await layoutMarker.readAsString() == await _auctionLayoutFingerprint())) &&
         (!governmentValuation || (await valuationMarker.exists() && await valuationMarker.readAsString() == await _loadRfoTemplate(mccValuation ? 'RFO_MCC_VALUATION.txt' : 'RFO_GL_VALUATION.txt')));
-    if (layoutCurrent && await marker.exists() && await marker.readAsString() == fingerprint) return;
+    if (!revenueRequest && !sandalGovernment && layoutCurrent && await marker.exists() && await marker.readAsString() == fingerprint) return;
     var app = application;
     if (app == null) {
       final folderName = file.parent.uri.pathSegments.where((part) => part.isNotEmpty).last;
@@ -6706,7 +6781,15 @@ class DrfoDocumentService {
     int? requestAuthorityId;
     final cycleMatch = RegExp(r'_CYCLE_(\d+)').firstMatch(name);
     final cycle = cycleMatch == null ? 1 : int.parse(cycleMatch.group(1)!);
-    if (privateBranch) {
+    if (sandalGovernment) {
+      affected = true;
+    } else if (sandalPrivate) {
+      final replies = await RevenueReplyRepository().history(app.id!);
+      final matches = replies.where((reply) => reply.cycle == cycle).toList();
+      if (matches.length != 1) throw StateError('Saved revenue opinion for this SPL letter was not found.');
+      savedReply = matches.single;
+      affected = true;
+    } else if (privateBranch) {
       affected = true;
     } else if (governmentValuation || governmentAuction || governmentRequest) {
       government = await GovernmentApprovalRepository().get(app.id!);
@@ -6743,13 +6826,17 @@ class DrfoDocumentService {
       if (previous.isNotEmpty) requestAuthorityId = previous.single.nextAuthorityId;
       requestAuthorityId ??= (await ApplicationRevenueOpinionRepository().getByApplication(app.id!))?.revenueOpinionId;
       final authority = requestAuthorityId == null ? null : await RevenueOpinionRepository().getById(requestAuthorityId);
-      affected = authority != null && {'ACF','DCF'}.contains(authority.code.trim().toUpperCase());
+      affected = authority != null;
     }
     if (affected) {
       final backup = File(file.path + '.before-officer-address-update');
       if (!await backup.exists()) await file.copy(backup.path);
       File? regenerated;
-      if (privateBranch) {
+      if (sandalGovernment) {
+        regenerated = await generateRfoSandalGovtApprovalLetter(app);
+      } else if (sandalPrivate) {
+        regenerated = await generateRfoSandalApprovalLetter(app, savedReply!);
+      } else if (privateBranch) {
         regenerated = await generateRfoPrivateLandBranchPermissionLetter(app);
         await branchMarker.writeAsString(branchTemplate);
       } else if (governmentValuation || governmentAuction || governmentRequest) {
@@ -6773,6 +6860,7 @@ class DrfoDocumentService {
         await file.writeAsBytes(await regenerated.readAsBytes());
       }
     }
+    if ((sandalPrivate || sandalGovernment) && affected) await sandalMarker.writeAsString(sandalLayout);
     await marker.writeAsString(fingerprint);
   }
 
@@ -6978,23 +7066,9 @@ class DrfoDocumentService {
         .trim();
   }
 
-  Future<String> _masterKannadaName(
-    MasterRepository repository,
-    int? id,
-  ) async {
-    if (id == null) return "";
-
-    final item = await repository.getMasterById(id);
-
-    if (item == null) return "";
-
-    final kannadaName = item["kannadaName"]?.toString().trim() ?? "";
-
-    if (kannadaName.isNotEmpty) {
-      return kannadaName;
-    }
-
-    return item["value"]?.toString().trim() ?? "";
+  Future<String> _masterKannadaName(MasterRepository repository, int? id) async {
+    if (id == null) return '';
+    return _kannadaPrintName(await repository.getMasterById(id));
   }
 
   Future<String> _mahazarBoundaryText({
@@ -7149,9 +7223,7 @@ class DrfoDocumentService {
     );
 
     final whyRemovingKannada =
-        whyRemovingItem?["kannadaName"]?.toString().trim().isNotEmpty == true
-        ? whyRemovingItem!["kannadaName"].toString().trim()
-        : whyRemovingItem?["value"]?.toString().trim() ?? "";
+        _kannadaPrintName(whyRemovingItem);
 
     final whyRemovingCode =
         whyRemovingItem?["code"]?.toString().trim().toUpperCase() ?? "";
@@ -7222,9 +7294,7 @@ class DrfoDocumentService {
     final speciesNameById = <int, String>{
       for (final item in speciesMasters)
         item["id"]
-            as int: item["kannadaName"]?.toString().trim().isNotEmpty == true
-            ? item["kannadaName"].toString().trim()
-            : item["value"]?.toString().trim() ?? "",
+            as int: _kannadaPrintName(item),
     };
 
     final recommendedSpeciesCounts = <String, int>{};
@@ -7257,9 +7327,7 @@ class DrfoDocumentService {
     final recommendationReasonById = <int, String>{
       for (final item in recommendationReasonMasters)
         item["id"]
-            as int: item["kannadaName"]?.toString().trim().isNotEmpty == true
-            ? item["kannadaName"].toString().trim()
-            : item["value"]?.toString().trim() ?? "",
+            as int: _kannadaPrintName(item),
     };
 
     final uniqueReasons = <String>{};
@@ -7287,9 +7355,7 @@ class DrfoDocumentService {
     final treeStatusById = <int, String>{
       for (final item in treeStatusMasters)
         item["id"]
-            as int: item["kannadaName"]?.toString().trim().isNotEmpty == true
-            ? item["kannadaName"].toString().trim()
-            : item["value"]?.toString().trim() ?? "",
+            as int: _kannadaPrintName(item),
     };
 
     final statusCounts = <String, int>{};
@@ -7335,7 +7401,7 @@ class DrfoDocumentService {
 
     final produceParts = <String>[];
 
-    final isSandal = applicationType == "SPL";
+    final isSandal = usesSandalMahazar;
 
     if (isSandal) {
       final sandalCount = enumerationRows.length;
@@ -7370,7 +7436,7 @@ class DrfoDocumentService {
 
     final additionalTreeLocation = application.treeLocationSame
         ? ""
-        : application.treeLocationAddress.trim();
+        : _authorityReferenceLine(application.treeLocationAddress);
 
     final isPrivateApplication =
         applicationType == "PL" || applicationType == "SPL";
@@ -7578,7 +7644,7 @@ class DrfoDocumentService {
     // RENDER AND SAVE PDF
     // ========================================================
 
-    final pngBytes = await _renderMasterToPng(template);
+    final pngBytes = await _renderMasterToPng(_checkedDrfoMaster(template));
 
     final pdf = pw.Document();
 
@@ -7762,7 +7828,7 @@ class DrfoDocumentService {
     master = _replace(master, '{{RANGE_NAME}}', _safeText(rangeName));
 
     final pngBytes = await _renderMasterToPng(
-      master,
+      _checkedDrfoMaster(master),
       glTreeEnumerationRows: rows,
     );
 
@@ -7802,6 +7868,21 @@ class DrfoDocumentService {
         .toList();
   }
 
+  String _buildSandalTableText(List<_SandalTreeTableRow> rows) {
+    if (rows.isEmpty) return '—';
+
+    final tableRows = <String>[''];
+    for (final row in rows) {
+      final treeNum = row.treeNumber ?? '—';
+      final species = row.speciesName ?? '—';
+      final gbh = row.gbh != null && row.gbh!.isNotEmpty ? '(${row.gbh!})' : '';
+      final height = row.height != null && row.height!.isNotEmpty ? 'ಹೆ' + row.height! : '';
+      final remarks = row.remarks.isNotEmpty ? row.remarks : '—';
+      tableRows.add('${row.serialNumber}. $treeNum $species $gbh $height $remarks');
+    }
+    return tableRows.join('\n');
+  }
+
   // ==========================================================
   // SANDAL TREE ENUMERATION PDF (no money columns)
   // ==========================================================
@@ -7828,6 +7909,11 @@ class DrfoDocumentService {
         : rangeName;
 
     var master = await _loadTemplate('SANDAL_ENUMERATION.txt');
+    final agency = application.applicationType.trim().toUpperCase() == 'SGL'
+        ? await _governmentAgencyKannadaFor(application) : '';
+    master = _replace(master, '{{GOVERNMENT_AGENCY_PREFIX}}', agency.isEmpty ? '' : '${agency}ಯ ');
+    master = _replace(master, '{{LAND_TYPE_KANNADA}}', getLandType(application));
+
 
     master = _replace(master, '{{APPLICANT_NAME}}',
         _safeText(application.applicantName));
@@ -7848,7 +7934,7 @@ class DrfoDocumentService {
         master, '{{LETTER_DATE}}', _date(DateTime.now().toIso8601String()));
 
     final pngBytes = await _renderMasterToPng(
-      master,
+      _checkedDrfoMaster(master),
       sandalTreeRows: sandalRows,
     );
 
@@ -7884,7 +7970,8 @@ class DrfoDocumentService {
     }
 
     await _loadFlutterKannadaFont();
-    const rangeName = 'ಮೈಸೂರು';
+    final office = await OfficeConfigurationRepository().getConfiguration();
+    final rangeName = office?['rangeName']?.toString().trim() ?? '';
 
     final TreeRepository treeRepository = TreeRepository();
 
@@ -7899,10 +7986,12 @@ class DrfoDocumentService {
     // --------------------------------------------------------
 
     final speciesList = await masterRepository.getSpecies();
+    final recommendationMasters = await masterRepository.getMasters('Recommendation Type');
+    final recommendationNames = {for (final row in recommendationMasters) row['id']: (_kannadaPrintName(row))};
 
     final Map<int, String> speciesMap = {
       for (final item in speciesList)
-        item['id'] as int: item['value'].toString(),
+        item['id'] as int: _kannadaPrintName(item),
     };
 
     // --------------------------------------------------------
@@ -7919,7 +8008,7 @@ class DrfoDocumentService {
 
     master.writeln();
 
-    master.writeln('ವಿಳಾಸ: ${_safeText(application.applicantAddress)}');
+    master.writeln('ವಿಳಾಸ: ${_authorityReferenceLine(application.applicantAddress)}');
 
     master.writeln();
 
@@ -7980,7 +8069,7 @@ class DrfoDocumentService {
       } catch (_) {}
 
       try {
-        recommendation = tree.recommendation.toString();
+        recommendation = recommendationNames[tree.recommendationTypeId] ?? '';
       } catch (_) {}
 
       try {
@@ -8045,7 +8134,7 @@ class DrfoDocumentService {
       '${_safeText(application.section)} ಶಾಖೆ, ${_safeText(rangeName)} ವಲಯ',
     );
 
-    final pngBytes = await _renderMasterToPng(master.toString());
+    final pngBytes = await _renderMasterToPng(_checkedDrfoMaster(master.toString()));
 
     final pdf = pw.Document();
 

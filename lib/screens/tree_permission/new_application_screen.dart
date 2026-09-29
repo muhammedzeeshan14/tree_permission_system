@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/application_repository.dart';
 import '../../repositories/history_repository.dart';
@@ -43,7 +44,10 @@ class _NewApplicationScreenState
 
   final applicantLetterNumberController = TextEditingController();
   final applicantNameController = TextEditingController();
+  int? _createdApplicationId;
+  String? _createdOfficeNumber;
   final applicantAddressController = TextEditingController();
+  final applicantAddressLines = List.generate(3, (_) => TextEditingController());
 
 final treeLocationController = TextEditingController();
 
@@ -202,6 +206,12 @@ await loadApplicationTypes();
 
     applicantAddressController.text =
         widget.application!.applicantAddress;
+    final addressParts = applicantAddressController.text.split(RegExp(r'[\r\n]+'));
+    for (int i = 0; i < 3; i++) {
+      applicantAddressLines[i].text = i == 2
+          ? addressParts.skip(2).join(', ')
+          : (addressParts.length > i ? addressParts[i] : '');
+    }
 
     mobileController.text =
         widget.application!.mobile;
@@ -485,9 +495,9 @@ Future<void> loadForwardedSources() async {
       combined.add({
         "id": agency.id,
         "sourceKind": "AGENCY",
-        "sourceName": agency.officeName.isNotEmpty
-            ? "${agency.revenueOpinion} - ${agency.officeName}"
-            : agency.revenueOpinion,
+        "sourceName": [agency.officeName, agency.officeAddress]
+            .map((part) => part.replaceAll(RegExp(r'\s+'), ' ').trim())
+            .where((part) => part.isNotEmpty).join(' - '),
       });
     }
   } catch (_) {
@@ -500,12 +510,10 @@ Future<void> loadForwardedSources() async {
       final role =
           officer["role"]?.toString() ?? "";
       if (role != "ACF" && role != "DCF") continue;
-      final name =
-          officer["name"]?.toString() ?? role;
       combined.add({
         "id": officer["id"],
         "sourceKind": "OFFICER",
-        "sourceName": "$name ($role)",
+        "sourceName": role,
       });
     }
   } catch (_) {
@@ -535,6 +543,7 @@ void dispose() {
   applicantLetterNumberController.dispose();
   applicantNameController.dispose();
   applicantAddressController.dispose();
+  for (final controller in applicantAddressLines) { controller.dispose(); }
   treeLocationController.dispose();
   mobileController.dispose();
   purposeController.dispose();
@@ -754,24 +763,24 @@ TextFormField(
 
             const SizedBox(height: 15),
 
-            TextFormField(
-  controller: applicantAddressController,
-  maxLines: 3,
-  textInputAction: TextInputAction.next,
-  onChanged: (value) {
-
-    if (treeLocationSame) {
-
-      treeLocationController.text = value;
-
-    }
-
-  },
-  decoration: const InputDecoration(
-    labelText: "Applicant Address",
-    border: OutlineInputBorder(),
-  ),
-),
+            InputDecorator(
+              decoration: const InputDecoration(labelText: 'Applicant Address', border: OutlineInputBorder()),
+              child: Column(children: [
+                for (int i = 0; i < 3; i++) TextFormField(
+                  controller: applicantAddressLines[i],
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Address line ${i + 1}'),
+                  onChanged: (_) {
+                    applicantAddressController.text = applicantAddressLines
+                        .map((controller) => controller.text.trim())
+                        .where((line) => line.isNotEmpty).join('\n');
+                    if (treeLocationSame) {
+                      treeLocationController.text = applicantAddressController.text;
+                    }
+                  },
+                ),
+              ]),
+            ),
 
 const SizedBox(height: 15),
 
@@ -820,6 +829,9 @@ Row(
 
           setState(() {
 
+            if (treeLocationSame) {
+              treeLocationController.clear();
+            }
             treeLocationSame = false;
 
           });
@@ -1209,7 +1221,7 @@ DropdownButtonFormField<String>(
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: () async {
+                onPressed: workflowAction(context, () async {
 
 if (requiresWhyRemovingAndPurpose &&
     whyRemovingId == null) {
@@ -1513,8 +1525,20 @@ createdDate: isEdit
 
   } else {
 
-    await ApplicationRepository()
-        .insertApplication(application);
+    if (_createdApplicationId == null) {
+      try {
+        await ApplicationRepository().insertApplication(application);
+      } finally {
+        _createdApplicationId = application.id;
+        if (application.id != null) _createdOfficeNumber = application.officeNumber;
+      }
+    } else {
+      application.id = _createdApplicationId;
+      application.officeNumber = _createdOfficeNumber ?? application.officeNumber;
+      await ApplicationRepository().updateApplication(application);
+      await ApplicationRepository().replaceForwardingReferences(
+        application.id!, application.forwardingReferences);
+    }
 
     await HistoryRepository().addHistory(
 
@@ -1566,7 +1590,7 @@ createdDate: isEdit
 
 }
 
-                },
+                }),
                 child: Text(
   isEdit
       ? "UPDATE APPLICATION"

@@ -1,3 +1,5 @@
+import '../../widgets/inspection_exit_guard.dart';
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -896,6 +898,15 @@ Future<void> _loadSavedVerification() async {
 }
 
 
+Future<void> _saveVerificationCheckpoint() async {
+  // Save edits that have not yet been saved using the field's Save icon.
+  if (workNameStatus == 'Modify') widget.application.workName = workNameController.text.trim();
+  if (gpsStatus == 'Modify') widget.application.gpsCoordinates = gpsController.text.trim();
+  if (sandalDestinationStatus == 'Modify') await _saveCorrectedSandalDestination();
+  await ApplicationRepository().updateApplication(widget.application);
+  await _saveVerification();
+}
+
 Future<void> _saveVerification() async {
   bool? statusToLegacyValue(
     String? status,
@@ -1301,11 +1312,11 @@ void _showPhotos() {
 
                 child: ElevatedButton(
 
-                  onPressed: () {
+                  onPressed: workflowAction(context, () {
 
                     Navigator.pop(context);
 
-                  },
+                  }),
 
                   child: const Text("CLOSE"),
 
@@ -1409,13 +1420,13 @@ void _showDocuments() {
                                   "VIEW",
                                 ),
 
-                                onPressed: () async {
+                                onPressed: workflowAction(context, () async {
 
                                   await OpenFilex.open(
                                     doc.filePath,
                                   );
 
-                                },
+                                }),
 
                               ),
 
@@ -1436,11 +1447,11 @@ void _showDocuments() {
 
                 child: ElevatedButton(
 
-                  onPressed: () {
+                  onPressed: workflowAction(context, () {
 
                     Navigator.pop(context);
 
-                  },
+                  }),
 
                   child: const Text(
                     "CLOSE",
@@ -1838,11 +1849,11 @@ void _showGeneratedDocuments() {
                                   Icons.visibility,
                                 ),
                                 label: const Text("VIEW"),
-                                onPressed: () async {
+                                onPressed: workflowAction(context, () async {
                                   await OpenFilex.open(
                                     file.path,
                                   );
-                                },
+                                }),
                               ),
                             ),
                           );
@@ -1853,9 +1864,9 @@ void _showGeneratedDocuments() {
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: workflowAction(context, () {
                     Navigator.pop(context);
-                  },
+                  }),
                   child: const Text("CLOSE"),
                 ),
               ),
@@ -1973,7 +1984,9 @@ Widget _buildOverallRemarkVerificationPage() {
 
 
 @override
-Widget build(BuildContext context) {
+Widget build(BuildContext context) => InspectionExitGuard(child: _buildScreen(context));
+
+  Widget _buildScreen(BuildContext context) {
 
     return Scaffold(
 
@@ -2077,7 +2090,7 @@ if (generatedDocuments.isNotEmpty)
         trailing: ElevatedButton.icon(
           icon: const Icon(Icons.visibility),
           label: const Text("VIEW"),
-          onPressed: _showGeneratedDocuments,
+          onPressed: workflowAction(context, _showGeneratedDocuments),
         ),
       ),
     ),
@@ -2815,7 +2828,7 @@ if (showsAdditionalDetails) ...[
         suffixIcon: IconButton(
           tooltip: "Save corrected name",
           icon: const Icon(Icons.save),
-          onPressed: () async {
+          onPressed: workflowAction(context, () async {
             final correctedName =
                 workNameController.text.trim();
 
@@ -2835,7 +2848,7 @@ if (showsAdditionalDetails) ...[
                 correctedName;
 
             await _saveCorrectedApplication();
-          },
+          }),
         ),
       ),
       onFieldSubmitted: (value) async {
@@ -2896,7 +2909,7 @@ VerificationCard(
       suffixIcon: IconButton(
         tooltip: "Save corrected GPS",
         icon: const Icon(Icons.save),
-        onPressed: () async {
+        onPressed: workflowAction(context, () async {
           final correctedGps =
               gpsController.text.trim();
 
@@ -2916,7 +2929,7 @@ VerificationCard(
               correctedGps;
 
           await _saveCorrectedApplication();
-        },
+        }),
       ),
     ),
     onFieldSubmitted: (value) async {
@@ -3015,7 +3028,7 @@ VerificationCard(
             suffixIcon: IconButton(
               tooltip: "Save corrected destination",
               icon: const Icon(Icons.save),
-              onPressed: () async {
+              onPressed: workflowAction(context, () async {
                 if (sandalCustomController.text
                     .trim()
                     .isEmpty) {
@@ -3030,7 +3043,7 @@ VerificationCard(
                   return;
                 }
                 await _saveCorrectedSandalDestination();
-              },
+              }),
             ),
           ),
           onSubmitted: (value) async {
@@ -3079,7 +3092,7 @@ VerificationCard(
     child: OutlinedButton.icon(
       icon: const Icon(Icons.edit),
       label: const Text("Edit Inspection Photos"),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -3102,7 +3115,7 @@ VerificationCard(
         if (mounted) {
           setState(() {});
         }
-      },
+      }),
     ),
   ),
 ),
@@ -3143,7 +3156,7 @@ VerificationCard(
     child: OutlinedButton.icon(
       icon: const Icon(Icons.edit),
       label: const Text("Edit Uploaded Documents"),
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -3167,7 +3180,7 @@ VerificationCard(
         if (mounted) {
           setState(() {});
         }
-      },
+      }),
     ),
   ),
 ),
@@ -3259,7 +3272,7 @@ if (!isDeferred && !hasAnyReInspection())
 
             ),
 
-            onPressed: () {
+            onPressed: workflowAction(context, () {
 
               if (currentPage == 3 && isDeferred) {
 
@@ -3278,7 +3291,7 @@ if (!isDeferred && !hasAnyReInspection())
 
               );
 
-            },
+            }),
 
             child: const Text(
 
@@ -3328,7 +3341,7 @@ if (!isDeferred && !hasAnyReInspection())
 
             ),
 
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
 
               if (!validateDeferredVerification()) {
 
@@ -3364,7 +3377,7 @@ if (!isDeferred && !hasAnyReInspection())
 
               Navigator.pop(context, true);
 
-            },
+            }),
 
             child: Text(
 
@@ -3416,7 +3429,7 @@ if (!isDeferred && !hasAnyReInspection())
 
             ),
 
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
 
                             //--------------------------------------------------
               // Deferred Verification
@@ -3594,8 +3607,9 @@ if (!isDeferred &&
 }
 
 
-// Move to next verification page
-  pageController.nextPage(
+await _saveVerificationCheckpoint();
+  if (!mounted) return;
+  await pageController.nextPage(
 
     duration: const Duration(milliseconds: 300),
 
@@ -3605,7 +3619,7 @@ if (!isDeferred &&
 
   return;
 
-            },
+            }),
 
             child: const Text(
 
@@ -3653,9 +3667,9 @@ if (!isDeferred &&
 
                   ),
 
-                  onPressed: () async {
+                  onPressed: workflowAction(context, () async {
 
-  await _saveVerification();
+  await _saveVerificationCheckpoint();
 
   await ApplicationRepository().touchForSync(
     widget.application.id!,
@@ -3675,7 +3689,7 @@ if (!isDeferred &&
 
   );
 
-},
+}),
 
                   child: const Text(
 
@@ -3717,7 +3731,7 @@ if (!isDeferred &&
 
                   ),
 
-                  onPressed: () async {
+                  onPressed: workflowAction(context, () async {
 
 final applicationReinspect =
     hasApplicationReInspection();
@@ -3921,7 +3935,7 @@ await workflowService.forwardToRFO(
   }
 }
 
-                  },
+                  }),
 
 child: Text(
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -10,7 +12,7 @@ import '../../../widgets/wizard_progress_card.dart';
 class ApplicationAdditionalDetailsStep
     extends StatefulWidget {
   final ApplicationModel application;
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
   final VoidCallback onBack;
 
   const ApplicationAdditionalDetailsStep({
@@ -377,7 +379,7 @@ class _ApplicationAdditionalDetailsStepState
     );
   }
 
-  void _saveAndContinue() {
+  Future<void> _saveAndContinue() async {
     if (showsGovernmentAgency &&
         selectedGovernmentAgencyId == null) {
       _showMessage(
@@ -463,7 +465,7 @@ class _ApplicationAdditionalDetailsStepState
             ? workNameController.text.trim()
             : "";
 
-    widget.onNext();
+    await widget.onNext();
   }
 
   @override
@@ -718,13 +720,13 @@ class _ApplicationAdditionalDetailsStepState
                     ResponsiveActions(
                       children: [
                         ElevatedButton(
-                          onPressed: widget.onBack,
+                          onPressed: workflowAction(context, widget.onBack),
                           child:
                               const Text("BACK"),
                         ),
                         ElevatedButton(
                           onPressed:
-                              _saveAndContinue,
+                              workflowAction(context, _saveAndContinue),
                           child: const Text(
                             "SAVE & CONTINUE",
                           ),

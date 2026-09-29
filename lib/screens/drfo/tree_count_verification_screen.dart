@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -153,11 +154,11 @@ Future<String?> showReinspectDialog() async {
 
           TextButton(
 
-            onPressed: () {
+            onPressed: workflowAction(context, () {
 
               Navigator.pop(context);
 
-            },
+            }),
 
             child: const Text("Cancel"),
 
@@ -165,7 +166,7 @@ Future<String?> showReinspectDialog() async {
 
           ElevatedButton(
 
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
 
               if (selectedReason == null) {
 
@@ -188,7 +189,7 @@ Future<String?> showReinspectDialog() async {
 
               Navigator.pop(dialogContext, selectedReason);
 
-            },
+            }),
 
             child: const Text("OK"),
 

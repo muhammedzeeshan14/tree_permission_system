@@ -1,3 +1,4 @@
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:open_filex/open_filex.dart';
@@ -610,7 +611,7 @@ ResponsiveActions(
 
     ElevatedButton(
 
-      onPressed: widget.onBack,
+      onPressed: workflowAction(context, widget.onBack),
 
       child: const Text(
         "BACK",
@@ -620,7 +621,7 @@ ResponsiveActions(
 
     ElevatedButton(
 
-      onPressed: saveDraft,
+      onPressed: workflowAction(context, saveDraft),
 
       child: const Text(
         "SAVE DRAFT",
@@ -645,9 +646,9 @@ SizedBox(
       ),
     ),
     onPressed:
-        submitting || submitted
+        workflowAction(context, submitting || submitted
             ? null
-            : submitToDRFO,
+            : submitToDRFO),
     child: submitting
         ? const SizedBox(
             width: 24,
@@ -707,11 +708,11 @@ if (generatedMahazar != null) ...[
                 label: const Text(
                   "VIEW MAHAZAR",
                 ),
-                onPressed: () async {
+                onPressed: workflowAction(context, () async {
                   await OpenFilex.open(
                     generatedMahazar!.path,
                   );
-                },
+                }),
               ),
 
               OutlinedButton.icon(
@@ -721,11 +722,11 @@ if (generatedMahazar != null) ...[
                 label: const Text(
                   "PRINT MAHAZAR",
                 ),
-                onPressed: () async {
+                onPressed: workflowAction(context, () async {
                   await documentService.openPdf(
                     generatedMahazar!,
                   );
-                },
+                }),
               ),
             ],
           ),
@@ -735,9 +736,9 @@ if (generatedMahazar != null) ...[
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: workflowAction(context, () {
                 Navigator.pop(context);
-              },
+              }),
               child: const Text(
                 "CLOSE",
               ),

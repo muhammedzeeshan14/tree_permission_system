@@ -13,6 +13,10 @@ class OnlineDatabase {
 
   static SupabaseClient get _client => SupabaseService.client!;
 
+  static Future<void> upsert(String table, Map<String, dynamic> row, {required String onConflict}) async {
+    await _client.from(table).upsert(row, onConflict: onConflict);
+  }
+
   static Future<List<Map<String, dynamic>>> select(
     String table, {
     Map<String, Object?>? equals,
@@ -41,6 +45,27 @@ class OnlineDatabase {
     }
   }
 
+  /// Paged reads avoid silently stopping at the server's default row limit.
+  static Future<List<Map<String, dynamic>>> selectAll(
+    String table, {Map<String, Object?>? equals, String? orderBy,
+    bool descending = false, String columns = '*',
+    String? inColumn, List<Object>? inValues,
+  }) async {
+    if (inValues != null && inValues.isEmpty) return [];
+    final result = <Map<String, dynamic>>[];
+    const pageSize = 500;
+    for (var offset = 0; ; offset += pageSize) {
+      dynamic query = _client.from(table).select(columns);
+      equals?.forEach((key, value) { query = query.eq(key, value); });
+      if (inColumn != null && inValues != null) query = query.inFilter(inColumn, inValues);
+      query = query.order(orderBy ?? 'id', ascending: !descending);
+      if (orderBy != null && orderBy != 'id') query = query.order('id');
+      final page = await query.range(offset, offset + pageSize - 1) as List;
+      result.addAll(page.map((row) => Map<String, dynamic>.from(row as Map)));
+      if (page.length < pageSize) return result;
+    }
+  }
+
   static Future<int> insert(
     String table,
     Map<String, Object?> row,
@@ -49,23 +74,28 @@ class OnlineDatabase {
       final payload = Map<String, dynamic>.from(row);
       if (payload['id'] == null) payload.remove('id');
       payload['updatedAt'] ??= DateTime.now().toIso8601String();
-      try {
-        final inserted = await _client
-            .from(table)
-            .insert(payload)
-            .select('id')
-            .single();
-        return (inserted['id'] as num).toInt();
-      } catch (_) {
-        // Tables without an `id` column (e.g. government_approvals
-        // keyed by applicationId): plain insert, caller re-reads.
+      // These tables use applicationId (or composite keys), not id.
+      // Never retry an ambiguous failed insert: it may already have committed.
+      const withoutId = {'application_verifications', 'tree_verifications',
+        'application_tree_officer', 'government_approvals'};
+      if (withoutId.contains(table)) {
         await _client.from(table).insert(payload);
         return 0;
       }
+      final inserted = await _client.from(table).insert(payload).select('id').single();
+      return (inserted['id'] as num).toInt();
     } catch (e) {
       debugPrint('online insert $table failed: $e');
       rethrow;
     }
+  }
+
+  static Future<void> insertMany(String table, List<Map<String, Object?>> rows) async {
+    if (rows.isEmpty) return;
+    final now = DateTime.now().toIso8601String();
+    await _client.from(table).insert(rows.map((row) => {
+      ...row, 'updatedAt': row['updatedAt'] ?? now,
+    }).toList());
   }
 
   static Future<void> update(

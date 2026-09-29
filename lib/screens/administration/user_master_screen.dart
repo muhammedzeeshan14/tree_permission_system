@@ -1,905 +1,105 @@
 import 'package:flutter/material.dart';
-
 import '../../repositories/user_repository.dart';
 import '../../repositories/section_repository.dart';
 import '../../repositories/beat_repository.dart';
+import '../../services/session_service.dart';
+import '../../widgets/workflow_action.dart';
+import '../../widgets/application_refresh_button.dart';
 
 class UserMasterScreen extends StatefulWidget {
   const UserMasterScreen({super.key});
-
   @override
-  State<UserMasterScreen> createState() =>
-      _UserMasterScreenState();
+  State<UserMasterScreen> createState() => _UserMasterScreenState();
 }
-
-class _UserMasterScreenState
-    extends State<UserMasterScreen> {
-
-  final UserRepository userRepository =
-      UserRepository();
-
-  final SectionRepository sectionRepository =
-      SectionRepository();
-
-  final BeatRepository beatRepository =
-      BeatRepository();
-
-  List<Map<String, dynamic>> users = [];
-
+class _UserMasterScreenState extends State<UserMasterScreen> {
+  final repository = UserRepository();
+  List<Map<String,dynamic>> users = [];
+  bool loading = true;
+  String? error;
+  bool get canEdit => SessionService.instance.role == 'RFO';
   @override
-  void initState() {
-    super.initState();
-    loadUsers();
-  }
-
+  void initState() { super.initState(); loadUsers(); }
   Future<void> loadUsers() async {
-
-    users = await userRepository.getAll();
-
-    if (mounted) {
-      setState(() {});
-    }
-
+    try {
+      final result = await repository.getAll();
+      if (mounted) setState(() { users = result; error = null; });
+    } catch (e) { if (mounted) setState(() => error = e.toString()); }
+    if (mounted) setState(() => loading = false);
   }
-
-  Future<void> showUserDialog({
-
-    Map<String, dynamic>? item,
-
-  }) async {
-
-    final nameController =
-        TextEditingController(
-      text: item?["name"] ?? "",
-    );
-
-    final usernameController =
-        TextEditingController(
-      text: item?["username"] ?? "",
-    );
-
-    final passwordController =
-        TextEditingController(
-      text: item?["password"] ?? "",
-    );
-
-    String role =
-        item?["role"] ?? "BFO";
-
-    bool isActive =
-        (item?["isActive"] ?? 1) == 1;
-
-    int? selectedSectionId =
-        item?["sectionId"];
-
-    int? selectedBeatId =
-        item?["beatId"];
-
-    final sections =
-        await sectionRepository.getActive();
-
-    List<Map<String, dynamic>> beats = [];
-
-    if (selectedSectionId != null) {
-
-      beats = await beatRepository.getBySection(
-        selectedSectionId!,
-      );
-
-    }
-
-    await showDialog(
-
-      context: context,
-
-      builder: (dialogContext) {
-
-        return StatefulBuilder(
-
-          builder:
-              (dialogContext, setDialogState) {
-
-            return AlertDialog(
-
-              title: Text(
-
-                item == null
-                    ? "Add User"
-                    : "Edit User",
-
-              ),
-
-              content: SizedBox(
-
-                width: 450,
-
-                child: SingleChildScrollView(
-
-                  child: Column(
-
-                    mainAxisSize:
-                        MainAxisSize.min,
-
-                    children: [
-
-                      TextField(
-
-                        controller:
-                            nameController,
-
-                        decoration:
-                            const InputDecoration(
-
-                          labelText: "Name",
-
-                        ),
-
-                      ),
-
-                      const SizedBox(
-                        height: 15,
-                      ),
-
-                      TextField(
-
-                        controller:
-                            usernameController,
-
-                        decoration:
-                            const InputDecoration(
-
-                          labelText:
-                              "Username",
-
-                        ),
-
-                      ),
-
-                      const SizedBox(
-                        height: 15,
-                      ),
-
-                      TextField(
-
-                        controller:
-                            passwordController,
-
-                        decoration:
-                            const InputDecoration(
-
-                          labelText:
-                              "Password",
-
-                        ),
-
-                      ),
-
-                      const SizedBox(
-                        height: 15,
-                      ),
-
-                      DropdownButtonFormField<
-                          String>(
-
-                        initialValue:
-                            role,
-
-                        decoration:
-                            const InputDecoration(
-
-                          labelText:
-                              "Role",
-
-                        ),
-
-                        items: const [
-
-                          DropdownMenuItem(
-
-                            value: "RFO",
-
-                            child:
-                                Text("RFO"),
-
-                          ),
-
-                          DropdownMenuItem(
-
-                            value:
-                                "DRFO",
-
-                            child:
-                                Text("DRFO"),
-
-                          ),
-
-                          DropdownMenuItem(
-
-                            value:
-                                "BFO",
-
-                            child:
-                                Text("BFO"),
-
-                          ),
-
-                          DropdownMenuItem(
-
-                            value:
-                                "Case Worker",
-
-                            child: Text(
-                              "Case Worker",
-                            ),
-
-                          ),
-
-                        ],
-
-                        onChanged:
-                            (value) async {
-
-                          role = value!;
-
-                          if (role !=
-                              "BFO") {
-
-                            selectedBeatId =
-                                null;
-
-                          }
-
-                          setDialogState(
-                              () {});
-
-                        },
-
-                      ),
-                                            if (role == "DRFO" ||
-                          role == "BFO") ...[
-
-                        const SizedBox(
-                          height: 15,
-                        ),
-
-                        DropdownButtonFormField<int>(
-
-                          initialValue:
-                              selectedSectionId,
-
-                          decoration:
-                              const InputDecoration(
-
-                            labelText:
-                                "Section",
-
-                          ),
-
-                          items: sections
-                              .map((section) {
-
-                            return DropdownMenuItem<int>(
-
-                              value: section["id"],
-
-                              child: Text(
-
-                                section["sectionName"],
-
-                              ),
-
-                            );
-
-                          }).toList(),
-
-                          onChanged:
-                              (value) async {
-
-                            selectedSectionId =
-                                value;
-
-                            selectedBeatId =
-                                null;
-
-                            if (value != null) {
-
-                              beats =
-                                  await beatRepository
-                                      .getBySection(
-                                          value);
-
-                            } else {
-
-                              beats = [];
-
-                            }
-
-                            setDialogState(() {});
-
-                          },
-
-                        ),
-
-                      ],
-
-                      if (role == "BFO") ...[
-
-                        const SizedBox(
-                          height: 15,
-                        ),
-
-                        DropdownButtonFormField<int>(
-
-                          initialValue:
-                              selectedBeatId,
-
-                          decoration:
-                              const InputDecoration(
-
-                            labelText:
-                                "Beat",
-
-                          ),
-
-                          items:
-                              beats.map((beat) {
-
-                            return DropdownMenuItem<int>(
-
-                              value: beat["id"],
-
-                              child: Text(
-
-                                beat["beatName"],
-
-                              ),
-
-                            );
-
-                          }).toList(),
-
-                          onChanged: (value) {
-
-                            setDialogState(() {
-
-                              selectedBeatId =
-                                  value;
-
-                            });
-
-                          },
-
-                        ),
-
-                      ],
-
-                      const SizedBox(
-                        height: 15,
-                      ),
-
-                      SwitchListTile(
-
-                        title: const Text(
-                          "Active",
-                        ),
-
-                        value: isActive,
-
-                        onChanged: (value) {
-
-                          setDialogState(() {
-
-                            isActive = value;
-
-                          });
-
-                        },
-
-                      ),
-
-                    ],
-
-                  ),
-
-                ),
-
-              ),
-
-              actions: [
-
-                TextButton(
-
-                  onPressed: () {
-
-                    Navigator.pop(
-                        dialogContext);
-
-                  },
-
-                  child: const Text(
-                    "Cancel",
-                  ),
-
-                ),
-
-                ElevatedButton(
-
-                  onPressed: () async {
-
-                    if (nameController.text
-                        .trim()
-                        .isEmpty) {
-
-                      ScaffoldMessenger.of(
-                              context)
-                          .showSnackBar(
-
-                        const SnackBar(
-
-                          content: Text(
-                            "Please enter Name",
-                          ),
-
-                        ),
-
-                      );
-
-                      return;
-
-                    }
-
-                    if (usernameController.text
-                        .trim()
-                        .isEmpty) {
-
-                      ScaffoldMessenger.of(
-                              context)
-                          .showSnackBar(
-
-                        const SnackBar(
-
-                          content: Text(
-                            "Please enter Username",
-                          ),
-
-                        ),
-
-                      );
-
-                      return;
-
-                    }
-
-                    if (passwordController.text
-                        .trim()
-                        .isEmpty) {
-
-                      ScaffoldMessenger.of(
-                              context)
-                          .showSnackBar(
-
-                        const SnackBar(
-
-                          content: Text(
-                            "Please enter Password",
-                          ),
-
-                        ),
-
-                      );
-
-                      return;
-
-                    }
-
-                    if (role == "DRFO" &&
-                        selectedSectionId ==
-                            null) {
-
-                      ScaffoldMessenger.of(
-                              context)
-                          .showSnackBar(
-
-                        const SnackBar(
-
-                          content: Text(
-                            "Please select Section",
-                          ),
-
-                        ),
-
-                      );
-
-                      return;
-
-                    }
-
-                    if (role == "BFO") {
-
-                      if (selectedSectionId ==
-                          null) {
-
-                        ScaffoldMessenger.of(
-                                context)
-                            .showSnackBar(
-
-                          const SnackBar(
-
-                            content: Text(
-                              "Please select Section",
-                            ),
-
-                          ),
-
-                        );
-
-                        return;
-
-                      }
-
-                      if (selectedBeatId ==
-                          null) {
-
-                        ScaffoldMessenger.of(
-                                context)
-                            .showSnackBar(
-
-                          const SnackBar(
-
-                            content: Text(
-                              "Please select Beat",
-                            ),
-
-                          ),
-
-                        );
-
-                        return;
-
-                      }
-
-                    }
-                                        if (item == null) {
-
-                      await userRepository.insert(
-
-                        name: nameController.text.trim(),
-
-                        username: usernameController.text.trim(),
-
-                        password: passwordController.text,
-
-                        role: role,
-
-                        sectionId: selectedSectionId,
-
-                        beatId: selectedBeatId,
-
-                        isActive: isActive,
-
-                      );
-
-                    } else {
-
-                      await userRepository.update(
-
-                        id: item["id"],
-
-                        name: nameController.text.trim(),
-
-                        username: usernameController.text.trim(),
-
-                        password: passwordController.text,
-
-                        role: role,
-
-                        sectionId: selectedSectionId,
-
-                        beatId: selectedBeatId,
-
-                        isActive: isActive,
-
-                      );
-
-                    }
-
-                    if (!mounted) return;
-
-                    Navigator.pop(dialogContext);
-
-                    await loadUsers();
-
-                  },
-
-                  child: const Text(
-
-                    "Save",
-
-                  ),
-
-                ),
-
-              ],
-
-            );
-
-          },
-
-        );
-
-      },
-
-    );
-
+  Future<void> edit([Map<String,dynamic>? user]) async {
+    if (!canEdit) return;
+    final sections = await SectionRepository().getActive();
+    final allBeats = await BeatRepository().getAll();
+    if (!mounted) return;
+    final name = TextEditingController(text: user?['name']?.toString() ?? '');
+    final login = TextEditingController(text: user?['username']?.toString() ?? '');
+    final password = TextEditingController();
+    String role = user?['role']?.toString() ?? 'BFO';
+    int? section = (user?['sectionId'] as num?)?.toInt();
+    int? beat = (user?['beatId'] as num?)?.toInt();
+    bool active = (user?['isActive'] ?? 1) == 1, visible = false, saving = false;
+    String? message;
+    if (!sections.any((s) => s['id'] == section)) section = null;
+    await showDialog<void>(context: context, barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(builder: (context, update) {
+        final beats = allBeats.where((b) => b['sectionId'] == section).toList();
+        if (!beats.any((b) => b['id'] == beat)) beat = null;
+        return AlertDialog(title: Text(user == null ? 'Add User' : 'Edit User'),
+          content: SizedBox(width: 460, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(controller: name, enabled: !saving, decoration: const InputDecoration(labelText: 'Name')),
+            TextField(controller: login, enabled: !saving, decoration: const InputDecoration(labelText: 'Login ID / Username')),
+            TextField(controller: password, enabled: !saving, obscureText: !visible, autocorrect: false, enableSuggestions: false,
+              decoration: InputDecoration(labelText: user == null ? 'Password' : 'New password (leave blank to keep current)',
+                suffixIcon: IconButton(onPressed: () => update(() => visible = !visible), icon: Icon(visible ? Icons.visibility_off : Icons.visibility)))),
+            DropdownButtonFormField<String>(value: role, decoration: const InputDecoration(labelText: 'Role'),
+              items: ['RFO','DRFO','BFO','Case Worker'].map((r) => DropdownMenuItem(value:r,child:Text(r))).toList(),
+              onChanged: saving ? null : (v) => update(() { role=v!; if (!{'BFO','DRFO'}.contains(role)) {section=null;beat=null;} })),
+            if ({'BFO','DRFO'}.contains(role)) DropdownButtonFormField<int>(key: ValueKey('section-$role-$section'),value: section,isExpanded:true,
+              decoration: const InputDecoration(labelText:'Section'),
+              items: sections.map((s)=>DropdownMenuItem(value:(s['id'] as num).toInt(),child:Text(s['sectionName'].toString()))).toList(),
+              onChanged:saving?null:(v)=>update((){section=v;beat=null;})),
+            if(role=='BFO') DropdownButtonFormField<int>(key:ValueKey('beat-$section-$beat'),value:beat,isExpanded:true,
+              decoration:const InputDecoration(labelText:'Beat'),
+              items:beats.map((b)=>DropdownMenuItem(value:(b['id'] as num).toInt(),child:Text(b['beatName'].toString()))).toList(),
+              onChanged:saving?null:(v)=>update(()=>beat=v)),
+            SwitchListTile(title:const Text('Active login'),value:active,onChanged:saving?null:(v)=>update(()=>active=v)),
+            if(message!=null) Text(message!,style:TextStyle(color:Theme.of(context).colorScheme.error)),
+          ]))),
+          actions:[
+            TextButton(onPressed:saving?null:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),
+            FilledButton(onPressed:saving?null:() async {
+              update((){saving=true;message=null;});
+              try {
+                final secret=password.text.isEmpty && user!=null ? user['password'].toString() : password.text;
+                if(user==null) {
+                  await repository.insert(name:name.text.trim(),username:login.text.trim(),password:secret,role:role,sectionId:section,beatId:role=='BFO'?beat:null,isActive:active);
+                } else {
+                  await repository.update(id:(user['id'] as num).toInt(),name:name.text.trim(),username:login.text.trim(),password:secret,role:role,sectionId:section,beatId:role=='BFO'?beat:null,isActive:active);
+                }
+                if(dialogContext.mounted) Navigator.pop(dialogContext);
+              } catch(e) {if(dialogContext.mounted) update((){saving=false;message=e.toString();});}
+            },child:Text(saving?'Saving…':'Save User')),
+          ]);
+      }));
+    name.dispose();login.dispose();password.dispose();
+    await loadUsers();
   }
-
+  Future<void> remove(Map<String,dynamic> user) async {
+    final confirm=await showDialog<bool>(context:context,builder:(dialogContext)=>AlertDialog(
+      title:const Text('Delete User'),content:Text('Delete ${user['name']}? Users linked to applications will be deactivated instead, preserving their records.'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(dialogContext,true),child:const Text('Delete'))]));
+    if(confirm!=true)return;
+    await repository.delete((user['id'] as num).toInt());
+    await loadUsers();
+  }
   @override
-  Widget build(BuildContext context) {
-
-    return Scaffold(
-
-      appBar: AppBar(
-
-        title: const Text(
-
-          "User Master",
-
-        ),
-
-        centerTitle: true,
-
-      ),
-
-      body: users.isEmpty
-
-          ? const Center(
-
-              child: Text(
-
-                "No Users Found",
-
-                style: TextStyle(
-
-                  fontSize: 18,
-
-                  fontWeight: FontWeight.bold,
-
-                ),
-
-              ),
-
-            )
-
-          : ListView.builder(
-
-              padding: const EdgeInsets.all(10),
-
-              itemCount: users.length,
-
-              itemBuilder: (context, index) {
-
-                final user = users[index];
-
-                return Card(
-
-                  elevation: 3,
-
-                  margin: const EdgeInsets.only(
-
-                    bottom: 10,
-
-                  ),
-
-                  child: ListTile(
-
-                    leading: CircleAvatar(
-
-                      child: Text(
-
-                        "${index + 1}",
-
-                      ),
-
-                    ),
-
-                    title: Text(
-
-                      user["name"] ?? "",
-
-                      style: const TextStyle(
-
-                        fontWeight: FontWeight.bold,
-
-                      ),
-
-                    ),
-
-                    subtitle: Column(
-
-                      crossAxisAlignment:
-
-                          CrossAxisAlignment.start,
-
-                      children: [
-
-                        Text(
-
-                          "Username : ${user["username"]}",
-
-                        ),
-
-                        Text(
-
-                          "Role : ${user["role"]}",
-
-                        ),
-
-                        if (user["sectionId"] != null)
-
-                          Text(
-
-                            "Section ID : ${user["sectionId"]}",
-
-                          ),
-
-                        if (user["beatId"] != null)
-
-                          Text(
-
-                            "Beat ID : ${user["beatId"]}",
-
-                          ),
-
-                        Text(
-
-                          user["isActive"] == 1
-
-                              ? "Status : Active"
-
-                              : "Status : Inactive",
-
-                          style: TextStyle(
-
-                            color: user["isActive"] == 1
-
-                                ? Colors.green
-
-                                : Colors.red,
-
-                            fontWeight: FontWeight.bold,
-
-                          ),
-
-                        ),
-
-                      ],
-
-                    ),
-                                        onTap: () {
-
-                      showUserDialog(
-
-                        item: user,
-
-                      );
-
-                    },
-
-                    onLongPress: () async {
-
-                      final confirm =
-                          await showDialog<bool>(
-
-                        context: context,
-
-                        builder: (_) => AlertDialog(
-
-                          title: const Text(
-
-                            "Delete User",
-
-                          ),
-
-                          content: Text(
-
-                            'Delete "${user["name"]}" ?',
-
-                          ),
-
-                          actions: [
-
-                            TextButton(
-
-                              onPressed: () {
-
-                                Navigator.pop(
-
-                                  context,
-
-                                  false,
-
-                                );
-
-                              },
-
-                              child: const Text(
-
-                                "Cancel",
-
-                              ),
-
-                            ),
-
-                            ElevatedButton(
-
-                              onPressed: () {
-
-                                Navigator.pop(
-
-                                  context,
-
-                                  true,
-
-                                );
-
-                              },
-
-                              child: const Text(
-
-                                "Delete",
-
-                              ),
-
-                            ),
-
-                          ],
-
-                        ),
-
-                      );
-
-                      if (confirm == true) {
-
-                        await userRepository.delete(
-
-                          user["id"],
-
-                        );
-
-                        await loadUsers();
-
-                      }
-
-                    },
-
-                  ),
-
-                );
-
-              },
-
-            ),
-
-      floatingActionButton:
-
-          FloatingActionButton(
-
-        onPressed: () {
-
-          showUserDialog();
-
-        },
-
-        child: const Icon(
-
-          Icons.add,
-
-        ),
-
-      ),
-
-    );
-
-  }
-
+  Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('User Master'),actions:[ApplicationRefreshButton(onRefresh:loadUsers)]),
+    floatingActionButton:canEdit?FloatingActionButton.extended(onPressed:workflowAction(context,()=>edit()),icon:const Icon(Icons.person_add),label:const Text('Add User')):null,
+    body:loading?const Center(child:CircularProgressIndicator()):error!=null?Center(child:Text(error!)):ListView(padding:const EdgeInsets.fromLTRB(12,12,12,90),children:[
+      for(final user in users) Card(child:ListTile(title:Text(user['name'].toString()),
+        subtitle:Text('Login ID: ${user['username']} • ${user['role']}\n${user['sectionName'] ?? ''} ${user['beatName'] ?? ''} • ${user['isActive']==1?'Active':'Inactive'}'),
+        trailing:canEdit?Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Edit user',icon:const Icon(Icons.edit),onPressed:workflowAction(context,()=>edit(user))),IconButton(tooltip:'Delete user',icon:const Icon(Icons.delete),onPressed:workflowAction(context,()=>remove(user)))]):null)),
+    ]),
+  );
 }

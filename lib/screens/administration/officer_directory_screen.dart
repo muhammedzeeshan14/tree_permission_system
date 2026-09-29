@@ -28,9 +28,9 @@ class _OfficerDirectoryScreenState extends State<OfficerDirectoryScreen> {
       child:AlertDialog(
         title:Text(item==null?'Add Officer':'Edit Officer'),
         content:SizedBox(width:500,child:SingleChildScrollView(child:Form(key:key,child:Column(mainAxisSize:MainAxisSize.min,children:[
-          TextFormField(controller:name,enabled:!saving,decoration:const InputDecoration(labelText:'Name'),validator:(v)=>v==null||v.trim().isEmpty?'Enter name':null),
-          TextFormField(controller:designation,enabled:!saving,decoration:const InputDecoration(labelText:'Designation'),validator:(v)=>v==null||v.trim().isEmpty?'Enter designation':null),
-          TextFormField(controller:address,enabled:!saving,minLines:2,maxLines:4,decoration:const InputDecoration(labelText:'Officer posting address'),validator:(v)=>v==null||v.trim().isEmpty?'Enter posting address':null),
+          TextFormField(controller:name,enabled:!saving,decoration:const InputDecoration(labelText:'Name (Kannada)' ),validator:(v)=>v==null||v.trim().isEmpty?'Enter name':null),
+          TextFormField(controller:designation,enabled:!saving,decoration:const InputDecoration(labelText:'Designation (Kannada)' ),validator:(v)=>v==null||v.trim().isEmpty?'Enter designation':null),
+          TextFormField(controller:address,enabled:!saving,minLines:2,maxLines:4,decoration:const InputDecoration(labelText:'Officer posting address (Kannada)' ),validator:(v)=>v==null||v.trim().isEmpty?'Enter posting address':null),
           DropdownButtonFormField<String>(initialValue:role,decoration:const InputDecoration(labelText:'Role'),items:OfficerRepository.roles.map((r)=>DropdownMenuItem(value:r,child:Text(r))).toList(),onChanged:saving?null:(v)=>setDialogState(()=>role=v),validator:(v)=>v==null?'Select role':null),
           if(saveError!=null) Padding(padding:const EdgeInsets.only(top:12),child:Text(saveError!,style:const TextStyle(color:Colors.red))),
         ])))),

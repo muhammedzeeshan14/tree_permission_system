@@ -1,3 +1,4 @@
+import 'inspection_exit_guard.dart';
 import 'package:flutter/material.dart';
 
 import '../services/session_service.dart';
@@ -17,7 +18,8 @@ class TPMSAppBar extends StatelessWidget
     required this.title,
   });
 
-  void goHome(BuildContext context) {
+  Future<void> goHome(BuildContext context) async {
+    if (!await InspectionExitGuard.mayLeave(context) || !context.mounted) return;
 
     Widget screen;
 

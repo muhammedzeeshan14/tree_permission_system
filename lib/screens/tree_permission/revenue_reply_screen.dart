@@ -1,3 +1,5 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../widgets/workflow_action.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -35,6 +37,12 @@ class PendingRevenueOpinionScreen extends StatefulWidget {
 class _PendingRevenueOpinionScreenState
     extends State<PendingRevenueOpinionScreen> {
   late Future<List<ApplicationModel>> applications;
+  Future<void> _refreshApplications() async {
+    final request = _load();
+    setState(() => applications = request);
+    await request;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -42,7 +50,7 @@ class _PendingRevenueOpinionScreenState
   }
 
   Future<List<ApplicationModel>> _load() async {
-    final all = await ApplicationRepository().getApplications();
+    final all = await ApplicationRepository().getApplications(onlineEquals: {'createdBy': SessionService.instance.userId}, onlineStatuses: [WorkflowStatus.pendingRevenueOpinion, WorkflowStatus.completed]);
     final result = <ApplicationModel>[];
     for (final app in all) {
       if (app.createdBy != SessionService.instance.userId) continue;
@@ -70,7 +78,7 @@ class _PendingRevenueOpinionScreenState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Pending Revenue Opinion')),
+    appBar: AppBar(title: const Text('Pending Revenue Opinion'), actions: [ApplicationRefreshButton(onRefresh: _refreshApplications)]),
     body: FutureBuilder<List<ApplicationModel>>(
       future: applications,
       builder: (context, snapshot) {
@@ -221,7 +229,18 @@ class _RevenueReplyWorkflowScreenState
 
   Future<void> _finalize() async {
     final current = reply!;
-    if (!current.allApprovedFor(includeOnline: !isSandal)) {
+    final isSandal = widget.application.applicationType
+            .trim()
+            .toUpperCase() ==
+        'SPL';
+    // For SPL: only check core revenue opinion fields are approved.
+    // SPL has no online-application concept, so skip online fields.
+    if (isSandal) {
+      final coreFields = ['authority', 'letterNumber', 'letterDate', 'receivedDate', 'nature'];
+      if (!coreFields.every((key) => current.decisions[key] == 'Approve')) {
+        throw StateError('Approve every answer first.');
+      }
+    } else if (!current.allApprovedFor(includeOnline: !isSandal)) {
       throw StateError('Approve every answer first.');
     }
     final now = DateTime.now().toIso8601String();
@@ -297,7 +316,7 @@ class _RevenueReplyWorkflowScreenState
         await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
           title: const Text('Application completed'),
           content: const Text('Give online permission in Aranya website.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('OK'))],
+          actions: [TextButton(onPressed: workflowAction(dialogContext, () => Navigator.pop(dialogContext)), child: const Text('OK'))],
         ));
       }
       if (mounted) Navigator.pop(context, true);
@@ -370,7 +389,7 @@ class _RevenueReplyWorkflowScreenState
                                         : Colors.orange.shade100)
                                   : null,
                             ),
-                            onPressed: busy
+                            onPressed: workflowAction(context, busy
                                 ? null
                                 : () => _run(() async {
                                     if (decision == 'Modify') {
@@ -384,7 +403,7 @@ class _RevenueReplyWorkflowScreenState
                                             !isSandal,
                                       );
                                     }
-                                  }),
+                                  })),
                             child: Text(decision),
                           ),
                         ),
@@ -534,7 +553,7 @@ class _RevenueReplyWorkflowScreenState
               child: Row(
                 children: [
                   OutlinedButton(
-                    onPressed: busy
+                    onPressed: workflowAction(context, busy
                         ? null
                         : () {
                             if (step > 0) {
@@ -542,19 +561,19 @@ class _RevenueReplyWorkflowScreenState
                             } else {
                               Navigator.pop(context);
                             }
-                          },
+                          }),
                     child: const Text('Back'),
                   ),
                   const Spacer(),
                   if (widget.rfo && step > 0)
                     OutlinedButton(
-                      onPressed: busy ? null : () => Navigator.pop(context),
+                      onPressed: workflowAction(context, busy ? null : () => Navigator.pop(context)),
                       child: const Text('Save Draft'),
                     ),
                   const SizedBox(width: 12),
                   FilledButton(
                     onPressed:
-                        busy || (widget.rfo && step == 1 && !reply!.allApprovedFor(includeOnline: !isSandal))
+                        workflowAction(context, busy || (widget.rfo && step == 1 && !reply!.allApprovedFor(includeOnline: !isSandal))
                         ? null
                         : () => _run(() async {
                             if (!widget.rfo) {
@@ -564,7 +583,7 @@ class _RevenueReplyWorkflowScreenState
                             } else {
                               await _finalize();
                             }
-                          }),
+                          })),
                     child: Text(
                       !widget.rfo
                           ? 'Enter revenue opinion details'
@@ -726,7 +745,7 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
       );
     if (field.endsWith('Date'))
       return OutlinedButton.icon(
-        onPressed: busy ? null : () => _date(field),
+        onPressed: workflowAction(context, busy ? null : () => _date(field)),
         icon: const Icon(Icons.calendar_today),
         label: Text(
           controllers[field]!.text.isEmpty
@@ -803,13 +822,13 @@ class _RevenueReplyEntryScreenState extends State<RevenueReplyEntryScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 OutlinedButton(
-                  onPressed: busy ? null : () => _save(),
+                  onPressed: workflowAction(context, busy ? null : () => _save()),
                   child: Text(widget.rfo ? 'Done' : 'Save Draft'),
                 ),
                 if (!widget.rfo) ...[
                   const SizedBox(width: 12),
                   FilledButton(
-                    onPressed: busy ? null : () => _save(submit: true),
+                    onPressed: workflowAction(context, busy ? null : () => _save(submit: true)),
                     child: const Text('Send for RFO Approval'),
                   ),
                 ],

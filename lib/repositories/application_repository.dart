@@ -1,3 +1,4 @@
+import 'user_repository.dart';
 import 'revenue_reply_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
@@ -261,6 +262,7 @@ class ApplicationRepository {
 final references =
     application.forwardingReferences;
 
+final cloudReferences = <Map<String, Object?>>[];
 for (int i = 0; i < references.length; i++) {
   final reference = references[i];
 
@@ -279,10 +281,7 @@ for (int i = 0; i < references.length; i++) {
   };
 
   if (OnlineMode.enabled) {
-    await OnlineDatabase.insert(
-      "application_forward_references",
-      refRow,
-    );
+    cloudReferences.add(refRow);
   } else {
     final db = await _db;
 
@@ -291,6 +290,9 @@ for (int i = 0; i < references.length; i++) {
       refRow,
     );
   }
+}
+if (OnlineMode.enabled) {
+  await OnlineDatabase.insertMany("application_forward_references", cloudReferences);
 }
 return id;
 
@@ -564,39 +566,29 @@ Future<void> replaceForwardingReferences(
 // GET FORWARDING REFERENCES
 // ======================================
 
-Future<List<ApplicationReferenceModel>>
-    _getForwardingReferences(int applicationId) async {
-
-  if (OnlineMode.enabled) {
-    final rows = await OnlineDatabase.select(
-      'application_forward_references',
-      equals: {'applicationId': applicationId},
-      orderBy: 'displayOrder',
-    );
-    final sources = await OnlineDatabase.select(
-      'forwarded_source_master',
-    );
+  Future<List<ApplicationReferenceModel>> _mapOnlineReferences(
+      List<Map<String, dynamic>> rows) async {
     final names = <String, String>{};
-    for (final s in sources) {
-      names['SOURCE_${(s['id'] as num).toInt()}'] =
-          (s['sourceName']?.toString() ?? '');
-    }
-    final agencies = await OnlineDatabase.select(
-      'revenue_opinion_master',
-    );
-    for (final a in agencies) {
-      names['AGENCY_${(a['id'] as num).toInt()}'] =
-          (a['officeName']?.toString() ?? '').isNotEmpty
-              ? "${a['revenueOpinion']} - ${a['officeName']}"
-              : (a['revenueOpinion']?.toString() ?? '');
-    }
-    final officers = await OnlineDatabase.select(
-      'officer_directory',
-    );
-    for (final o in officers) {
-      names['OFFICER_${(o['id'] as num).toInt()}'] =
-          "${o['name']} (${o['role']})";
-    }
+    final missingKinds = rows.where((row) => (row['sourceName']?.toString().trim() ?? '').isEmpty)
+        .map((row) => row['sourceKind']?.toString() ?? 'SOURCE').toSet();
+    await Future.wait([
+      if (missingKinds.contains('SOURCE')) () async {
+        for (final row in await OnlineDatabase.selectAll('forwarded_source_master')) {
+          names['SOURCE_${row['id']}'] = row['sourceName']?.toString() ?? '';
+        }
+      }(),
+      if (missingKinds.contains('AGENCY')) () async {
+        for (final row in await OnlineDatabase.selectAll('revenue_opinion_master')) {
+          names['AGENCY_${row['id']}'] = [row['officeName'], row['officeAddress']]
+              .where((part) => part != null && part.toString().trim().isNotEmpty).join(' - ');
+        }
+      }(),
+      if (missingKinds.contains('OFFICER')) () async {
+        for (final row in await OnlineDatabase.selectAll('officer_directory')) {
+          names['OFFICER_${row['id']}'] = row['role']?.toString() ?? '';
+        }
+      }(),
+    ]);
     return rows.map((row) {
       final sourceId = (row['sourceId'] as num?)?.toInt() ?? 0;
       final kind =
@@ -617,6 +609,18 @@ Future<List<ApplicationReferenceModel>>
             row['receivedDate']?.toString() ?? '',
       );
     }).toList();
+  }
+
+Future<List<ApplicationReferenceModel>>
+    _getForwardingReferences(int applicationId) async {
+
+  if (OnlineMode.enabled) {
+    final rows = await OnlineDatabase.select(
+      'application_forward_references',
+      equals: {'applicationId': applicationId},
+      orderBy: 'displayOrder',
+    );
+    return _mapOnlineReferences(rows);
   }
 
   final db = await _db;
@@ -774,7 +778,9 @@ return application;
     final beatId = (row['beatId'] as num?)?.toInt();
     final bfoId = (row['assignedBFO'] as num?)?.toInt();
     final drfoId = (row['assignedDRFO'] as num?)?.toInt();
-    if (sectionId != null) {
+    List<ApplicationReferenceModel> references = [];
+    await Future.wait<void>([
+    if (sectionId != null) () async {
       final sections = await OnlineDatabase.select(
         'section_master',
         equals: {'id': sectionId},
@@ -784,8 +790,8 @@ return application;
         enriched['sectionName'] =
             sections.first['sectionName']?.toString() ?? '';
       }
-    }
-    if (beatId != null) {
+    }(),
+    if (beatId != null) () async {
       final beats = await OnlineDatabase.select(
         'beat_master',
         equals: {'id': beatId},
@@ -795,8 +801,8 @@ return application;
         enriched['beatName'] =
             beats.first['beatName']?.toString() ?? '';
       }
-    }
-    if (bfoId != null) {
+    }(),
+    if (bfoId != null) () async {
       final users = await OnlineDatabase.select(
         'users',
         equals: {'id': bfoId},
@@ -806,8 +812,8 @@ return application;
         enriched['assignedBFOName'] =
             users.first['name']?.toString() ?? '';
       }
-    }
-    if (drfoId != null) {
+    }(),
+    if (drfoId != null) () async {
       final users = await OnlineDatabase.select(
         'users',
         equals: {'id': drfoId},
@@ -817,12 +823,11 @@ return application;
         enriched['assignedDRFOName'] =
             users.first['name']?.toString() ?? '';
       }
-    }
+    }(),
+      () async { references = await _getForwardingReferences((row['id'] as num).toInt()); }(),
+    ]);
     final application = _mapApplication(enriched);
-    if (application.id != null) {
-      application.forwardingReferences =
-          await _getForwardingReferences(application.id!);
-    }
+    application.forwardingReferences = references;
     return application;
   }
 
@@ -1011,17 +1016,37 @@ rfoOverallRemarks:
 // ======================================
 
 Future<List<ApplicationModel>>
-    getApplications() async {
+    getApplications({Map<String, Object?>? onlineEquals,
+      List<Object>? onlineStatuses}) async {
 
   if (OnlineMode.enabled) {
-    final result = await OnlineDatabase.select(
-      'applications',
-      orderBy: 'createdDate',
-      descending: true,
-    );
-    final sections = await OnlineDatabase.select('section_master');
-    final beats = await OnlineDatabase.select('beat_master');
-    final users = await OnlineDatabase.select('users');
+    final result = await OnlineDatabase.selectAll('applications',
+      equals: onlineEquals, inColumn: onlineStatuses == null ? null : 'status',
+      inValues: onlineStatuses, orderBy: 'createdDate', descending: true);
+    if (result.isEmpty) return [];
+    final lookupData = await Future.wait([
+      OnlineDatabase.selectAll('section_master', columns: 'id,sectionName'),
+      OnlineDatabase.selectAll('beat_master', columns: 'id,beatName'),
+      OnlineDatabase.selectAll('users', columns: 'id,name'),
+      () async {
+        final rows = <Map<String, dynamic>>[];
+        final ids = result.map((row) => row['id'] as Object).toList();
+        for (var start = 0; start < ids.length; start += 200) {
+          rows.addAll(await OnlineDatabase.selectAll('application_forward_references',
+            inColumn: 'applicationId', inValues: ids.skip(start).take(200).toList(),
+            orderBy: 'displayOrder'));
+        }
+        return rows;
+      }(),
+    ]);
+    final sections = lookupData[0], beats = lookupData[1], users = lookupData[2];
+    final referenceRows = lookupData[3];
+    final mappedReferences = await _mapOnlineReferences(referenceRows);
+    final referencesByApplication = <int, List<ApplicationReferenceModel>>{};
+    for (var i = 0; i < referenceRows.length; i++) {
+      final id = (referenceRows[i]['applicationId'] as num).toInt();
+      referencesByApplication.putIfAbsent(id, () => []).add(mappedReferences[i]);
+    }
     final sectionNames = <int, String>{
       for (final s in sections)
         (s['id'] as num).toInt(): (s['sectionName']?.toString() ?? ''),
@@ -1052,7 +1077,7 @@ Future<List<ApplicationModel>>
       final application = _mapApplication(enriched);
       if (application.id != null) {
         application.forwardingReferences =
-            await _getForwardingReferences(application.id!);
+            referencesByApplication[application.id!] ?? [];
       }
       applications.add(application);
     }
@@ -1119,7 +1144,7 @@ Future<List<ApplicationModel>>
     getApplicationsForCaseWorker(
         int userId) async {
 
-  final all = await getApplications();
+  final all = await getApplications(onlineEquals: {'createdBy': userId}, onlineStatuses: ['Draft', 'Pending DRFO Assignment', 'Returned to Case Worker']);
 
   return all.where((app) {
 
@@ -1175,7 +1200,7 @@ Future<List<ApplicationModel>>
     getRfoApprovedApplicationsForCaseWorker(
   int userId,
 ) async {
-  final all = await getApplications();
+  final all = await getApplications(onlineEquals: {'createdBy': userId}, onlineStatuses: [WorkflowStatus.pendingRevenueOpinion, WorkflowStatus.approved]);
 
   final candidates = all.where((application) {
    return application.createdBy == userId &&
@@ -1201,7 +1226,7 @@ Future<List<ApplicationModel>>
     getApplicationsForDRFO(
         int sectionId) async {
 
-  final all = await getApplications();
+  final all = await getApplications(onlineEquals: {'sectionId': sectionId});
 
   return all.where((app) {
 
@@ -1235,7 +1260,7 @@ Future<List<ApplicationModel>>
     getApplicationsForBFO(
         int userId) async {
 
-  final all = await getApplications();
+  final all = await getApplications(onlineEquals: {'assignedBFO': userId}, onlineStatuses: [WorkflowStatus.pendingBFOInspection, WorkflowStatus.returnedToBFO]);
 
   return all.where((app) {
 
@@ -1257,7 +1282,7 @@ Future<List<ApplicationModel>>
     getCompletedInspectionsForBFO(
   int userId,
 ) async {
-  final all = await getApplications();
+  final all = await getApplications(onlineEquals: {'assignedBFO': userId});
 
   const completedStatuses = {
   WorkflowStatus.pendingDRFOVerification,
@@ -1285,7 +1310,7 @@ Future<List<ApplicationModel>>
 Future<List<ApplicationModel>>
     getApplicationsForRFO() async {
 
-  final all = await getApplications();
+  final all = await getApplications(onlineStatuses: [WorkflowStatus.pendingRFOApproval, WorkflowStatus.completed]);
 
   return all.where((app) {
 
@@ -1304,6 +1329,10 @@ Future<List<ApplicationModel>>
   ApplicationModel application,
 ) async {
 
+  if (application.sectionId == null) throw StateError('Select a section before forwarding.');
+  final drfo = await UserRepository().getDRFOBySection(application.sectionId!);
+  if (drfo == null) throw StateError('No active DRFO is mapped to this section. Configure User Master first.');
+  application.assignedDRFOId = (drfo['id'] as num).toInt();
   final now = DateTime.now();
 
   application.drfoAssignmentDate =

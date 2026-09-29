@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -10,7 +12,7 @@ import '../../../repositories/application_type_permission_mapping_repository.dar
 
 class ApplicationTypeStep extends StatefulWidget {
   final ApplicationModel application;
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
   final VoidCallback onBack;
 
   const ApplicationTypeStep({
@@ -116,7 +118,7 @@ Future<void> loadApplicationTypes() async {
 
 }
 
-  widget.onNext();
+  await widget.onNext();
 }
 
   @override
@@ -245,13 +247,13 @@ const SizedBox(height: 30),
                       ResponsiveActions(
                         children: [
                           ElevatedButton(
-                            onPressed: widget.onBack,
+                            onPressed: workflowAction(context, widget.onBack),
                             child: const Text(
                               "BACK",
                             ),
                           ),
                           ElevatedButton(
-                            onPressed: _saveAndContinue,
+                            onPressed: workflowAction(context, _saveAndContinue),
                             child: const Text(
                               "SAVE & CONTINUE",
                             ),

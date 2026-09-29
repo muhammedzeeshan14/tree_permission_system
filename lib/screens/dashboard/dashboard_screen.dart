@@ -1,3 +1,4 @@
+import '../../widgets/application_refresh_button.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/application_repository.dart';
@@ -138,6 +139,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
 
       appBar: AppBar(
+        actions: [ApplicationRefreshButton(onRefresh: loadCounts)],
 
         title: const Text("Tree Permission Management System"),
 

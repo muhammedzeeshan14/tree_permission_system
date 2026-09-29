@@ -1,3 +1,4 @@
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -353,7 +354,7 @@ if (refresh == true) {
                                   child:
                                       ElevatedButton(
 
-                                    onPressed: loading ? null : _continue,
+                                    onPressed: workflowAction(context, loading ? null : _continue),
 
                                     child:
                                         const Text(

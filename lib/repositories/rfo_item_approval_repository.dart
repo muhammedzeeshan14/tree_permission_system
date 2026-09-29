@@ -51,7 +51,7 @@ class RfoItemApprovalRepository {
         }
         return;
       } catch (e) {
-        debugPrint('online saveDecision rfo_item_approvals failed, falling back to local: $e');
+        rethrow;
       }
     }
     final db = await _db;

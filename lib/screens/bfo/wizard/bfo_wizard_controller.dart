@@ -1,3 +1,5 @@
+import '../../../widgets/inspection_exit_guard.dart';
+import '../../../repositories/application_repository.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -95,6 +97,8 @@ Future<void> refreshTreeRequirements() async {
 }
 
   Future<void> nextStep() async {
+  await ApplicationRepository().updateApplication(widget.application);
+  if (!mounted) return;
   // Tree entry is now step 5.
   if (currentStep == 5) {
     await refreshTreeRequirements();
@@ -204,7 +208,9 @@ Future<void> loadDeferredReasons() async {
 }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => InspectionExitGuard(child: _buildScreen(context));
+
+  Widget _buildScreen(BuildContext context) {
 
 print(
   ">>> PermissionTypeId=${widget.application.permissionTypeId} "

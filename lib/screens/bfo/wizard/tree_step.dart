@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -9,7 +10,7 @@ import '../../../repositories/application_type_permission_mapping_repository.dar
 class TreeStep extends StatefulWidget {
   final ApplicationModel application;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   final VoidCallback onBack;
 
@@ -101,7 +102,7 @@ class _TreeStepState
 
   if (completed == true) {
 
-    widget.onNext();
+    await widget.onNext();
 
   } else {
 

@@ -1,3 +1,4 @@
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/tree_count_detail_model.dart';
@@ -460,13 +461,13 @@ Future<Map<String, dynamic>?> _showSpeciesSearchDialog() async {
 
               TextButton(
 
-                onPressed: () {
+                onPressed: workflowAction(context, () {
 
                   Navigator.pop(
                     dialogContext,
                   );
 
-                },
+                }),
 
                 child:
                     const Text("CANCEL"),
@@ -701,11 +702,11 @@ const Divider(),
 
                           IconButton(
 
-                            onPressed:(){
+                            onPressed:workflowAction(context, (){
 
                               deleteRow(index);
 
-                            },
+                            }),
 
                             icon:const Icon(
 
@@ -737,7 +738,7 @@ const Divider(),
 
               child:ElevatedButton.icon(
 
-                onPressed:addRow,
+                onPressed:workflowAction(context, addRow),
 
                 icon:const Icon(Icons.add),
 
@@ -759,7 +760,7 @@ const Divider(),
 
               child:ElevatedButton(
 
-                onPressed:saveSite,
+                onPressed:workflowAction(context, saveSite),
 
                 child:const Text(
 

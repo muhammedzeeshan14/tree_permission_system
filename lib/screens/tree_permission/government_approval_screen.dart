@@ -1,3 +1,5 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import '../../models/application_model.dart';
 import '../../models/government_approval_model.dart';
@@ -17,11 +19,17 @@ class PendingGovernmentApprovalsScreen extends StatefulWidget {
 }
 class _PendingGovernmentApprovalsScreenState extends State<PendingGovernmentApprovalsScreen> {
   late Future<List<ApplicationModel>> applications;
+  Future<void> _refreshApplications() async {
+    final request = load();
+    setState(() => applications = request);
+    await request;
+  }
+
   Future<List<ApplicationModel>> load() async => (await ApplicationRepository().getApplications()).where((a)=>a.createdBy==SessionService.instance.userId&&a.status==WorkflowStatus.pendingGovernmentLandApprovals).toList();
   @override
   void initState(){super.initState();applications=load();}
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Pending Government land approvals')),
+  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title: const Text('Pending Government land approvals'), actions: [ApplicationRefreshButton(onRefresh: _refreshApplications)]),
     body:FutureBuilder<List<ApplicationModel>>(future:applications,builder:(context,snapshot){
       if(snapshot.hasError)return Center(child:Text(snapshot.error.toString()));
       if(!snapshot.hasData)return const Center(child:CircularProgressIndicator());
@@ -114,17 +122,17 @@ class _GovernmentApprovalScreenState extends State<GovernmentApprovalScreen> {
     if(record==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     return PopScope(canPop:!busy,child:Scaffold(appBar:AppBar(title:Text(widget.application.officeNumber+' — Government land')),
       body:Column(children:[
-        if(!widget.rfo)Padding(padding:const EdgeInsets.all(8),child:OutlinedButton.icon(icon:const Icon(Icons.print),label:const Text('View / Print Request Letter'),onPressed:busy?null:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>DRFOForwardedApplicationScreen(application:widget.application,rfoApprovedOnly:true,screenTitle:'Government Documents Request'))))),
+        if(!widget.rfo)Padding(padding:const EdgeInsets.all(8),child:OutlinedButton.icon(icon:const Icon(Icons.print),label:const Text('View / Print Request Letter'),onPressed:workflowAction(context, busy?null:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>DRFOForwardedApplicationScreen(application:widget.application,rfoApprovedOnly:true,screenTitle:'Government Documents Request')))))),
         Expanded(child:step==0?InspectionSummaryStep(application:widget.application,showNavigationButtons:false,onBack:(){},onNext:(){}):step==1?details():finalPage()),
         if(busy)const LinearProgressIndicator(),
         Padding(padding:const EdgeInsets.all(12),child:Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.end,children:[
-          OutlinedButton(onPressed:busy?null:(){if(step>0)setState(()=>step--);else Navigator.pop(context);},child:const Text('Back')),
-          if(step>0)OutlinedButton(onPressed:busy?null:()=>run(() async {if(step==1)await save();if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Draft saved.')));}),child:const Text('Save Draft')),
-          if(widget.rfo&&step>0)OutlinedButton(onPressed:busy?null:()=>run(() async {if(step==1)await save();await repository.returnForCorrection(record!);if(mounted)Navigator.pop(context,true);}),child:const Text('Return for correction')),
-          if(step==0)FilledButton(onPressed:busy?null:()=>setState(()=>step=1),child:Text(widget.rfo?'Review document details':'Enter document details')),
-          if(step==1&&!widget.rfo)FilledButton(onPressed:busy?null:()=>run(() async {await save(submit:true);if(mounted)Navigator.pop(context,true);}),child:const Text('Send for RFO approval')),
-          if(step==1&&widget.rfo)FilledButton(onPressed:busy||dirty||!record!.allApproved?null:()=>setState(()=>step=2),child:const Text('Next')),
-          if(step==2&&record!.allApproved)FilledButton(onPressed:busy?null:()=>run(finalize),child:const Text('Final Approval')),
+          OutlinedButton(onPressed:workflowAction(context, busy?null:(){if(step>0)setState(()=>step--);else Navigator.pop(context);}),child:const Text('Back')),
+          if(step>0)OutlinedButton(onPressed:workflowAction(context, busy?null:()=>run(() async {if(step==1)await save();if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Draft saved.')));})),child:const Text('Save Draft')),
+          if(widget.rfo&&step>0)OutlinedButton(onPressed:workflowAction(context, busy?null:()=>run(() async {if(step==1)await save();await repository.returnForCorrection(record!);if(mounted)Navigator.pop(context,true);})),child:const Text('Return for correction')),
+          if(step==0)FilledButton(onPressed:workflowAction(context, busy?null:()=>setState(()=>step=1)),child:Text(widget.rfo?'Review document details':'Enter document details')),
+          if(step==1&&!widget.rfo)FilledButton(onPressed:workflowAction(context, busy?null:()=>run(() async {await save(submit:true);if(mounted)Navigator.pop(context,true);})),child:const Text('Send for RFO approval')),
+          if(step==1&&widget.rfo)FilledButton(onPressed:workflowAction(context, busy||dirty||!record!.allApproved?null:()=>setState(()=>step=2)),child:const Text('Next')),
+          if(step==2&&record!.allApproved)FilledButton(onPressed:workflowAction(context, busy?null:()=>run(finalize)),child:const Text('Final Approval')),
         ])),
       ]),
     ));

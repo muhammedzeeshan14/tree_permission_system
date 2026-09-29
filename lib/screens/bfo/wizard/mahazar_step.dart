@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,7 +11,7 @@ import '../../../repositories/master_repository.dart';
 
 class MahazarStep extends StatefulWidget {
   final ApplicationModel application;
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
   final VoidCallback onBack;
 
   const MahazarStep({
@@ -568,7 +570,7 @@ String? _validateMinute(String? value) {
       ),
     );
 
-    widget.onNext();
+    await widget.onNext();
   }
 
   @override
@@ -715,14 +717,14 @@ String? _validateMinute(String? value) {
                       children: [
                         ElevatedButton(
                             onPressed:
-                                widget.onBack,
+                                workflowAction(context, widget.onBack),
                             child:
                                 const Text("BACK"),
                           ),
 
 
                         ElevatedButton(
-                            onPressed: save,
+                            onPressed: workflowAction(context, save),
                             child: const Text(
                               "SAVE & CONTINUE",
                             ),

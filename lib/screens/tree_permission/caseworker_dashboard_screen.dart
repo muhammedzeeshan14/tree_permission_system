@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'revenue_reply_screen.dart';
 import 'government_approval_screen.dart';
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ class _CaseWorkerDashboardScreenState
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: _refresh,
+            onPressed: workflowAction(context, _refresh),
           ),
         ],
 

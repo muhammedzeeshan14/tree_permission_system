@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -9,7 +11,7 @@ class ApplicationDetailsStep extends StatelessWidget {
 
   final ApplicationModel application;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   const ApplicationDetailsStep({
 
@@ -196,7 +198,7 @@ class ApplicationDetailsStep extends StatelessWidget {
 
                     ),
 
-                    onPressed: onNext,
+                    onPressed: workflowAction(context, onNext),
 
                   ),
 

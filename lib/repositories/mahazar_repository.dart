@@ -29,19 +29,15 @@ class MahazarRepository {
             item.toMap(),
           );
         } else {
-          await OnlineDatabase.delete(
-            "application_mahazar",
-            column: "applicationId",
-            value: item.applicationId,
-          );
-          await OnlineDatabase.insert(
-            "application_mahazar",
-            item.toMap(),
+          await OnlineDatabase.update(
+            'application_mahazar',
+            (existing.first['id'] as num).toInt(),
+            item.toMap()..remove('id'),
           );
         }
         return;
       } catch (_) {
-        /* fall through to local */
+        rethrow;
       }
     }
 

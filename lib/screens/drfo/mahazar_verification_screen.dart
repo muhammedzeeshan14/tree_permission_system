@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -244,11 +245,11 @@ String get endTimeDisplay {
 
           TextButton(
 
-            onPressed: () {
+            onPressed: workflowAction(dialogContext, () {
 
               Navigator.pop(dialogContext);
 
-            },
+            }),
 
             child: const Text("Cancel"),
 
@@ -256,7 +257,7 @@ String get endTimeDisplay {
 
           ElevatedButton(
 
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
 
               if (selectedReason == null) {
 
@@ -267,7 +268,7 @@ String get endTimeDisplay {
               Navigator.pop(
                   dialogContext, selectedReason);
 
-            },
+            }),
 
             child: const Text("OK"),
 

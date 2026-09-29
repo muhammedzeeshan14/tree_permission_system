@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -12,7 +14,7 @@ class InspectionDecisionStep extends StatefulWidget {
 
   final ApplicationModel application;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   final VoidCallback onBack;
 
@@ -336,7 +338,7 @@ Widget build(BuildContext context) {
                                     color: Colors.red,
                                   ),
 
-                                  onPressed: () {
+                                  onPressed: workflowAction(context, () {
 
                                     setState(() {
 
@@ -345,7 +347,7 @@ Widget build(BuildContext context) {
 
                                     });
 
-                                  },
+                                  }),
 
                                 ),
 
@@ -371,7 +373,7 @@ Widget build(BuildContext context) {
                           "Add Reason",
                         ),
 
-                        onPressed: () {
+                        onPressed: workflowAction(context, () {
 
                           setState(() {
 
@@ -379,7 +381,7 @@ Widget build(BuildContext context) {
 
                           });
 
-                        },
+                        }),
 
                       ),
 
@@ -395,7 +397,7 @@ Widget build(BuildContext context) {
 
                       ElevatedButton(
 
-                          onPressed: widget.onBack,
+                          onPressed: workflowAction(context, widget.onBack),
 
                           child: const Text(
                             "BACK",
@@ -407,7 +409,7 @@ Widget build(BuildContext context) {
 
                       ElevatedButton(
 
-                          onPressed: () async {
+                          onPressed: workflowAction(context, () async {
 
   if (decision == null) {
 
@@ -446,7 +448,7 @@ Widget build(BuildContext context) {
       );
     }
 
-    widget.onNext();
+    await widget.onNext();
 
     return;
   }
@@ -490,7 +492,7 @@ Widget build(BuildContext context) {
 
   widget.onDeferred();
 
-},
+}),
 
                           child: const Text(
                             "CONTINUE",

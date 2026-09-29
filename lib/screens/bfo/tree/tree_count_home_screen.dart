@@ -1,3 +1,4 @@
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/tree_count_site_model.dart';
@@ -125,7 +126,7 @@ class _TreeCountHomeScreenState
 
        IconButton(
   icon: const Icon(Icons.edit),
-  onPressed: () async {
+  onPressed: workflowAction(context, () async {
 
   final bool? updated =
       await Navigator.push<bool>(
@@ -153,7 +154,7 @@ class _TreeCountHomeScreenState
 
   }
 
-},
+}),
 ),
 
         IconButton(
@@ -161,7 +162,7 @@ class _TreeCountHomeScreenState
             Icons.delete,
             color: Colors.red,
           ),
-          onPressed: () async {
+          onPressed: workflowAction(context, () async {
 
   final bool? delete =
       await showDialog<bool>(
@@ -237,7 +238,7 @@ class _TreeCountHomeScreenState
 
   await load();
 
-},
+}),
         ),
 
       ],
@@ -260,7 +261,7 @@ class _TreeCountHomeScreenState
 
               child: ElevatedButton.icon(
 
-                onPressed: addSite,
+                onPressed: workflowAction(context, addSite),
 
                 icon:
                     const Icon(Icons.add),
@@ -283,14 +284,14 @@ class _TreeCountHomeScreenState
 
               child: ElevatedButton(
 
-                onPressed: () {
+                onPressed: workflowAction(context, () {
 
                   Navigator.pop(
                     context,
                     true,
                   );
 
-                },
+                }),
 
                 child: const Text(
 

@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../administration/administration_screen.dart';
@@ -49,7 +50,7 @@ class _RFODashboardScreenState
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
-            onPressed: _refresh,
+            onPressed: workflowAction(context, _refresh),
           ),
         ],
 

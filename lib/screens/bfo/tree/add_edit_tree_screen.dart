@@ -1,3 +1,6 @@
+import '../../../widgets/workflow_action.dart';
+import '../../../repositories/tree_officer_repository.dart';
+import '../../../services/felling_exemptions.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -141,14 +144,46 @@ String selectedRecommendationCode = "";
   // Initialize Screen
   //----------------------------------------------------------
 
+  int? _treeOfficerId;
+  List<Map<String, dynamic>> _treeOfficers = [];
+  String? _initializationError;
+  bool get _isPrivateLand => application?.applicationType.trim().toUpperCase() == 'PL';
+  Future<void> _loadTreeOfficer() async {
+    if (!_isPrivateLand) return;
+    final repo = TreeOfficerRepository();
+    _treeOfficers = await repo.getAll();
+    _treeOfficerId = await repo.getSelection(widget.tree.applicationId);
+    if (!_treeOfficers.any((o) => o['id'] == _treeOfficerId)) _treeOfficerId = null;
+  }
+  Future<void> _selectTreeOfficer(int? id) async {
+    if (id == null) return;
+    setState(() => _loading = true);
+    try {
+      await TreeOfficerRepository().saveSelection(widget.tree.applicationId, id);
+      _treeOfficerId = id;
+      await _loadSpecies();
+      if (!speciesList.any((s) => s['id'] == selectedSpeciesId)) selectedSpeciesId = null;
+    } catch (e) { _initializationError = e.toString(); }
+    if (mounted) setState(() => _loading = false);
+  }
+  Widget _officerPicker() => DropdownButtonFormField<int>(value: _treeOfficerId,
+    decoration: const InputDecoration(labelText: 'Select tree officer before tree entry'),
+    items: _treeOfficers.map((o) => DropdownMenuItem(value: (o['id'] as num).toInt(), child: Text(o['code'].toString()))).toList(),
+    onChanged: _selectTreeOfficer);
+
   Future<void> _initialize() async {
   try {
     await _loadApplication();
+    await _loadTreeOfficer();
     await _loadSpecies();
     await _loadRecommendationTypes();
     await _loadTreeStatuses();
     await _loadTree();
+    if (_isPrivateLand && !speciesList.any((s) => s['id'] == selectedSpeciesId)) {
+      selectedSpeciesId = null;
+    }
   } catch (e, s) {
+    _initializationError = e.toString();
     debugPrint("AddEditTreeScreen initialization failed");
     debugPrint(e.toString());
     debugPrint(s.toString());
@@ -189,7 +224,13 @@ String selectedRecommendationCode = "";
   // Online-aware: species added on any device appear here.
   final allSpecies = await MasterRepository().getMasters("Species");
 
+  final excluded = _isPrivateLand && _treeOfficerId != null
+      ? FellingExemptions.excludedIds(
+          await MasterRepository().getMasters('Felling Exempted Species'), allSpecies,
+          _treeOfficers.firstWhere((o) => o['id'] == _treeOfficerId)['code'].toString())
+      : <String>{};
   final activeSpecies = allSpecies.where((species) {
+    if (_isPrivateLand && (_treeOfficerId == null || excluded.contains(species['id'].toString()))) return false;
     return species["isActive"] == 1;
   }).toList();
 
@@ -514,6 +555,22 @@ notFitForTimber =
 
   Future<int> _saveCurrentTree() async {
 
+  if (_isPrivateLand) {
+    try {
+      await _loadTreeOfficer();
+      await _loadSpecies();
+      if (_treeOfficerId == null || !speciesList.any((s) => s['id'] == selectedSpeciesId)) {
+        if (mounted) {
+          setState(() => selectedSpeciesId = null);
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a tree officer and a non-exempted species before saving.')));
+        }
+        return -1;
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unable to verify species exemptions: $e')));
+      return -1;
+    }
+  }
   if (!_validate()) return -1;
 
   setState(() {
@@ -577,7 +634,8 @@ numberOfTwigs:
 
   Future<void> _updateTree() async {
 
-  await _saveCurrentTree();
+  final savedId = await _saveCurrentTree();
+  if (savedId == -1) return;
 
   if (!mounted) return;
 
@@ -899,9 +957,9 @@ Future<Map<String, dynamic>?> _showSpeciesSearchDialog() async {
 
             actions: [
               TextButton(
-                onPressed: () {
+                onPressed: workflowAction(context, () {
                   Navigator.of(dialogContext).pop();
-                },
+                }),
                 child: const Text("CANCEL"),
               ),
             ],
@@ -1484,6 +1542,10 @@ if (selectedRecommendationCode == "TOP") ...[
               child: CircularProgressIndicator(),
             )
 
+          : _initializationError != null
+              ? Center(child: Text('Unable to load tree entry: $_initializationError'))
+          : _isPrivateLand && _treeOfficerId == null
+              ? Center(child: SizedBox(width: 400, child: _officerPicker()))
           : application == null
 
               ? const Center(
@@ -1536,6 +1598,12 @@ if (selectedRecommendationCode == "TOP") ...[
 
                             children: [
 
+                              if (_isPrivateLand) ...[
+                                _officerPicker(),
+                                const Text('Species exempted for this officer are hidden. Existing trees are retained.'),
+                                if (speciesList.isEmpty) const Text('No eligible species are available for this tree officer.'),
+                                const SizedBox(height: 16),
+                              ],
                               _treeInformationCard(),
 
                               const SizedBox(height: 16),
@@ -1629,11 +1697,11 @@ if (widget.isEdit)
 
           label: const Text("Cancel"),
 
-          onPressed: () {
+          onPressed: workflowAction(context, () {
 
             Navigator.pop(context);
 
-          },
+          }),
 
         ),
 
@@ -1649,11 +1717,7 @@ if (widget.isEdit)
 
           label: const Text("Update Tree"),
 
-         onPressed: () {
-
-  _updateTree();
-
-},
+         onPressed: workflowAction(context, () async { await _updateTree(); }),
 
         ),
 
@@ -1677,11 +1741,11 @@ else if (widget.tree.stemType == "Single")
 
           label: const Text("Cancel"),
 
-          onPressed: () {
+          onPressed: workflowAction(context, () {
 
             Navigator.pop(context);
 
-          },
+          }),
 
         ),
 
@@ -1697,11 +1761,7 @@ else if (widget.tree.stemType == "Single")
 
           label: const Text("Save Tree"),
 
-          onPressed: () {
-
-            _saveAndFinishTree();
-
-          },
+          onPressed: workflowAction(context, () async { await _saveAndFinishTree(); }),
 
         ),
 
@@ -1721,11 +1781,11 @@ else
 
         child: OutlinedButton(
 
-          onPressed: () {
+          onPressed: workflowAction(context, () {
 
             Navigator.pop(context);
 
-          },
+          }),
 
           child: const Text(
             "Cancel",
@@ -1741,11 +1801,7 @@ else
 
         child: ElevatedButton(
 
-          onPressed: () {
-
-  _saveAndNextStem();
-
-},
+          onPressed: workflowAction(context, () async { await _saveAndNextStem(); }),
 
           child: const Text(
             "Next Stem",
@@ -1761,11 +1817,7 @@ else
 
         child: ElevatedButton(
 
-          onPressed: () {
-
-  _saveAndFinishTree();
-
-},
+          onPressed: workflowAction(context, () async { await _saveAndFinishTree(); }),
 
           child: const Text(
             "Finish Tree",

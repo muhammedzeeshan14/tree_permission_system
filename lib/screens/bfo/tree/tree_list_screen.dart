@@ -1,3 +1,4 @@
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -400,14 +401,14 @@ Map<int,String> recommendationReasonMap = {};
 
                     TextButton(
 
-                      onPressed: () {
+                      onPressed: workflowAction(context, () {
 
                         Navigator.pop(
                           context,
                           false,
                         );
 
-                      },
+                      }),
 
                       child: const Text(
                         "Cancel",
@@ -417,14 +418,14 @@ Map<int,String> recommendationReasonMap = {};
 
                     ElevatedButton(
 
-                      onPressed: () {
+                      onPressed: workflowAction(context, () {
 
                         Navigator.pop(
                           context,
                           true,
                         );
 
-                      },
+                      }),
 
                       child: const Text(
                         "Delete",
@@ -1238,7 +1239,7 @@ SizedBox(
                 size: 20,
               ),
               visualDensity: VisualDensity.compact,
-              onPressed: () => _openEditTree(tree),
+              onPressed: workflowAction(context, () => _openEditTree(tree)),
             ),
 
             //--------------------------------------------------
@@ -1252,7 +1253,7 @@ SizedBox(
                 size: 20,
               ),
               visualDensity: VisualDensity.compact,
-              onPressed: () => _deleteTree(tree),
+              onPressed: workflowAction(context, () => _deleteTree(tree)),
             ),
 
           ],
@@ -1429,7 +1430,7 @@ String _branchTwig(
       floatingActionButton:
           FloatingActionButton.extended(
 
-        onPressed: _openAddTree,
+        onPressed: workflowAction(context, _openAddTree),
 
         icon: const Icon(
           Icons.add,
@@ -1545,7 +1546,7 @@ String _branchTwig(
                                 ElevatedButton(
 
                               onPressed:
-                                  _continueToDocuments,
+                                  workflowAction(context, _continueToDocuments),
 
                               child:
                                   const Text(

@@ -1,8 +1,11 @@
+import '../../widgets/application_refresh_button.dart';
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
 import '../../repositories/application_repository.dart';
 import '../../services/session_service.dart';
+import '../drfo/drfo_forwarded_application_screen.dart';
 import '../../widgets/sync_bar.dart';
 
 class CompletedApplicationsScreen extends StatefulWidget {
@@ -23,8 +26,8 @@ class _CompletedApplicationsScreenState
   @override
   void initState() {
     super.initState();
+    completedCountFuture = Future.value(0);
     _loadApplications();
-    completedCountFuture = _getCompletedCount();
   }
 
   Future<void> _loadApplications() async {
@@ -36,21 +39,14 @@ class _CompletedApplicationsScreenState
       return;
     }
 
-    final all = await ApplicationRepository().getApplications();
+    final all = await ApplicationRepository().getApplications(onlineEquals: {'createdBy': userId}, onlineStatuses: ['Completed']);
+    if (!mounted) return;
     setState(() {
       applications = all.where((app) =>
           app.status == 'Completed' &&
           app.createdBy == userId).toList();
+      completedCountFuture = Future.value(applications.length);
     });
-  }
-
-  Future<int> _getCompletedCount() async {
-    final all = await ApplicationRepository().getApplications();
-    return all.where((app) =>
-        app.status == 'Completed' &&
-        app.createdBy ==
-            SessionService.instance.userId)
-        .length;
   }
 
   @override
@@ -59,16 +55,7 @@ class _CompletedApplicationsScreenState
       appBar: AppBar(
         title: const Text('Completed Applications'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: () {
-              setState(() {
-                _loadApplications();
-                completedCountFuture = _getCompletedCount();
-              });
-            },
-          ),
+          ApplicationRefreshButton(onRefresh: _loadApplications),
         ],
       ),
       body: Column(
@@ -135,14 +122,17 @@ class _CompletedApplicationsScreenState
                               overflow: TextOverflow.ellipsis,
                             ),
                             trailing: const Icon(Icons.remove),
-                            onTap: () {
-                              // TODO: Show application details and re-print option
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Re-print functionality coming soon'),
+                            onTap: () async {
+                              final app = applications[index];
+                              // Navigate to document view screen with all generated docs
+                              await Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => DRFOForwardedApplicationScreen(
+                                  application: app,
+                                  rfoApprovedOnly: true,
+                                  screenTitle:
+                                      'Approved RFO - Print Letters',
                                 ),
-                              );
+                              ));
                             },
                           ),
                         );

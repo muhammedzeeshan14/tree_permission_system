@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/application_model.dart';
@@ -204,11 +205,11 @@ if (opinion != null) {
 
             TextButton(
 
-              onPressed: () {
+              onPressed: workflowAction(dialogContext, () {
 
                 Navigator.pop(dialogContext);
 
-              },
+              }),
 
               child: const Text(
                 "Cancel",
@@ -218,7 +219,7 @@ if (opinion != null) {
 
             ElevatedButton(
 
-              onPressed: () async {
+              onPressed: workflowAction(context, () async {
 
                 if (selectedReason == null) {
 
@@ -229,7 +230,7 @@ if (opinion != null) {
                 Navigator.pop(
                     dialogContext, selectedReason);
 
-              },
+              }),
 
               child: const Text("OK"),
 

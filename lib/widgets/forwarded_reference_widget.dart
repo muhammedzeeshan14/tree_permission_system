@@ -233,6 +233,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
               return Padding(
 
+                key: ObjectKey(ref),
                 padding:
                     const EdgeInsets.only(bottom: 10),
 
@@ -250,6 +251,7 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                       child:
                           DropdownButtonFormField<String>(
+                        isExpanded: true,
 
                         value: ref.sourceId == null
                             ? null
@@ -438,22 +440,23 @@ class ForwardedReferenceWidget extends StatelessWidget {
 
                     if (ref.isOther) ...[
                       const SizedBox(height: 10),
-                      TextFormField(
-                        initialValue:
-                            ref.customSourceName,
-                        decoration:
-                            const InputDecoration(
-                          labelText:
-                              "Forwarded By (type name)",
-                          border:
-                              OutlineInputBorder(),
+                      for (int line = 0; line < 3; line++) Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: TextFormField(
+                          initialValue: ref.customSourceName.split('\n').length > line
+                              ? ref.customSourceName.split('\n')[line] : '',
+                          decoration: InputDecoration(
+                            labelText: 'Forwarded By — Line ${line + 1}',
+                            hintText: line == 0 ? 'Name / designation' : 'Office / postal address',
+                            border: const OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            final parts = ref.customSourceName.split('\n');
+                            while (parts.length < 3) { parts.add(''); }
+                            parts[line] = value;
+                            onCustomSourceChanged(index, parts.join('\n'));
+                          },
                         ),
-                        onChanged: (v) {
-                          onCustomSourceChanged(
-                            index,
-                            v,
-                          );
-                        },
                       ),
                     ],
 

@@ -1,3 +1,4 @@
+import '../../widgets/workflow_action.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -370,9 +371,9 @@ class _BFODashboardScreenState
                       Icons.picture_as_pdf,
                       color: Colors.red,
                     ),
-                    onPressed: () {
+                    onPressed: workflowAction(context, () {
                       openMahazar(application);
-                    },
+                    }),
                   )
                 : const Icon(
                     Icons.chevron_right,
@@ -401,7 +402,7 @@ class _BFODashboardScreenState
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',
-              onPressed: _refresh,
+              onPressed: workflowAction(context, _refresh),
             ),
           ],
         ),
@@ -464,7 +465,7 @@ class _BFODashboardScreenState
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',
-              onPressed: _refresh,
+              onPressed: workflowAction(context, _refresh),
             ),
           ],
         ),
@@ -492,7 +493,7 @@ class _BFODashboardScreenState
             IconButton(
               icon: const Icon(Icons.refresh),
               tooltip: 'Refresh',
-              onPressed: _refresh,
+              onPressed: workflowAction(context, _refresh),
             ),
           ],
           bottom: TabBar(

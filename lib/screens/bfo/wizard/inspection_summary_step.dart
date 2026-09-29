@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import '../../../widgets/revenue_reply_history_card.dart';
 import '../../../widgets/responsive_actions.dart';
 import '../../../widgets/government_approval_history_card.dart';
@@ -36,7 +38,7 @@ class InspectionSummaryStep extends StatefulWidget {
 
   final VoidCallback onBack;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   const InspectionSummaryStep({
   super.key,
@@ -534,9 +536,9 @@ Widget buildPhotoCard() {
                               Padding(
                                 padding: const EdgeInsets.all(12),
                                 child: ElevatedButton(
-                                  onPressed: () {
+                                  onPressed: workflowAction(context, () {
                                     Navigator.pop(context);
-                                  },
+                                  }),
                                   child: const Text("CLOSE"),
                                 ),
                               ),
@@ -714,13 +716,13 @@ Widget buildDocumentCard() {
                                 "VIEW",
                               ),
 
-                              onPressed: () async {
+                              onPressed: workflowAction(context, () async {
 
                                 await OpenFilex.open(
                                   doc.filePath,
                                 );
 
-                              },
+                              }),
 
                             ),
 
@@ -1135,7 +1137,7 @@ const SizedBox(height: 20),
 
       ElevatedButton(
 
-          onPressed: widget.onBack,
+          onPressed: workflowAction(context, widget.onBack),
 
           child: const Text("BACK"),
 
@@ -1145,7 +1147,7 @@ const SizedBox(height: 20),
 
       ElevatedButton(
 
-          onPressed: widget.onNext,
+          onPressed: workflowAction(context, widget.onNext),
 
           child: const Text("NEXT"),
 

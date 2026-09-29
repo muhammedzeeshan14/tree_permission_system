@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
 
 import '../../../models/application_model.dart';
@@ -16,7 +18,7 @@ class DocumentStep extends StatefulWidget {
 
   final VoidCallback onBack;
 
-  final VoidCallback onNext;
+  final FutureOr<void> Function() onNext;
 
   const DocumentStep({
 
@@ -175,11 +177,11 @@ void initState() {
                   "UPLOAD DOCUMENT",
                 ),
 
-               onPressed: () async {
+               onPressed: workflowAction(context, () async {
 
   await pickDocument();
 
-},
+}),
 
               ),
 
@@ -291,7 +293,7 @@ Card(
 
             ),
 
-            onPressed: () async {
+            onPressed: workflowAction(context, () async {
 
               if(documentTypeId==null){
 
@@ -365,7 +367,7 @@ Card(
   }
 }
 
-            },
+            }),
 
           ),
 
@@ -490,13 +492,13 @@ Expanded(
 
       ),
 
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
 
         await OpenFilex.open(
           doc.filePath,
         );
 
-      },
+      }),
 
     ),
 
@@ -512,7 +514,7 @@ Expanded(
 
       ),
 
-      onPressed: () async {
+      onPressed: workflowAction(context, () async {
 
         final result = await showDialog<bool>(
 
@@ -590,7 +592,7 @@ Expanded(
 
         }
 
-      },
+      }),
 
     ),
 
@@ -615,7 +617,7 @@ Expanded(
 
                   ElevatedButton(
 
-                    onPressed: widget.onBack,
+                    onPressed: workflowAction(context, widget.onBack),
 
                     child: const Text("BACK"),
 
@@ -623,7 +625,7 @@ Expanded(
 
                   ElevatedButton(
 
-                    onPressed: widget.onNext,
+                    onPressed: workflowAction(context, widget.onNext),
 
                     child: const Text("NEXT"),
 
