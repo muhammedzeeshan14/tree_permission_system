@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../database/database_helper.dart';
 import 'connectivity_service.dart';
 import 'supabase_service.dart';
+import 'online_mode.dart';
 
 /// Stage 2: real offline-first push/pull.
 ///
@@ -97,6 +98,10 @@ class SyncService {
   }
 
   Future<String> syncNow() async {
+    // Direct cloud mode must never replay stale local rows over cloud data.
+    if (OnlineMode.enabled) {
+      return 'Data saves directly to cloud; legacy offline sync is disabled.';
+    }
     if (!ConnectivityService.instance.isOnline) {
       return 'Offline — ${await pendingCount()} change(s) queued locally.';
     }

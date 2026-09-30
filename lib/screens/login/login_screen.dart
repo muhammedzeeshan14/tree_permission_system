@@ -49,6 +49,7 @@ class _LoginScreenState
 
   bool loading = false;
     Future<void> login() async {
+    if (loading) return;
 
     if (usernameController.text.trim().isEmpty) {
 
@@ -113,13 +114,8 @@ class _LoginScreenState
     }
     if (!mounted) return;
 
-    setState(() {
-
-      loading = false;
-
-    });
-
     if (user == null) {
+      setState(() => loading = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
 
@@ -192,8 +188,17 @@ switch (user["role"]) {
     route = "/login";
 
 }
-await MasterDataService.instance
-    .loadMasters();
+try {
+  await MasterDataService.instance.loadMasters();
+} catch (_) {
+  SessionService.instance.logout();
+  if (!mounted) return;
+  setState(() => loading = false);
+  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    content: Text('Unable to load application masters. Check your connection and try again.'),
+  ));
+  return;
+}
 if (!mounted) return;
 Navigator.pushReplacementNamed(
 

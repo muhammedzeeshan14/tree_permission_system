@@ -9,9 +9,12 @@ import '../services/online_mode.dart';
 class MasterRepository {
 
   final DatabaseHelper dbHelper = DatabaseHelper.instance;
+  final Database? databaseOverride;
+
+  MasterRepository({this.databaseOverride});
 
   Future<Database> get _db async =>
-      await dbHelper.database;
+      databaseOverride ?? await dbHelper.database;
 
   Future<List<Map<String, dynamic>>> getMasters(
       String masterType) async {
@@ -865,10 +868,7 @@ Future<void> loadDefaultMasters() async {
 
   final db = await _db;
 
-  await db.delete("master_data");
-
-  // TEMPORARY
-  // Remove this after today's cleanup.
+  // Seed only an empty database; preserve configured masters and their IDs.
 
   final count = Sqflite.firstIntValue(
     await db.rawQuery(
