@@ -3720,8 +3720,8 @@ class DrfoDocumentService {
 
       // Three-part letterhead:
       // letter number | centered logo | office details
-      final leftColumnWidth = (contentWidth - 92 * _scale) / 2 - 5 * _scale;
-      final logoColumnWidth = 92 * _scale;
+      final leftColumnWidth = (contentWidth - 116 * _scale) / 2 - 5 * _scale;
+      final logoColumnWidth = 116 * _scale;
       final rightColumnWidth = leftColumnWidth;
 
       final leftHeader =
@@ -3755,7 +3755,7 @@ class DrfoDocumentService {
         text: "ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಗಳ ಕಛೇರಿ",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.right,
+        alignment: ui.TextAlign.center,
         bold: true,
       );
 
@@ -3765,7 +3765,7 @@ class DrfoDocumentService {
         text: rightBodyLines.isNotEmpty ? rightBodyLines.first : "",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.right,
+        alignment: ui.TextAlign.center,
         bold: true,
         lineHeight: 1.48,
       );
@@ -3776,7 +3776,7 @@ class DrfoDocumentService {
             : "",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.right,
+        alignment: ui.TextAlign.center,
         bold: false,
         lineHeight: 1.48,
       );
@@ -3785,7 +3785,7 @@ class DrfoDocumentService {
         text: "ದಿನಾಂಕ: ${rfoLetterhead.approvalDate}",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.right,
+        alignment: ui.TextAlign.center,
         bold: false,
         lineHeight: 1.38,
       );
@@ -3857,7 +3857,7 @@ class DrfoDocumentService {
 
             final logoImage = frame.image;
 
-            const maximumLogoSize = 81.25;
+            const maximumLogoSize = 81.25 * 1.30;
 
             final imageWidth = logoImage.width.toDouble();
 
@@ -4000,7 +4000,7 @@ class DrfoDocumentService {
           prefix.add(await _buildParagraph(text: text, width: signatureBlockWidth,
             fontSize: defaultFontSize * _scale, alignment: ui.TextAlign.center, bold: false));
         }
-        final signingGap = 26 * _scale;
+        final signingGap = textLines.any((text) => text.contains('ಸಹಿ/-')) ? 0.0 : 26 * _scale;
         final rangeOffset = (designation.height + 4 * _scale) * 0.75;
         final height = prefix.fold<double>(0, (sum, p) => sum + p.height + 4 * _scale)
           + signingGap + rangeOffset + range.height;
@@ -4594,7 +4594,11 @@ class DrfoDocumentService {
         if (closingEnd < i) closingEnd = i;
         for (var j = i; j <= closingEnd; j++) {
           final text = lines[j].trim();
-          if (text == '[RFO_SIGNATURE]') footerHeight += 26 * _scale;
+          if (text == '[RFO_SIGNATURE]') {
+            final end = lines.indexOf('[/RFO_SIGNATURE]', j);
+            final signedCopy = end > j && lines.sublist(j + 1, end).any((line) => line.contains('ಸಹಿ/-'));
+            if (!signedCopy) footerHeight += 26 * _scale;
+          }
           if (text.startsWith('[')) continue;
           if (text.isEmpty) {
             footerHeight += 9 * _scale;
