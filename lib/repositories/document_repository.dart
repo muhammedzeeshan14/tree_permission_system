@@ -40,6 +40,11 @@ class DocumentRepository {
         filePath: original, documentTypeId: null, documentTypeName: row['documentName']?.toString() ?? '', remarks: row['remarks']?.toString() ?? '', createdDate: row['createdDate']?.toString() ?? '')..sourcePath = original;
       try {
         item.filePath = await CloudFileService.resolveDocumentPath(applicationId: applicationId, storedPath: original, officeNumber: office, requiredForUse: true);
+        if (OnlineMode.enabled && !original.startsWith('cloud://')) {
+          final portable = await CloudFileService.saveDocumentFile(applicationId, item.filePath);
+          await OnlineDatabase.update('inspection_documents', item.id!, {'filePath': portable});
+          item.sourcePath = portable;
+        }
       } catch (error) {
         // Keep the record visible, with a retryable error instead of dropping it.
         item.attachmentError = error.toString();

@@ -299,7 +299,13 @@ if (fileName.contains('UPDATED_MAHAZAR')) {
               applicationId: _application.id!,
               officeNumber: _application.officeNumber,
             );
-      await OpenFilex.open(file.path);
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+        appBar: AppBar(title: Text(photos ? 'Inspection Photos PDF' : 'Uploaded Documents PDF')),
+        body: PdfPreview(build: (_) async => bytes, canChangePageFormat: false,
+          canChangeOrientation: false, allowPrinting: true, allowSharing: true),
+      )));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

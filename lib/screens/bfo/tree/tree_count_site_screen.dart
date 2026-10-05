@@ -1,3 +1,4 @@
+import '../../../widgets/tree_count_species_dialog.dart';
 import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../../widgets/workflow_action.dart';
 import 'package:flutter/material.dart';
@@ -297,197 +298,11 @@ countControllers.removeAt(index);
 
 }
 
-Future<Map<String, dynamic>?> _showSpeciesSearchDialog() async {
-
-  final searchController =
-      TextEditingController();
-
-  List<Map<String, dynamic>> filtered =
-      List<Map<String, dynamic>>.from(
-    speciesList,
-  );
-
-  final result =
-      await showDialog<Map<String, dynamic>>(
-    context: context,
-
-    builder: (dialogContext) {
-
-      return StatefulBuilder(
-
-        builder:
-            (dialogContext, setDialogState) {
-
-          void search(String value) {
-
-            final query =
-                value.trim().toLowerCase();
-
-            setDialogState(() {
-
-              if (query.isEmpty) {
-
-                filtered =
-                    List<Map<String, dynamic>>.from(
-                  speciesList,
-                );
-
-              } else {
-
-                filtered =
-                    speciesList.where((species) {
-
-                  final name =
-                      species["value"]
-                          ?.toString()
-                          .toLowerCase() ??
-                      "";
-
-                  return name.contains(query);
-
-                }).toList();
-
-              }
-
-            });
-
-          }
-
-          return AlertDialog(
-
-            title:
-                const Text("Select Species"),
-
-            content: SizedBox(
-
-              width: 450,
-
-              height: 500,
-
-              child: Column(
-
-                children: [
-
-                  TextField(
-
-                    controller:
-                        searchController,
-
-                    autofocus: true,
-
-                    decoration:
-                        const InputDecoration(
-
-                      labelText:
-                          "Search Species",
-
-                      hintText:
-                          "Type species name",
-
-                      prefixIcon:
-                          Icon(Icons.search),
-
-                      border:
-                          OutlineInputBorder(),
-
-                    ),
-
-                    onChanged: search,
-
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Expanded(
-
-                    child:
-                        filtered.isEmpty
-
-                            ? const Center(
-                                child: Text(
-                                  "No species found",
-                                ),
-                              )
-
-                            : ListView.builder(
-
-                                itemCount:
-                                    filtered.length,
-
-                                itemBuilder:
-                                    (context, index) {
-
-                                  final species =
-                                      filtered[index];
-
-                                  return ListTile(
-
-                                    title: Text(
-                                      species["value"]
-                                          .toString(),
-                                    ),
-
-                                    subtitle:
-                                        Text(
-                                      species[
-                                                  "speciesGroup"]
-                                              ?.toString() ??
-                                          "",
-                                    ),
-
-                                    onTap: () {
-
-                                      Navigator.pop(
-                                        dialogContext,
-                                        species,
-                                      );
-
-                                    },
-
-                                  );
-
-                                },
-
-                              ),
-
-                  ),
-
-                ],
-
-              ),
-
-            ),
-
-            actions: [
-
-              TextButton(
-
-                onPressed: workflowAction(context, () {
-
-                  Navigator.pop(
-                    dialogContext,
-                  );
-
-                }),
-
-                child:
-                    const Text("CANCEL"),
-
-              ),
-
-            ],
-
-          );
-        },
-
-      );
-    },
-  );
-
-  searchController.dispose();
-
-  return result;
-}
+Future<Map<String, dynamic>?> _showSpeciesSearchDialog() =>
+    showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => TreeCountSpeciesDialog(species: speciesList),
+    );
 
   @override
   Widget build(BuildContext context){
@@ -620,14 +435,14 @@ const Divider(),
     final selected =
         await _showSpeciesSearchDialog();
 
-    if (selected == null) {
+    if (!mounted || selected == null) {
       return;
     }
 
     setState(() {
 
       row.speciesId =
-          selected["id"];
+          (selected["id"] as num).toInt();
 
     });
 

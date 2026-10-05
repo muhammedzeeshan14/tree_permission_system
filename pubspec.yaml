@@ -18,6 +18,7 @@ dependencies:
   geolocator_web: ^4.1.4
   cupertino_icons: ^1.0.8
   uuid: ^4.5.1
+  crypto: ^3.0.7
   sqflite: ^2.4.2
   sqflite_common_ffi: ^2.3.4
   path: ^1.9.1

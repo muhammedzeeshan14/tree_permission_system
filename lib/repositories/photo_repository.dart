@@ -40,6 +40,11 @@ class PhotoRepository {
         photoPath: original, caption: row['caption']?.toString() ?? '', createdDate: row['createdDate']?.toString() ?? '')..sourcePath = original;
       try {
         item.photoPath = await CloudFileService.resolvePhotoPath(applicationId: applicationId, storedPath: original, officeNumber: office, requiredForUse: true);
+        if (OnlineMode.enabled && !original.startsWith('cloud://')) {
+          final portable = await CloudFileService.savePhotoFile(applicationId, item.photoPath);
+          await OnlineDatabase.update('inspection_photos', item.id!, {'photoPath': portable});
+          item.sourcePath = portable;
+        }
       } catch (error) {
         // Keep the record visible, with a retryable error instead of dropping it.
         item.attachmentError = error.toString();

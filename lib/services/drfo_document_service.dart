@@ -1,3 +1,4 @@
+import 'document_paragraph_flow.dart';
 import 'deferred_reason_labels.dart';
 import '../repositories/history_repository.dart';
 import '../repositories/section_repository.dart';
@@ -359,19 +360,23 @@ class DrfoDocumentService {
   Future<String> _sandalDestinationKannada(
     ApplicationModel application,
   ) async {
-    final custom =
-        application.sandalDestinationCustom.trim();
-    final id = application.sandalDestinationId;
-    if (id != null) {
-      try {
-        final item =
-            await MasterRepository().getMasterById(id);
-        return _kannadaPrintName(item);
-      } catch (_) {
-        // Fall through to custom text.
+    // Inspection and approval screens can hold an older application object.
+    final saved = application.id == null
+        ? null
+        : await ApplicationRepository().getById(application.id!);
+    final current = saved ?? application;
+    final custom = current.sandalDestinationCustom.trim();
+    final id = current.sandalDestinationId;
+    if (id != null && id > 0) {
+      final item = await MasterRepository().getMasterById(id);
+      final name = item?['kannadaName']?.toString().trim() ?? '';
+      if (name.isEmpty) {
+        throw StateError('Enter Destination (Kannada) for the selected Sandal Destination in Administration.');
       }
+      return name;
     }
-    return _safeText(custom);
+    if (custom.isNotEmpty) return custom;
+    throw StateError('Select and save the sandal destination before generating the letter.');
   }
 
   // ==========================================================
@@ -609,12 +614,12 @@ class DrfoDocumentService {
       String line = '$number. ';
 
       if (sourceName.isNotEmpty) {
-        line += '$sourceName ರವರ ಕಛೇರಿ ಪತ್ರ';
+        line += '$sourceName ರವರ ಕಛೇರಿ ಪತ್ರ ಸಂಖ್ಯೆ';
       }
 
       if (referenceNumber.isNotEmpty) {
         if (sourceName.isNotEmpty) {
-          line += ' ಸಂಖ್ಯೆ ';
+          line += ' ';
         } else {
           line += 'ಕಛೇರಿ ಪತ್ರ ಸಂಖ್ಯೆ ';
         }
@@ -1364,6 +1369,7 @@ class DrfoDocumentService {
             applicationType == 'CGL' ||
             applicationType == 'MCC' ||
             applicationType == 'PL' ||
+            applicationType == 'SGL' ||
             applicationType == 'SPL') &&
         application.id != null) {
       final treeRepository = TreeRepository();
@@ -3605,7 +3611,10 @@ class DrfoDocumentService {
     var headerDrawn = false;
     for (final row in rows) {
       final paragraphs = <ui.Paragraph>[];
-      for (var i = 0; i < 8; i++) { paragraphs.add(await paragraph(row[i], widths[i])); }
+      for (var i = 0; i < 8; i++) {
+        paragraphs.add(await paragraph(row[i],
+            i == 3 ? widths[3] + widths[4] : widths[i]));
+      }
       final height = paragraphs.map((p) => p.height).reduce(math.max) + 10 * _scale;
       final next = _pagePosition(y, height);
       if (!headerDrawn || next != y) {
@@ -3613,7 +3622,11 @@ class DrfoDocumentService {
         header();
         headerDrawn = true;
       }
-      for (var i = 0; i < 8; i++) { cell(i, y, height, paragraphs[i]); }
+      for (var i = 0; i < 8; i++) {
+        if (i == 4) continue;
+        cell(i, y, height, paragraphs[i],
+            width: i == 3 ? widths[3] + widths[4] : null);
+      }
       y += height;
     }
     return y;
@@ -3642,29 +3655,12 @@ class DrfoDocumentService {
     double x,
     double y,
   ) {
-    final usable =
-        (_pageHeight * _scale).round() - (_topMargin + _bottomMargin) * _scale;
-    if (paragraph.height <= usable) {
-      y = _pagePosition(y, paragraph.height);
-      canvas.drawParagraph(paragraph, ui.Offset(x, y));
-      return y + paragraph.height;
-    }
-    final metrics = paragraph.computeLineMetrics();
-    double sourceTop = 0;
-    for (var index = 0; index < metrics.length; index++) {
-      final sourceBottom = index + 1 == metrics.length
-          ? paragraph.height
-          : metrics[index + 1].baseline - metrics[index + 1].ascent;
-      final lineHeight = sourceBottom - sourceTop;
-      y = _pagePosition(y, lineHeight);
-      canvas.save();
-      canvas.clipRect(ui.Rect.fromLTWH(x, y, paragraph.width, lineHeight));
-      canvas.drawParagraph(paragraph, ui.Offset(x, y - sourceTop));
-      canvas.restore();
-      y += lineHeight;
-      sourceTop = sourceBottom;
-    }
-    return y;
+    return drawDocumentParagraph(
+      canvas: canvas, paragraph: paragraph, x: x, y: y,
+      usableHeight: (_pageHeight * _scale).round() -
+          (_topMargin + _bottomMargin) * _scale,
+      pagePosition: _pagePosition,
+    );
   }
 
   Future<List<Uint8List>> _renderLetterPages(
@@ -3916,6 +3912,7 @@ class DrfoDocumentService {
     bool justify = false;
     bool bold = false;
     bool small = false;
+    bool compactRecipient = false;
 
     double contentEnd = y;
     bool footerReserved = false;
@@ -3972,6 +3969,11 @@ class DrfoDocumentService {
 
       // DO closing is one pagination unit: thanks, recipient on the left,
       // and signature on the right. All wording stays in the editable template.
+      if (trimmed == '[COMPACT_RECIPIENT]') {
+        compactRecipient = true;
+        continue;
+      }
+
       if (trimmed == '[DO_CLOSING]') {
         final end = lines.indexWhere((line) => line.trim() == '[/DO_CLOSING]', i + 1);
         if (end < 0) throw StateError('Close [DO_CLOSING] in the DO template.');
@@ -4014,6 +4016,36 @@ class DrfoDocumentService {
         canvas.drawParagraph(signature, ui.Offset(signatureBlockX, footerTop));
         y += height + 4 * _scale;
         i = end;
+        continue;
+      }
+
+      // Treat the RFO recipient as one paragraph: no paragraph gap
+      // between address lines. Keep template routing/blank lines outside it.
+      if (rfoLetterhead != null && trimmed == 'ರವರಿಗೆ,') {
+        final address = <String>[];
+        var end = i + 1;
+        while (end < lines.length) {
+          final text = lines[end].trim();
+          if (text.isEmpty || text.startsWith('[') ||
+              text == 'ಮಾನ್ಯರೆ,' || text.startsWith('ವಿಷಯ:') ||
+              text.startsWith('ಉಲ್ಲೇಖ:')) break;
+          address.add(text);
+          end++;
+        }
+        final label = await _buildParagraph(
+          text: trimmed, width: contentWidth,
+          fontSize: defaultFontSize * _scale,
+          alignment: ui.TextAlign.left, bold: false);
+        y = _drawFlowParagraph(canvas, label, bodyX, y);
+        if (address.isNotEmpty) {
+          final recipient = await _buildParagraph(
+            text: address.join('\n'), width: contentWidth - 18 * _scale,
+            fontSize: defaultFontSize * _scale,
+            alignment: ui.TextAlign.left, bold: false, lineHeight: 1.18);
+          y = _drawFlowParagraph(canvas, recipient, bodyX + 18 * _scale, y);
+        }
+        if (!compactRecipient) y += 4 * _scale;
+        i = end - 1;
         continue;
       }
 
@@ -4064,7 +4096,7 @@ class DrfoDocumentService {
               bodyX,
               y,
             ) +
-            (9 * _scale);
+            (compactRecipient && inner.endsWith('ರವರ ಮುಖಾಂತರ') ? 0 : 9 * _scale);
         continue;
       }
 
@@ -4168,6 +4200,11 @@ class DrfoDocumentService {
         );
 
         y += 8 * _scale;
+        continue;
+      }
+
+      if (trimmed == '[SANDAL_SIGNATURE_SPACE]') {
+        y += 4 * 18 * _scale;
         continue;
       }
 
@@ -4462,7 +4499,7 @@ class DrfoDocumentService {
           trimmed.contains('ವಲಯ,');
 
       // Extra spacing before "ಮಾನ್ಯರೆ,"
-      if (trimmed == 'ಮಾನ್ಯರೆ,') {
+      if (trimmed == 'ಮಾನ್ಯರೆ,' && !compactRecipient) {
         y += 9 * _scale;
       }
 
@@ -5619,11 +5656,15 @@ class DrfoDocumentService {
     await finishPage();return pages;
   }
 
-  Future<String> _buildGovernmentDoReferences(ApplicationModel application) async {
+  Future<String> _buildGovernmentDoReferences(ApplicationModel application,
+      {bool includeApplicantAddress = false}) async {
     final appDate = _date(application.applicationDate);
     final appReceived = _date(application.receivedDate);
-    var first =
-        '1. ' + application.applicantName + ' ರವರ ಮನವಿ';
+    final address = includeApplicantAddress
+        ? _authorityReferenceLine(application.applicantAddress)
+        : '';
+    var first = '1. ' + application.applicantName +
+        (address.isEmpty ? '' : ', ' + address) + ' ರವರ ಮನವಿ';
     if (appDate.isNotEmpty) {
       first += ' ದಿನಾಂಕ: ' + appDate;
     }
@@ -5637,8 +5678,9 @@ class DrfoDocumentService {
       final number = reference.referenceNumber.trim();
       final date = _date(reference.referenceDate);
       var line = (references.length + 1).toString() + '. ' + await _forwardedAuthorityReference(reference);
+      line += ' ರವರ ಕಛೇರಿ ಪತ್ರ ಸಂಖ್ಯೆ';
       if (number.isNotEmpty) {
-        line += ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
+        line += ': ' + number;
       }
       if (date.isNotEmpty) {
         line += ', ದಿನಾಂಕ: ' + date;
@@ -5690,7 +5732,8 @@ class DrfoDocumentService {
       if (by.isEmpty && number.isEmpty && date.isEmpty) continue;
       var line = (references.length + 1).toString() + '. ';
       if (by.isNotEmpty) line += by + ' ರವರ ';
-      if (number.isNotEmpty) line += 'ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
+      line += 'ಕಛೇರಿ ಪತ್ರ ಸಂಖ್ಯೆ';
+      if (number.isNotEmpty) line += ': ' + number;
       if (date.isNotEmpty) {
         line += (number.isNotEmpty ? ', ' : '') + 'ದಿನಾಂಕ: ' + date;
       }
@@ -5764,7 +5807,8 @@ class DrfoDocumentService {
     final config = await OfficeConfigurationRepository().getConfiguration();
     final range = config?['rangeName']?.toString() ?? '';
     final location = config?['rangeLocation']?.toString() ?? range;
-    final rows = await _buildGlTreeEnumerationRows(application, rfoApprovedOnly: auction);
+    final rows = await _buildGlTreeEnumerationRows(application,
+        rfoApprovedOnly: auction || (!request && !isMcc));
     if (rows.isEmpty) throw StateError('No recommended trees are available for the government letter.');
     final money = NumberFormat('#,##,##0.00', 'en_IN');
     final total = rows.fold<double>(0, (sum, row) => sum + row.totalValueNumber);
@@ -5798,7 +5842,8 @@ class DrfoDocumentService {
       '{{VALUATION_REFERENCES}}': valuationReferences,
       '{{MCC_VALUATION_REFERENCES}}': await _buildMccValuationReferences(application),
       '{{RFO_NAME}}': senderName ?? '',
-      '{{DO_REFERENCES}}': await _buildGovernmentDoReferences(application),
+      '{{DO_REFERENCES}}': await _buildGovernmentDoReferences(
+          application, includeApplicantAddress: true),
       '{{TREE_OFFICER_NAME}}': recipientName,
       '{{RFO_DESIGNATION_ADDRESS}}': senderAddress,
       '{{OFFICE_NUMBER}}': application.officeNumber,
@@ -5912,8 +5957,10 @@ class DrfoDocumentService {
       tableRows.add([
         '${i + 1}', tree.treeNumber,
         kannada(species[tree.speciesId] ?? '', 'species name'),
-        tree.gbh?.toStringAsFixed(2) ?? '—',
-        tree.height?.toStringAsFixed(2) ?? '—',
+        branchPermissionDescription(
+          code: codes[tree.recommendationTypeId] ?? '',
+          branches: tree.numberOfBranches, twigs: tree.numberOfTwigs),
+        '',
         '—', // Branch/twig/top recommendations have no timber volume in enumeration.
         tree.firewood.toStringAsFixed(2),
         tree.recommendationReasonIds.map((id) => kannada(reasons[id] ?? '', 'recommendation reason')).toSet().join(', '),
@@ -6042,17 +6089,14 @@ class DrfoDocumentService {
       '{{RANGE_NAME}}': range,
       '{{RANGE_LOCATION}}': location,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
+      '{{REVENUE_AUTHORITY}}': _authorityReferenceLine(reply.answers['authority'] ?? ''),
+      '{{REVENUE_LETTER_NUMBER}}': reply.answers['letterNumber'] ?? '',
+      '{{REVENUE_LETTER_DATE}}': _date(reply.answers['letterDate'] ?? ''),
+      '{{REVENUE_RECEIVED_DATE}}': _date(reply.answers['receivedDate'] ?? ''),
     };
-    master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
-        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
-      final value = values[match.group(0)];
-      if (value == null) {
-        throw StateError(
-            'Unknown apply-online template placeholder: ' +
-                match.group(0)!);
-      }
-      return value.trim().isEmpty ? '—' : value;
-    });
+    values.addAll(await _privateLandApprovalValues(
+      application, reply, addressTreeOfficer: false));
+
     master = _resolveDateBlocks(
       master,
       drfoReportDate: values['{{DRFO_REPORT_DATE}}'] ?? '',
@@ -6061,6 +6105,18 @@ class DrfoDocumentService {
       revenueLetterDate: reply.answers['letterDate'] ?? '',
       revenueReceivedDate: reply.answers['receivedDate'] ?? '',
     );
+    master = master.replaceAllMapped(RegExp(r'\{\{[A-Z_]+\}\}'), (match) {
+        if (match.group(0) == '{{APPLICANT_ADDRESS}}') return _applicantAddressForOccurrence(match, application.applicantAddress);
+      final value = values[match.group(0)];
+      if (value == null) {
+        throw StateError(
+            'Unknown apply-online template placeholder: ' +
+                match.group(0)!);
+      }
+      if (match.group(0) == '{{TREE_LOCATION_SUBJECT_PHRASE}}' ||
+          match.group(0) == '{{TREE_LOCATION_BODY_PHRASE}}') return value;
+      return value.trim().isEmpty ? '—' : value;
+    });
     final pages = await _renderMasterToPng(master,
         rfoLetterhead: _RfoLetterheadData(
           letterNumber: await _rfoLetterNumber(application),
@@ -6277,8 +6333,9 @@ class DrfoDocumentService {
       final date = _date(reference.referenceDate);
       var line =
           '${references.length + 1}. ${await _forwardedAuthorityReference(reference)}';
+      line += ' ರವರ ಕಛೇರಿ ಪತ್ರ ಸಂಖ್ಯೆ';
       if (number.isNotEmpty) {
-        line += ' ರವರ ಪತ್ರ ಸಂಖ್ಯೆ: ' + number;
+        line += ': ' + number;
       }
       if (date.isNotEmpty) {
         line += ', ದಿನಾಂಕ: ' + date;

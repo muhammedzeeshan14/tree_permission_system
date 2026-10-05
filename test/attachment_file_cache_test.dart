@@ -55,4 +55,12 @@ void main() {
     final ref = Uri.parse(CloudFileService.reference('tpms-documents', 'uploads/APP/file name.pdf'));
     expect(ref.pathSegments.join('/'), 'uploads/APP/file name.pdf');
   });
+  test('New files cannot collide across applications or changed contents', () async {
+    final file = await File('${temporary.path}/photo.jpg').writeAsBytes([1, 2, 3]);
+    final first = await CloudFileService.attachmentKey(40, file.path, photo: true);
+    expect(await CloudFileService.attachmentKey(40, file.path, photo: true), first);
+    expect(await CloudFileService.attachmentKey(41, file.path, photo: true), isNot(first));
+    await file.writeAsBytes([4, 5, 6]);
+    expect(await CloudFileService.attachmentKey(40, file.path, photo: true), isNot(first));
+  });
 }

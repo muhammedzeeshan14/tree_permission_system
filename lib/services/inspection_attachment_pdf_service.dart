@@ -33,11 +33,11 @@ class InspectionAttachmentPdfService {
   }
 
   static Future<Directory> _outputFolder(
-    String officeNumber,
+    int applicationId,
   ) async {
     final base = await getApplicationDocumentsDirectory();
     final folder = Directory(
-      '${base.path}/TPMS/Documents/$officeNumber',
+      '${base.path}/TPMS/AttachmentPdfs/$applicationId',
     );
     if (!await folder.exists()) {
       await folder.create(recursive: true);
@@ -92,6 +92,18 @@ class InspectionAttachmentPdfService {
       throw StateError('No inspection photos found.');
     }
 
+    final bytes = await photoPdfBytes(entries: entries, officeNumber: officeNumber);
+    final folder = await _outputFolder(applicationId);
+    final file = File('${folder.path}/$_photoFileName');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  static Future<Uint8List> photoPdfBytes({
+    required List<Map<String, String>> entries,
+    required String officeNumber,
+  }) async {
+    if (entries.isEmpty) throw StateError('No inspection photos found.');
     final chunks = <List<Map<String, String>>>[];
     for (var i = 0; i < entries.length; i += 4) {
       chunks.add(
@@ -187,10 +199,7 @@ class InspectionAttachmentPdfService {
       );
     }
 
-    final folder = await _outputFolder(officeNumber);
-    final file = File('${folder.path}/$_photoFileName');
-    await file.writeAsBytes(await pdf.save());
-    return file;
+    return pdf.save();
   }
 
   /// Builds (or rebuilds) the uploaded-documents PDF.
@@ -210,16 +219,26 @@ class InspectionAttachmentPdfService {
         title: doc.documentTypeName.isEmpty ? 'Uploaded Document' : doc.documentTypeName);
     }
 
-    final folder = await _outputFolder(officeNumber);
+    final folder = await _outputFolder(applicationId);
     final file = File('${folder.path}/$_docsFileName');
     await file.writeAsBytes(await pdf.save());
     return file;
   }
 
   static Future<pw.Document> _newDocument() async {
-    final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansKannada-Regular.ttf'));
-    final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansKannada-Bold.ttf'));
-    return pw.Document(theme: pw.ThemeData.withFont(base: regular, bold: bold));
+    Future<pw.Font> font(String path) async {
+      final asset = await rootBundle.load(path);
+      // The PDF font parser indexes the underlying buffer from zero. Asset
+      // bundles can return a ByteData view with a non-zero starting offset.
+      final bytes = Uint8List.fromList(asset.buffer.asUint8List(
+          asset.offsetInBytes, asset.lengthInBytes));
+      return pw.Font.ttf(ByteData.sublistView(bytes));
+    }
+    final regular = await font('assets/fonts/NotoSansKannada-Regular.ttf');
+    final bold = await font('assets/fonts/NotoSansKannada-Bold.ttf');
+    return pw.Document(theme: pw.ThemeData.withFont(
+      base: pw.Font.helvetica(), bold: pw.Font.helveticaBold(),
+      fontFallback: [regular, bold]));
   }
 
   /// A PDF upload is rendered page-by-page; never substitute a filename-only page.

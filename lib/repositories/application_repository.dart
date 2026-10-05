@@ -1,5 +1,4 @@
 import 'user_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../database/database_helper.dart';
@@ -25,31 +24,14 @@ class ApplicationRepository {
   Future<bool> _officeNumberTaken(String officeNumber) async {
     if (officeNumber.trim().isEmpty) return true;
     if (OnlineMode.enabled) {
-      try {
-        final rows = await OnlineDatabase.select(
-          'applications',
-          equals: {'officeNumber': officeNumber.trim()},
-          limit: 1,
-        );
-        if (rows.isNotEmpty) return true;
-      } catch (e) {
-        debugPrint('office number online check failed: $e');
-      }
+      final rows = await OnlineDatabase.select('applications',
+          equals: {'officeNumber': officeNumber.trim()}, limit: 1);
+      return rows.isNotEmpty;
     }
-    try {
-      final db = await _db;
-      final rows = await db.query(
-        'applications',
-        columns: ['id'],
-        where: 'officeNumber=?',
-        whereArgs: [officeNumber.trim()],
-        limit: 1,
-      );
-      if (rows.isNotEmpty) return true;
-    } catch (e) {
-      debugPrint('office number local check failed: $e');
-    }
-    return false;
+    final db = await _db;
+    final rows = await db.query('applications', columns: ['id'],
+        where: 'officeNumber=?', whereArgs: [officeNumber.trim()], limit: 1);
+    return rows.isNotEmpty;
   }
 
   // ======================================
@@ -59,15 +41,18 @@ class ApplicationRepository {
   Future<int> insertApplication(
     ApplicationModel application) async {
 
-  // The office number is reserved when the entry form opens, so two
-  // devices can hold the same number (offline reserve, discarded
-  // forms). Guarantee uniqueness at save time: redraw while taken.
-  // This also keeps generated-document folders (keyed by office
-  // number) from colliding across applications.
+  // A stale form may hold a number already used by an older app version.
+  // Cloud failures must stop creation, not permit a local-only uniqueness check.
+  var available = false;
   for (var attempt = 0; attempt < 10; attempt++) {
-    if (!await _officeNumberTaken(application.officeNumber)) break;
-    application.officeNumber =
-        await OfficeNumberService.nextOfficeNumber();
+    if (!await _officeNumberTaken(application.officeNumber)) {
+      available = true;
+      break;
+    }
+    application.officeNumber = await OfficeNumberService.nextOfficeNumber();
+  }
+  if (!available) {
+    throw StateError('Could not confirm a unique office number. Application not saved. Please retry.');
   }
 
   final row = <String, Object?>{
@@ -705,8 +690,9 @@ Future<ApplicationModel?> getByOfficeNumber(String officeNumber) async {
     final rows = await OnlineDatabase.select(
       'applications',
       equals: {'officeNumber': officeNumber},
-      limit: 1,
+      limit: 2,
     );
+    if (rows.length > 1) throw StateError('Duplicate office number $officeNumber. Resolve the duplicate application records before opening documents.');
     if (rows.isEmpty) return null;
     return await _enrichOnline(rows.first);
   }
@@ -716,7 +702,8 @@ Future<ApplicationModel?> getByOfficeNumber(String officeNumber) async {
     LEFT JOIN beat_master ON applications.beatId=beat_master.id
     LEFT JOIN users bfo ON applications.assignedBFO=bfo.id
     LEFT JOIN users drfo ON applications.assignedDRFO=drfo.id
-    WHERE applications.officeNumber=? LIMIT 1''',[officeNumber]);
+    WHERE applications.officeNumber=? LIMIT 2''',[officeNumber]);
+  if (rows.length > 1) throw StateError('Duplicate office number $officeNumber. Resolve the duplicate application records before opening documents.');
   if(rows.isEmpty) return null;
   final application=_mapApplication(rows.first);
   application.forwardingReferences=await _getForwardingReferences(application.id!);

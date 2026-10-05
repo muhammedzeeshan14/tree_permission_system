@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:tree_permission_system/services/inspection_attachment_pdf_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Directory temporary;
   final png = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAADklEQVR4nGP4DwYMEAoAU7oL9ZisIGcAAAAASUVORK5CYII=');
   setUp(() async { temporary = await Directory.systemTemp.createTemp('tpms_print_test_'); });
@@ -31,6 +32,23 @@ void main() {
     final file = await File('${temporary.path}/image.png').writeAsBytes(png);
     final pdf = pw.Document();
     expect(await InspectionAttachmentPdfService.appendDocumentPages(pdf: pdf, file: file, officeNumber: 'APP', title: 'Image'), 1);
+    expect((await pdf.save()).length, greaterThan(100));
+  });
+  test('Photo layouts generate PDFs for one through five images', () async {
+    final file = await File('${temporary.path}/photo.png').writeAsBytes(png);
+    for (var count = 1; count <= 5; count++) {
+      final bytes = await InspectionAttachmentPdfService.photoPdfBytes(
+        entries: List.generate(count, (_) => {'path': file.path, 'caption': 'Tree photo'}),
+        officeNumber: 'MYS/RFO/2026/11');
+      expect(latin1.decode(bytes.take(5).toList()), '%PDF-');
+      expect(bytes.length, greaterThan(100));
+    }
+  });
+  test('Bundled Kannada bold font is a usable binary TTF', () async {
+    final bytes = await File('assets/fonts/NotoSansKannada-Bold.ttf').readAsBytes();
+    final pdf = pw.Document();
+    pdf.addPage(pw.Page(build: (_) => pw.Text('ಮರ', style: pw.TextStyle(
+      font: pw.Font.ttf(ByteData.sublistView(bytes))))));
     expect((await pdf.save()).length, greaterThan(100));
   });
 }

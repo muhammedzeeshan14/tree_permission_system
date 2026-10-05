@@ -1,3 +1,4 @@
+import '../../services/rfo_approval_validation.dart';
 import '../../services/deferred_reason_labels.dart';
 import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import '../../services/cloud_file_service.dart';
@@ -3408,32 +3409,35 @@ Widget _buildRfoFinalDecisionPage() {
 
   Widget _buildScreen(BuildContext context) {
 
-final approvalPages = <Widget>[
-  _buildInspectionSummaryPage(),
-
+final requiredKeys = _requiredApprovalKeys();
+final evidenceKeys = ['GPS', 'PHOTOS', 'DOCUMENTS', 'SANDAL_DESTINATION']
+    .map((key) => _approvalMapKey(key)).where(requiredKeys.contains).toList();
+final applicationKeys = ['APPLICATION_TYPE', 'GOVERNMENT_AGENCY', 'URBAN_RURAL',
+  'WHY_REMOVING', 'PURPOSE', 'STRUCTURE_TYPE', 'WORK_NAME']
+    .map((key) => _approvalMapKey(key)).where(requiredKeys.contains).toList();
+// Keep page content and the decisions required to leave it together.
+final pages = <(Widget, List<String>)>[
+  (_buildInspectionSummaryPage(), []),
   if (isDeferredApplication)
-    _buildDeferredApprovalPage()
+    (_buildDeferredApprovalPage(), [_approvalMapKey('DEFERRED')])
   else ...[
-    _buildApplicationApprovalPage(),
-    _buildEvidenceApprovalPage(),
-
+    (_buildApplicationApprovalPage(), applicationKeys),
+    (_buildEvidenceApprovalPage(), evidenceKeys),
     if (isRtcApplication)
-      _buildRtcTreeCountApprovalPage()
+      (_buildRtcTreeCountApprovalPage(), [_approvalMapKey('TREE_COUNT')])
     else
-      _buildTreeApprovalPage(),
-
+      (_buildTreeApprovalPage(), [for (final tree in trees)
+        if (tree.id != null) _approvalMapKey('TREE', tree.id!)]),
     if (needsRevenueOpinion)
-      _buildRevenueOpinionApprovalPage(),
-
+      (_buildRevenueOpinionApprovalPage(), [_approvalMapKey('REVENUE_OPINION')]),
     if (needsMahazar)
-      _buildMahazarApprovalPage(),
-
+      (_buildMahazarApprovalPage(), [_approvalMapKey('MAHAZAR')]),
     if (!isRtcApplication)
-      _buildOverallRemarksApprovalPage(),
+      (_buildOverallRemarksApprovalPage(), [_approvalMapKey('OVERALL_REMARK')]),
   ],
-
-  _buildRfoFinalDecisionPage(),
+  (_buildRfoFinalDecisionPage(), requiredKeys),
 ];
+final approvalPages = pages.map((page) => page.$1).toList();
 
     return Scaffold(
 
@@ -3579,6 +3583,13 @@ final approvalPages = <Widget>[
                   ElevatedButton(
 
                     onPressed: workflowAction(context, () async {
+                      if (loadingApprovals) return;
+                      final error = RfoApprovalValidation.error(
+                          pages[currentPage].$2, approvalDecisions, approvalReasons);
+                      if (error != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                        return;
+                      }
                       await _saveApprovalCheckpoint();
                       if (!mounted) return;
                       await pageController.nextPage(

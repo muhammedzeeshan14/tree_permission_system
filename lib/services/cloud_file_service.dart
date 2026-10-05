@@ -1,3 +1,4 @@
+import 'package:crypto/crypto.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -159,7 +160,11 @@ class CloudFileService {
         await SupabaseService.client!.storage.from(bucket).upload(key, file,
           fileOptions: FileOptions(upsert: overwrite)).timeout(const Duration(seconds: 90));
       } on StorageException catch (error) {
-        if (error.statusCode != '409') {
+        if (error.statusCode == '409') {
+          // A conflict is success only when the existing object is readable.
+          await SupabaseService.client!.storage.from(bucket).download(key)
+              .timeout(const Duration(seconds: 60));
+        } else {
           throw StateError('Attachment upload failed (${error.message}). Check connection/storage access and retry. It was not saved to the cloud.');
         }
       }
@@ -176,16 +181,26 @@ class CloudFileService {
   static Future<String> _saveAttachment(int applicationId, String path, bool photo) async {
     if (!enabled) return path;
     if (path.startsWith('cloud://')) return path;
-    final office = await officeNumberFor(applicationId);
-    if (office.isEmpty) throw StateError('Cannot identify the application for this attachment. Retry after refreshing.');
+    if (applicationId <= 0) throw StateError('Save the application before attaching files.');
     final bucket = photo ? photosBucket : docsBucket;
-    final key = photo ? photoKey(office, path) : uploadKey(office, path);
+    final key = await attachmentKey(applicationId, path, photo: photo);
     await _uploadAttachment(bucket, key, File(path));
     return reference(bucket, key);
   }
 
+  static Future<String> attachmentKey(int applicationId, String path, {required bool photo}) async {
+    final digest = await sha256.bind(File(path).openRead()).first;
+    final name = _fileName(path).replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    // Application IDs cannot collide when office numbers were duplicated.
+    // Content-addressed keys also make retries safe without overwriting files.
+    return '${photo ? 'photos' : 'uploads'}/applications/$applicationId/$digest-$name';
+  }
+
   static Future<String> _resolveAttachment({required int applicationId, required String storedPath, String? officeNumber, required bool photo}) async {
     if (storedPath.isEmpty) throw StateError('This attachment has no file reference. Upload it again.');
+    // Views may pass the resolved cache path; never re-upload it under a
+    // guessed office-number key (especially for duplicate old numbers).
+    if (await AttachmentFileCache.usable(storedPath)) return storedPath;
     String bucket = photo ? photosBucket : docsBucket;
     String key;
     if (storedPath.startsWith('cloud://')) {
@@ -207,12 +222,25 @@ class CloudFileService {
         if (await AttachmentFileCache.usable(candidate)) original = candidate;
       }
       if (original != null) {
-        if (enabled) await _uploadAttachment(bucket, key, File(original));
         return original;
       }
     }
     try { return await _cache.resolve(bucket: bucket, key: key); }
     catch (error) {
+      // Recover a legacy cloud reference whose upload never reached storage,
+      // but whose source file still exists on the capture/upload device.
+      if (storedPath.startsWith('cloud://')) {
+        final office = officeNumber ?? await officeNumberFor(applicationId);
+        if (office.isNotEmpty && !office.split(RegExp(r'[/\\]')).any((p) => p == '.' || p == '..')) {
+          final root = await getApplicationDocumentsDirectory();
+          final candidate = File('${root.path}/TPMS/${photo ? 'Photos' : 'Documents'}/$office/${_fileName(key)}');
+          if (await AttachmentFileCache.usable(candidate.path)) {
+            _confirmedUploads.remove('$bucket/$key');
+            await _uploadAttachment(bucket, key, candidate);
+            return candidate.path;
+          }
+        }
+      }
       if (photo && bucket != legacyPhotosBucket) {
         try { return await _cache.resolve(bucket: legacyPhotosBucket, key: key); }
         catch (_) { /* Report the original failure below. */ }
