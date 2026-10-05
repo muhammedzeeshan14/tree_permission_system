@@ -211,7 +211,7 @@ class _ApplicationPermissionMappingScreenState
                       ),
 
                       items:
-                          permissionTypes.map((p) {
+                          [const DropdownMenuItem<int>(value: -1, child: Text('Remove mapping')), ...permissionTypes.map((p) {
 
                         return DropdownMenuItem<int>(
 
@@ -224,14 +224,14 @@ class _ApplicationPermissionMappingScreenState
 
                         );
 
-                      }).toList(),
+                      }).toList()],
 
                       onChanged: (value) {
 
                         setState(() {
 
                           selectedPermission[
-                              app["id"]] = value;
+                              app["id"]] = value == -1 ? null : value;
 
                         });
 
@@ -300,7 +300,10 @@ class _ApplicationPermissionMappingScreenState
       final permissionId =
           selectedPermission[app["id"]];
 
-      if (permissionId == null) continue;
+      if (permissionId == null) {
+        await mappingRepo.removeMapping(app['id'] as int);
+        continue;
+      }
 
       await mappingRepo.saveMapping(
 

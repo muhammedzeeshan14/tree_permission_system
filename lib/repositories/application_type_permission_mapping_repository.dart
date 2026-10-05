@@ -91,6 +91,14 @@ ORDER BY a.displayOrder
 
   }
 
+  Future<void> removeMapping(int applicationTypeId) async {
+    if (OnlineMode.enabled) {
+      await OnlineDatabase.delete('application_type_permission_mapping', column: 'applicationTypeId', value: applicationTypeId);
+      return;
+    }
+    await (await _db).delete('application_type_permission_mapping', where: 'applicationTypeId=?', whereArgs: [applicationTypeId]);
+  }
+
   Future<void> saveMapping({
 
     required int applicationTypeId,
@@ -115,7 +123,7 @@ ORDER BY a.displayOrder
         );
         return;
       } catch (e) {
-        debugPrint('online saveMapping application_type_permission_mapping failed, falling back to local: $e');
+        rethrow;
       }
     }
 

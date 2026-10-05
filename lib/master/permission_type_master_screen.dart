@@ -1,3 +1,5 @@
+import '../widgets/master_entry_actions.dart';
+import '../services/master_entry_deletion.dart';
 import 'package:flutter/material.dart';
 
 import '../repositories/permission_type_repository.dart';
@@ -78,17 +80,7 @@ class _PermissionTypeMasterScreenState
                 "Display Order : ${item["displayOrder"]}",
               ),
 
-              trailing: IconButton(
-
-                icon: const Icon(Icons.edit),
-
-                onPressed: () {
-
-                  openEditor(item);
-
-                },
-
-              ),
+              trailing: MasterEntryActions(name: item["permissionType"].toString(), onEdit: () => openEditor(item), onDelete: () => MasterEntryDeletion.delete('permission_type_master', (item["id"] as num).toInt()), onReload: load),
 
             ),
 

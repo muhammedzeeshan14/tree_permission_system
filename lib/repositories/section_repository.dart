@@ -13,7 +13,7 @@ class SectionRepository {
           orderBy: "displayOrder",
         );
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -40,6 +40,9 @@ class SectionRepository {
     String kannadaName = "",
 
   }) async {
+    sectionName = sectionName.trim();
+    if (sectionName.isEmpty) throw ArgumentError("Enter the section name.");
+
 
     if (OnlineMode.enabled) {
       try {
@@ -54,7 +57,7 @@ class SectionRepository {
         );
         return;
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -93,6 +96,9 @@ class SectionRepository {
     String kannadaName = "",
 
   }) async {
+    sectionName = sectionName.trim();
+    if (sectionName.isEmpty) throw ArgumentError("Enter the section name.");
+
 
     if (OnlineMode.enabled) {
       try {
@@ -108,7 +114,7 @@ class SectionRepository {
         );
         return;
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -139,6 +145,19 @@ class SectionRepository {
   }
 
   Future<void> delete(int id) async {
+    final beatLinks = OnlineMode.enabled
+        ? await OnlineDatabase.select('beat_master', equals: {'sectionId': id}, limit: 1)
+        : await (await DatabaseHelper.instance.database).query('beat_master', where: 'sectionId=?', whereArgs: [id], limit: 1);
+    if (beatLinks.isNotEmpty) throw StateError('This section is used by beat. Deactivate it instead of deleting it.');
+    final usersLinks = OnlineMode.enabled
+        ? await OnlineDatabase.select('users', equals: {'sectionId': id}, limit: 1)
+        : await (await DatabaseHelper.instance.database).query('users', where: 'sectionId=?', whereArgs: [id], limit: 1);
+    if (usersLinks.isNotEmpty) throw StateError('This section is used by users. Deactivate it instead of deleting it.');
+    final applicationsLinks = OnlineMode.enabled
+        ? await OnlineDatabase.select('applications', equals: {'sectionId': id}, limit: 1)
+        : await (await DatabaseHelper.instance.database).query('applications', where: 'sectionId=?', whereArgs: [id], limit: 1);
+    if (applicationsLinks.isNotEmpty) throw StateError('This section is used by applications. Deactivate it instead of deleting it.');
+
 
     if (OnlineMode.enabled) {
       try {
@@ -149,7 +168,7 @@ class SectionRepository {
         );
         return;
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -176,7 +195,7 @@ class SectionRepository {
           orderBy: "displayOrder",
         );
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 

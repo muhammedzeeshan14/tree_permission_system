@@ -1,3 +1,5 @@
+import '../../widgets/master_entry_actions.dart';
+import '../../services/master_entry_deletion.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/officer_repository.dart';
 
@@ -60,7 +62,7 @@ class _OfficerDirectoryScreenState extends State<OfficerDirectoryScreen> {
       for(final officer in officers)Card(child:ListTile(
         title:Text(officer['name'].toString()+' — '+officer['role'].toString()),
         subtitle:Text(OfficerRepository.formatAddress(officer)),isThreeLine:true,
-        trailing:IconButton(tooltip:'Edit officer',icon:const Icon(Icons.edit),onPressed:()=>edit(officer)),
+        trailing:MasterEntryActions(name: officer['name'].toString(), onEdit: () => edit(officer), onDelete: () => MasterEntryDeletion.delete('officer_directory', (officer['id'] as num).toInt()), onReload: load),
         onTap:()=>edit(officer),
       )),
     ]),

@@ -1,3 +1,5 @@
+import '../../widgets/master_entry_actions.dart';
+import '../../services/master_entry_deletion.dart';
 import 'package:tree_permission_system/widgets/adaptive_layout.dart';
 import 'package:flutter/material.dart';
 
@@ -1689,25 +1691,10 @@ await loadData();
     );
   }
 
-  DataCell buildEditCell(
-    String group,
-    Map<String, dynamic> item,
-  ) {
-
-    return DataCell(
-      IconButton(
-        tooltip: "Edit",
-        icon:
-            const Icon(Icons.edit),
-        onPressed: () {
-          showSpeciesDialog(
-            group: group,
-            item: item,
-          );
-        },
-      ),
-    );
-  }
+  DataCell buildEditCell(String group, Map<String, dynamic> item) => DataCell(
+    MasterEntryActions(name: item['value']?.toString() ?? '',
+      onEdit: () => showSpeciesDialog(group: group, item: item),
+      onDelete: () => MasterEntryDeletion.delete('master_data', (item['id'] as num).toInt()), onReload: loadData));
 
   // ============================================================
   // BUILD

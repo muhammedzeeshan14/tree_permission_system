@@ -1,3 +1,5 @@
+import '../../widgets/master_entry_actions.dart';
+import '../../services/master_entry_deletion.dart';
 import 'package:flutter/material.dart';
 
 import '../../repositories/master_repository.dart';
@@ -467,15 +469,7 @@ const SizedBox(height: 15),
                     .join(" • "),
               ),
 
-              trailing: Text(
-
-                item["isActive"] == 1
-
-                    ? "Active"
-
-                    : "Inactive",
-
-              ),
+              trailing: MasterEntryActions(name: item["value"].toString(), onEdit: () => showMasterDialog(item: item), onDelete: () => MasterEntryDeletion.delete('master_data', (item["id"] as num).toInt()), onReload: loadData),
 onTap: () {
 
   showMasterDialog(

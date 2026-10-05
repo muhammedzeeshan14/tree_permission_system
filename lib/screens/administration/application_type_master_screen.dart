@@ -1,3 +1,5 @@
+import '../../widgets/master_entry_actions.dart';
+import '../../services/master_entry_deletion.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/application_type_repository.dart';
 
@@ -370,15 +372,7 @@ const SizedBox(height: 15),
   ].where((value) => value.trim().isNotEmpty).join(" • "),
 ),
 
-              trailing: Text(
-
-                item["isActive"] == 1
-
-                    ? "Active"
-
-                    : "Inactive",
-
-              ),
+              trailing: MasterEntryActions(name: item["applicationType"].toString(), onEdit: () => showApplicationTypeDialog(item: item), onDelete: () => MasterEntryDeletion.delete('application_type_master', (item["id"] as num).toInt()), onReload: loadData),
 onTap: () {
 
   showApplicationTypeDialog(

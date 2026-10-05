@@ -94,7 +94,7 @@ class PermissionTypeRepository {
         );
         return;
       } catch (e) {
-        debugPrint('online insert permission_type_master failed, falling back to local: $e');
+        rethrow;
       }
     }
 
@@ -143,7 +143,7 @@ class PermissionTypeRepository {
         );
         return;
       } catch (e) {
-        debugPrint('online update permission_type_master failed, falling back to local: $e');
+        rethrow;
       }
     }
 
@@ -182,7 +182,7 @@ class PermissionTypeRepository {
         );
         return;
       } catch (e) {
-        debugPrint('online delete permission_type_master failed, falling back to local: $e');
+        rethrow;
       }
     }
 

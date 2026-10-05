@@ -214,10 +214,10 @@ class DrfoDocumentService {
   static const double _pageWidth = 595.28;
   static const double _pageHeight = 841.89;
 
-  static const double _leftMargin = 65;
-  static const double _rightMargin = 55;
-  static const double _topMargin = 55;
-  static const double _bottomMargin = 55;
+  static const double _leftMargin = 42.52;
+  static const double _rightMargin = 42.52;
+  static const double _topMargin = 42.52;
+  static const double _bottomMargin = 42.52;
 
   // ==========================================================
   // LOAD KANNADA FONT INTO FLUTTER TEXT ENGINE
@@ -320,7 +320,7 @@ class DrfoDocumentService {
 
   // ==========================================================
   // PRINT NAMES: English in app, Kannada in letters.
-  // Falls back to the saved English name when Kannada is blank.
+  // Prints the saved Kannada field; missing translations are reported.
   // ==========================================================
 
   Future<String> _printSectionName(ApplicationModel application) async {
@@ -328,9 +328,10 @@ class DrfoDocumentService {
     for (final row in rows) {
       if (row['id'] != application.sectionId) continue;
       final kannada = row['kannadaName']?.toString().trim() ?? '';
-      return kannada.isNotEmpty ? kannada : (row['sectionName']?.toString().trim() ?? application.section);
+      if (kannada.isEmpty) throw StateError('Enter Section Name (Kannada) for the selected section in Masters.');
+      return kannada;
     }
-    return application.section.trim();
+    throw StateError('Selected section is missing from Masters.');
   }
 
   Future<String> _printBeatName(ApplicationModel application) async {
@@ -338,9 +339,10 @@ class DrfoDocumentService {
     for (final row in rows) {
       if (row['id'] != application.beatId) continue;
       final kannada = row['kannadaName']?.toString().trim() ?? '';
-      return kannada.isNotEmpty ? kannada : (row['beatName']?.toString().trim() ?? application.beat);
+      if (kannada.isEmpty) throw StateError('Enter Beat Name (Kannada) for the selected beat in Masters.');
+      return kannada;
     }
-    return application.beat.trim();
+    throw StateError('Selected beat is missing from Masters.');
   }
 
   // Fail before publishing a DRFO document if its editable template has

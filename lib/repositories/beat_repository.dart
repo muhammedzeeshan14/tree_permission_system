@@ -36,7 +36,7 @@ class BeatRepository {
         });
         return joined;
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -79,6 +79,9 @@ required int displayOrder,
     String kannadaName = "",
 
   }) async {
+    beatName = beatName.trim();
+    if (beatName.isEmpty) throw ArgumentError("Enter the beat name.");
+
 
     if (OnlineMode.enabled) {
       try {
@@ -94,7 +97,7 @@ required int displayOrder,
         );
         return;
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -137,6 +140,9 @@ required int displayOrder,
   String kannadaName = "",
 
 }) async {
+    beatName = beatName.trim();
+    if (beatName.isEmpty) throw ArgumentError("Enter the beat name.");
+
 
     if (OnlineMode.enabled) {
       try {
@@ -153,7 +159,7 @@ required int displayOrder,
         );
         return;
       } catch (_) {
-        // Fall through to local.
+        rethrow;
       }
     }
 
@@ -186,6 +192,15 @@ required int displayOrder,
   }
 
 Future<void> delete(int id) async {
+    final usersLinks = OnlineMode.enabled
+        ? await OnlineDatabase.select('users', equals: {'beatId': id}, limit: 1)
+        : await (await DatabaseHelper.instance.database).query('users', where: 'beatId=?', whereArgs: [id], limit: 1);
+    if (usersLinks.isNotEmpty) throw StateError('This beat is used by users. Deactivate it instead of deleting it.');
+    final applicationsLinks = OnlineMode.enabled
+        ? await OnlineDatabase.select('applications', equals: {'beatId': id}, limit: 1)
+        : await (await DatabaseHelper.instance.database).query('applications', where: 'beatId=?', whereArgs: [id], limit: 1);
+    if (applicationsLinks.isNotEmpty) throw StateError('This beat is used by applications. Deactivate it instead of deleting it.');
+
 
   if (OnlineMode.enabled) {
     try {
@@ -196,7 +211,7 @@ Future<void> delete(int id) async {
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
 
@@ -228,7 +243,7 @@ Future<List<Map<String, dynamic>>> getBySection(
         orderBy: "displayOrder",
       );
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
 

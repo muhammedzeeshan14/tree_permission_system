@@ -1,3 +1,4 @@
+import '../services/master_entry_deletion.dart';
 import '../database/timber_species_seed.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -114,7 +115,7 @@ String kannadaName = "",
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
 
@@ -183,7 +184,7 @@ String kannadaName = "",
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
 
@@ -219,34 +220,7 @@ String kannadaName = "",
 
   }
 
-  Future<void> delete(int id) async {
-
-  if (OnlineMode.enabled) {
-    try {
-      await OnlineDatabase.delete(
-        "master_data",
-        column: "id",
-        value: id,
-      );
-      return;
-    } catch (_) {
-      // Fall through to local.
-    }
-  }
-
-    final db = await _db;
-
-    await db.delete(
-
-      "master_data",
-
-      where: "id=?",
-
-      whereArgs: [id],
-
-    );
-
-  }
+  Future<void> delete(int id) => MasterEntryDeletion.delete('master_data', id);
   // ======================================
 // SPECIES
 // ======================================
@@ -309,7 +283,7 @@ Future<void> insertPoleSpecies({
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
   final db = await _db;
@@ -357,7 +331,7 @@ Future<void> updatePoleSpecies({
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
   final db = await _db;
@@ -667,7 +641,7 @@ Future<void> insertSpecies({
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
   final db = await _db;
@@ -743,7 +717,7 @@ Future<void> updateSpecies({
       );
       return;
     } catch (_) {
-      // Fall through to local.
+      rethrow;
     }
   }
   final db = await _db;

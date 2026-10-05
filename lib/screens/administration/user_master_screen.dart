@@ -29,8 +29,16 @@ class _UserMasterScreenState extends State<UserMasterScreen> {
   }
   Future<void> edit([Map<String,dynamic>? user]) async {
     if (!canEdit) return;
-    final sections = await SectionRepository().getActive();
-    final allBeats = await BeatRepository().getAll();
+    late List<Map<String, dynamic>> sections;
+    late List<Map<String, dynamic>> allBeats;
+    try {
+      sections = await SectionRepository().getActive();
+      allBeats = await BeatRepository().getAll();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load sections and beats: $e')));
+      return;
+    }
     if (!mounted) return;
     final name = TextEditingController(text: user?['name']?.toString() ?? '');
     final login = TextEditingController(text: user?['username']?.toString() ?? '');

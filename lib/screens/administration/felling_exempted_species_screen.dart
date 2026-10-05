@@ -1,3 +1,5 @@
+import '../../widgets/master_entry_actions.dart';
+import '../../services/master_entry_deletion.dart';
 import 'package:flutter/material.dart';
 import '../../repositories/master_repository.dart';
 import '../../services/felling_exemptions.dart';
@@ -232,10 +234,7 @@ class _FellingExemptedSpeciesScreenState
                       row['parentCode'].toString().replaceAll(',', ', '),
                     ),
                     trailing: canEdit
-                        ? IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => edit(row),
-                          )
+                        ? MasterEntryActions(name: row['value'].toString(), onEdit: () => edit(row), onDelete: () => MasterEntryDeletion.delete('master_data', (row['id'] as num).toInt()), onReload: load)
                         : null,
                   ),
                 ),

@@ -123,7 +123,7 @@ class ApplicationTypeRepository {
         );
         return;
       } catch (e) {
-        debugPrint('online insert application_type_master failed, falling back to local: $e');
+        rethrow;
       }
     }
 
@@ -180,7 +180,7 @@ class ApplicationTypeRepository {
         );
         return;
       } catch (e) {
-        debugPrint('online update application_type_master failed, falling back to local: $e');
+        rethrow;
       }
     }
 
@@ -223,7 +223,7 @@ class ApplicationTypeRepository {
         );
         return;
       } catch (e) {
-        debugPrint('online delete application_type_master failed, falling back to local: $e');
+        rethrow;
       }
     }
 
