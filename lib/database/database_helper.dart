@@ -39,7 +39,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 49,
+    version: 50,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -795,6 +795,7 @@ await _createOfficeCounterTable(db);
 await seedDevelopmentData(db);
 await seedTimberSpeciesDefaults(db);
 await seedDocumentGrammarDefaults(db);
+await _createApplicationDeletionColumns(db);
   }
 
 Future<void> _onUpgrade(
@@ -2306,6 +2307,16 @@ if (oldVersion < 48) {
 }
 
 if (oldVersion < 49) await seedDocumentGrammarDefaults(db);
+if (oldVersion < 50) await _createApplicationDeletionColumns(db);
+}
+
+Future<void> _createApplicationDeletionColumns(DatabaseExecutor db) async {
+  await db.execute('ALTER TABLE applications ADD COLUMN deletedPreviousStatus TEXT');
+  await db.execute('ALTER TABLE applications ADD COLUMN deletedAt TEXT');
+  await db.execute('ALTER TABLE applications ADD COLUMN deletedBy INTEGER');
+  await db.execute("""CREATE TRIGGER guard_deleted_application BEFORE UPDATE ON applications
+    WHEN OLD.status = 'Deleted' AND NEW.deletedPreviousStatus IS NOT NULL
+    BEGIN SELECT RAISE(ABORT, 'Application deleted by RFO. Refresh your dashboard.'); END""");
 }
 
 Future<void> _ensureFreshSyncColumns(DatabaseExecutor db) async {

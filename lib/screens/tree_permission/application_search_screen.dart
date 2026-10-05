@@ -1,3 +1,4 @@
+import '../../services/session_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/application_model.dart';
@@ -51,6 +52,11 @@ class ApplicationSearchScreen extends StatefulWidget {
 class _ApplicationSearchScreenState extends State<ApplicationSearchScreen> {
   final _query = TextEditingController();
   String _field = 'All fields';
+  final Set<int> _selected = {};
+  bool _selectionMode = false;
+  bool _showDeleted = false;
+  bool _deleting = false;
+  bool get _isRfo => SessionService.instance.role.trim().toUpperCase() == 'RFO';
   List<ApplicationModel> _apps = [];
   bool _loading = true;
   String? _error;
@@ -61,20 +67,60 @@ class _ApplicationSearchScreenState extends State<ApplicationSearchScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final apps = await ApplicationRepository().getApplications(includeReferences: false);
-      if (mounted) setState(() => _apps = apps);
+      final apps = await ApplicationRepository().getApplications(includeReferences: false, includeDeleted: _isRfo && _showDeleted);
+      if (mounted) setState(() {
+        _apps = apps.where((a) => _showDeleted ? a.status == 'Deleted' : a.status != 'Deleted').toList();
+        _selected.removeWhere((id) => !_apps.any((a) => a.id == id));
+      });
     } catch (_) {
       if (mounted) setState(() => _error = 'Unable to load applications. Please refresh to retry.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+  Future<void> _deleteSelected() async {
+    if (!_isRfo || _deleting || _selected.isEmpty) return;
+    final chosen = _apps.where((a) => _selected.contains(a.id)).toList();
+    final approved = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: Text('${_showDeleted ? 'Restore' : 'Delete'} ${chosen.length} applications?'),
+      content: SizedBox(width: 500, child: SingleChildScrollView(child: Column(
+        mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(_showDeleted ? 'Restore these applications to their previous stages.' :
+            'These applications will be removed from normal work lists at every stage. Office numbers remain reserved. You can restore them from Deleted Applications.'),
+          const SizedBox(height: 12),
+          for (final a in chosen) Text('${a.officeNumber} — ${a.applicantName}'),
+        ]))),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(_showDeleted ? 'Restore selected' : 'Delete selected'))],
+    ));
+    if (approved != true || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      final count = await ApplicationRepository().setApplicationsDeleted(chosen.map((a) => a.id!).toList(), restore: _showDeleted);
+      if (!mounted) return;
+      setState(() { _selected.clear(); _selectionMode = false; });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$count applications ${_showDeleted ? 'restored' : 'deleted'}.')));
+      await _load();
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not ${_showDeleted ? 'restore' : 'delete'} applications: $error')));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final matches = _apps.where((a) => matchesApplication(a, _field, _query.text)).toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('SEARCH'), actions: [IconButton(
-        tooltip: 'Refresh applications', onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))]),
+      appBar: AppBar(title: Text(_showDeleted ? 'Deleted Applications' : 'SEARCH'), actions: [
+        if (_isRfo) IconButton(tooltip: _showDeleted ? 'Back to active applications' : 'Deleted Applications',
+          icon: Icon(_showDeleted ? Icons.search : Icons.restore_from_trash),
+          onPressed: _deleting || _loading ? null : () { setState(() { _showDeleted = !_showDeleted; _selected.clear(); _selectionMode = false; }); _load(); }),
+        if (_isRfo) IconButton(tooltip: _selectionMode ? 'Cancel selection' : 'Select applications',
+          icon: Icon(_selectionMode ? Icons.close : Icons.checklist),
+          onPressed: _deleting || _loading ? null : () => setState(() { _selectionMode = !_selectionMode; _selected.clear(); })),
+        IconButton(
+        tooltip: 'Refresh applications', onPressed: _loading || _deleting ? null : _load, icon: const Icon(Icons.refresh))]),
       body: Column(children: [
         Padding(padding: const EdgeInsets.all(16), child: Column(children: [
           DropdownButtonFormField<String>(initialValue: _field, isExpanded: true,
@@ -87,7 +133,13 @@ class _ApplicationSearchScreenState extends State<ApplicationSearchScreen> {
               border: const OutlineInputBorder(), suffixIcon: IconButton(tooltip: 'Clear search',
                 icon: const Icon(Icons.clear), onPressed: () { _query.clear(); setState(() {}); }))),
           const SizedBox(height: 8),
-          Text('All applications, including completed • ${matches.length} results'),
+          Text('${_showDeleted ? 'Deleted applications' : 'All applications, including completed'} • ${matches.length} results'),
+          if (_deleting) const LinearProgressIndicator(),
+          if (_isRfo && _selectionMode) Wrap(spacing: 12, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            TextButton(onPressed: _deleting ? null : () => setState(() { for (final a in matches.take(500)) { if (a.id != null && _selected.length < 500) _selected.add(a.id!); } }), child: const Text('Select results (up to 500)')),
+            TextButton(onPressed: _deleting ? null : () => setState(() => _selected.clear()), child: const Text('Clear selection')),
+            FilledButton.icon(onPressed: _deleting || _selected.isEmpty ? null : _deleteSelected, icon: Icon(_showDeleted ? Icons.restore : Icons.delete_outline), label: Text('${_showDeleted ? 'Restore' : 'Delete'} (${_selected.length})')),
+          ]),
         ])),
         Expanded(child: _loading ? const Center(child: CircularProgressIndicator())
           : _error != null ? Center(child: Text(_error!))
@@ -95,6 +147,7 @@ class _ApplicationSearchScreenState extends State<ApplicationSearchScreen> {
           : ListView.builder(itemCount: matches.length, itemBuilder: (context, i) {
             final a = matches[i];
             return Card(margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), child: ListTile(
+              leading: _isRfo && _selectionMode ? Checkbox(value: _selected.contains(a.id), onChanged: _deleting ? null : (value) => setState(() { if (value == true && _selected.length < 500) { _selected.add(a.id!); } else { _selected.remove(a.id); } })) : null,
               title: Text(a.officeNumber),
               subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${a.applicantName} • ${a.applicationType}'),
@@ -103,7 +156,7 @@ class _ApplicationSearchScreenState extends State<ApplicationSearchScreen> {
                   style: TextStyle(color: a.status == 'Completed' ? Colors.green.shade800 : null,
                     fontWeight: FontWeight.bold)),
               ]), trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              onTap: _deleting ? null : _selectionMode ? () => setState(() { if (_selected.contains(a.id)) { _selected.remove(a.id); } else if (_selected.length < 500) { _selected.add(a.id!); } }) : _showDeleted ? null : () => Navigator.of(context).push(MaterialPageRoute<void>(
                 builder: (_) => ApplicationStatusScreen(officeNumber: a.officeNumber))),
             ));
           })),

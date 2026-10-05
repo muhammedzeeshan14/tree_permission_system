@@ -1,3 +1,5 @@
+import '../services/session_service.dart';
+import '../services/supabase_service.dart';
 import 'user_repository.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -11,6 +13,43 @@ import '../services/online_mode.dart';
 import '../services/sync_service.dart';
 
 class ApplicationRepository {
+  Future<int> setApplicationsDeleted(List<int> ids, {bool restore = false}) async {
+    final session = SessionService.instance;
+    if (session.role.trim().toUpperCase() != 'RFO' || session.userId == null) {
+      throw StateError('Only RFO can delete or restore applications');
+    }
+    final selected = ids.toSet().toList();
+    if (selected.isEmpty) return 0;
+    if (selected.length > 500) throw StateError('Select at most 500 applications');
+    if (OnlineMode.enabled) {
+      final result = await SupabaseService.client!.rpc('tpms_set_application_deleted', params: {
+        'p_ids': selected, 'p_actor': session.userId, 'p_restore': restore,
+      });
+      return (result as num).toInt();
+    }
+    final db = await _db;
+    return db.transaction((txn) async {
+      var changed = 0;
+      for (final id in selected) {
+        final rows = await txn.query('applications', where: 'id=?', whereArgs: [id]);
+        if (rows.isEmpty) continue;
+        final row = rows.first;
+        if (restore && row['status'] == 'Deleted' && row['deletedPreviousStatus'] != null) {
+          changed += await txn.update('applications', {
+            'status': row['deletedPreviousStatus'], 'deletedPreviousStatus': null,
+            'deletedAt': null, 'deletedBy': null,
+          }, where: 'id=?', whereArgs: [id]);
+        } else if (!restore && row['status'] != 'Deleted') {
+          changed += await txn.update('applications', {
+            'status': 'Deleted', 'deletedPreviousStatus': row['status'],
+            'deletedAt': DateTime.now().toIso8601String(), 'deletedBy': session.userId,
+          }, where: 'id=?', whereArgs: [id]);
+        }
+      }
+      return changed;
+    });
+  }
+
   final DatabaseHelper dbHelper =
       DatabaseHelper.instance;
 
@@ -687,13 +726,13 @@ Future<List<ApplicationReferenceModel>>
 
 Future<ApplicationModel?> getByOfficeNumber(String officeNumber) async {
   if (OnlineMode.enabled) {
-    final rows = await OnlineDatabase.select(
+    final fetched = await OnlineDatabase.selectAll(
       'applications',
       equals: {'officeNumber': officeNumber},
-      limit: 2,
     );
+    final rows = fetched.where((row) => row['status'] != 'Deleted').toList();
     if (rows.length > 1) throw StateError('Duplicate office number $officeNumber. Resolve the duplicate application records before opening documents.');
-    if (rows.isEmpty) return null;
+    if (rows.isEmpty || rows.first['status'] == 'Deleted') return null;
     return await _enrichOnline(rows.first);
   }
   final rows=await (await _db).rawQuery('''SELECT applications.*, section_master.sectionName,
@@ -702,7 +741,7 @@ Future<ApplicationModel?> getByOfficeNumber(String officeNumber) async {
     LEFT JOIN beat_master ON applications.beatId=beat_master.id
     LEFT JOIN users bfo ON applications.assignedBFO=bfo.id
     LEFT JOIN users drfo ON applications.assignedDRFO=drfo.id
-    WHERE applications.officeNumber=? LIMIT 2''',[officeNumber]);
+    WHERE applications.officeNumber=? AND applications.status <> 'Deleted' LIMIT 2''',[officeNumber]);
   if (rows.length > 1) throw StateError('Duplicate office number $officeNumber. Resolve the duplicate application records before opening documents.');
   if(rows.isEmpty) return null;
   final application=_mapApplication(rows.first);
@@ -720,7 +759,7 @@ Future<ApplicationModel?> getById(
       equals: {'id': id},
       limit: 1,
     );
-    if (result.isEmpty) return null;
+    if (result.isEmpty || result.first['status'] == 'Deleted') return null;
     return await _enrichOnline(result.first);
   }
 
@@ -730,7 +769,7 @@ Future<ApplicationModel?> getById(
 
     "applications",
 
-    where: "id=?",
+    where: "id=? AND status <> 'Deleted'",
 
     whereArgs: [id],
 
@@ -1003,12 +1042,13 @@ rfoOverallRemarks:
 
 Future<List<ApplicationModel>>
     getApplications({Map<String, Object?>? onlineEquals,
-      List<Object>? onlineStatuses, bool includeReferences = true}) async {
+      List<Object>? onlineStatuses, bool includeReferences = true, bool includeDeleted = false}) async {
 
   if (OnlineMode.enabled) {
-    final result = await OnlineDatabase.selectAll('applications',
+    final fetched = await OnlineDatabase.selectAll('applications',
       equals: onlineEquals, inColumn: onlineStatuses == null ? null : 'status',
       inValues: onlineStatuses, orderBy: 'createdDate', descending: true);
+    final result = fetched.where((row) => includeDeleted || row['status'] != 'Deleted').toList();
     if (result.isEmpty) return [];
     final lookupData = await Future.wait([
       OnlineDatabase.selectAll('section_master', columns: 'id,sectionName'),
@@ -1110,6 +1150,7 @@ ORDER BY applications.createdDate DESC
 """);
 
  final applications = result
+    .where((row) => includeDeleted || row['status'] != 'Deleted')
     .map(_mapApplication)
     .toList();
 
@@ -1352,7 +1393,8 @@ Future<List<ApplicationModel>>
       getDashboardCounts() async {
 
   if (OnlineMode.enabled) {
-    final rows = await OnlineDatabase.select('applications');
+    final fetched = await OnlineDatabase.selectAll('applications');
+    final rows = fetched.where((row) => row['status'] != 'Deleted').toList();
     int count(String status) =>
         rows.where((r) => (r['status']?.toString() ?? '') == status).length;
     return {
@@ -1403,7 +1445,7 @@ Future<List<ApplicationModel>>
 
           await db.rawQuery(
 
-            "SELECT COUNT(*) FROM applications",
+            "SELECT COUNT(*) FROM applications WHERE status <> 'Deleted'",
 
           ),
 
