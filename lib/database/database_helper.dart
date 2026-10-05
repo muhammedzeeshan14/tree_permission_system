@@ -1,3 +1,4 @@
+import 'document_grammar_defaults.dart';
 import 'timber_species_seed.dart';
 import '../repositories/revenue_reply_repository.dart';
 import '../repositories/tree_officer_repository.dart';
@@ -38,7 +39,7 @@ print("DATABASE PATH = $path");
 
     return await openDatabase(
       path,
-    version: 48,
+    version: 49,
 
       onCreate: _createDB,
  onUpgrade: _onUpgrade,
@@ -793,6 +794,7 @@ await _ensureFreshSyncColumns(db);
 await _createOfficeCounterTable(db);
 await seedDevelopmentData(db);
 await seedTimberSpeciesDefaults(db);
+await seedDocumentGrammarDefaults(db);
   }
 
 Future<void> _onUpgrade(
@@ -2303,6 +2305,7 @@ if (oldVersion < 48) {
   }
 }
 
+if (oldVersion < 49) await seedDocumentGrammarDefaults(db);
 }
 
 Future<void> _ensureFreshSyncColumns(DatabaseExecutor db) async {

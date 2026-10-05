@@ -1,3 +1,4 @@
+import '../database/document_grammar_defaults.dart';
 import '../services/master_entry_deletion.dart';
 import '../database/timber_species_seed.dart';
 import 'package:sqflite/sqflite.dart';
@@ -888,10 +889,8 @@ await add("Beat","Beat-2","B2","",2);
 
   // PURPOSE (parentCode = Why Removing code for mapping)
 
-  await add("Purpose","House Construction","HOUSE","CONVINIENT",1);
-  await add("Purpose","Agriculture","AGRI","FINANCE",2);
-  await add("Purpose","Road Widening","ROADW","WORKS",3);
-  await add("Purpose","Safety","SAFETY","DANGER",4);
+
+  await seedDocumentGrammarDefaults(db);
 
   // GOVERNMENT AGENCY
 
@@ -907,9 +906,6 @@ await add("Beat","Beat-2","B2","",2);
 
   // STRUCTURE TYPE
 
-  await add("Structure Type","Building","BUILDING","",1);
-  await add("Structure Type","Road","ROAD","",2);
-  await add("Structure Type","Layout","LAYOUT","",3);
 
   // TREE STATUS
 

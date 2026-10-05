@@ -1,3 +1,4 @@
+import 'document_master_grammar.dart';
 import 'document_paragraph_flow.dart';
 import 'deferred_reason_labels.dart';
 import '../repositories/history_repository.dart';
@@ -260,6 +261,16 @@ class DrfoDocumentService {
   // ==========================================================
 
   String _replace(String template, String placeholder, String value) {
+    if (placeholder == '{{STRUCTURE_TYPE_KANNADA}}') {
+      template = template.replaceAll('{{STRUCTURE_TYPE_PHRASE}}',
+        DocumentMasterGrammar.structurePhrase(value));
+    }
+    if (placeholder == '{{PURPOSE_KANNADA}}') value = DocumentMasterGrammar.purposePhrase(value);
+    if (placeholder == '{{WORK_NAME_TEXT}}') value = DocumentMasterGrammar.workPhrase(value);
+    if (placeholder == '{{WHY_REMOVING_KANNADA}}') {
+      value = DocumentMasterGrammar.removalPhrase(value);
+    }
+
     if (placeholder.endsWith('_DATE}}') && value.isEmpty) {
       return _omitMissingDatePhrase(template, placeholder);
     }
@@ -5979,7 +5990,7 @@ class DrfoDocumentService {
       '{{TREE_LOCATION_SUBJECT_PHRASE}}': locationPhrase,
       '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
       '{{TOTAL_RECOMMENDED_TREES}}': '${permittedTrees.length}',
-      '{{WHY_REMOVING_KANNADA}}': kannada(await _masterKannadaName(masters, application.whyRemovingId), 'reason for removal'),
+      '{{WHY_REMOVING_KANNADA}}': DocumentMasterGrammar.removalPhrase(kannada(await _masterKannadaName(masters, application.whyRemovingId), 'reason for removal')),
       '{{SECTION}}': kannada(await _printSectionName(application), 'section name'),
       '{{REFERENCES}}': await _buildMccReferences(application, drfoOrderLast: false),
       '{{RANGE_NAME}}': range,
@@ -6059,7 +6070,7 @@ class DrfoDocumentService {
       '{{TREE_LOCATION_BODY_PHRASE}}': locationPhrase,
       '{{RECEIVED_DATE}}': _date(application.receivedDate),
       '{{DRFO_REPORT_DATE}}': await _drfoReportReferenceDate(application),
-      '{{WHY_REMOVING_KANNADA}}': whyRemoving,
+      '{{WHY_REMOVING_KANNADA}}': DocumentMasterGrammar.removalPhrase(whyRemoving),
       '{{TOTAL_RECOMMENDED_TREES}}': recommended.length.toString(),
       '{{TOTAL_APPROVED_TREES}}': approvedCount.toString(),
       '{{REVENUE_OPINION_REMARKS}}': revenueRemarks,
@@ -6234,7 +6245,7 @@ class DrfoDocumentService {
       '{{RANGE_LOCATION}}': location,
       '{{LETTER_DATE}}': _date(application.rfoApprovalDate),
       '{{TOTAL_RECOMMENDED_TREES}}': recommendedCount.toString(),
-      '{{WHY_REMOVING_KANNADA}}': whyRemoving,
+      '{{WHY_REMOVING_KANNADA}}': DocumentMasterGrammar.removalPhrase(whyRemoving),
       '{{REVENUE_OPINION_REMARKS}}': revenueRemarks,
       '{{REVENUE_AUTHORITY}}': _authorityReferenceLine(reply.answers['authority'] ?? ''),
       '{{REVENUE_REPLY_DETAILS}}': replyDetails,
@@ -6431,10 +6442,10 @@ class DrfoDocumentService {
       '{{ADDITIONAL_TREE_LOCATION}}': additionalTreeLocation,
       '{{SANDAL_REFERENCES}}': references.join('\n'),
       '{{STRUCTURE_TYPE_KANNADA}}': structureTypeKannada,
-      '{{STRUCTURE_TYPE_PHRASE}}': structureTypeKannada.trim().isEmpty ? '' : '${structureTypeKannada}ಯ',
-      '{{PURPOSE_KANNADA}}': purposeKannada,
-      '{{WORK_NAME_TEXT}}': workNameText,
-      '{{WHY_REMOVING_KANNADA}}': whyRemovingKannada,
+      '{{STRUCTURE_TYPE_PHRASE}}': DocumentMasterGrammar.structurePhrase(structureTypeKannada),
+      '{{PURPOSE_KANNADA}}': DocumentMasterGrammar.purposePhrase(purposeKannada),
+      '{{WORK_NAME_TEXT}}': DocumentMasterGrammar.workPhrase(workNameText),
+      '{{WHY_REMOVING_KANNADA}}': DocumentMasterGrammar.removalPhrase(whyRemovingKannada),
       '{{SECTION}}': sectionName,
       '{{BEAT}}': beatName,
       '{{RANGE_NAME}}': range,

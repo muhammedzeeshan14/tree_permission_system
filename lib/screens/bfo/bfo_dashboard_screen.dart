@@ -18,29 +18,21 @@ import 'wizard/bfo_wizard_controller.dart';
 import 'wizard/inspection_summary_step.dart';
 
 class BFODashboardScreen extends StatefulWidget {
-  const BFODashboardScreen({
-    super.key,
-  });
+  const BFODashboardScreen({super.key});
 
   @override
-  State<BFODashboardScreen> createState() =>
-      _BFODashboardScreenState();
+  State<BFODashboardScreen> createState() => _BFODashboardScreenState();
 }
 
-class _BFODashboardScreenState
-    extends State<BFODashboardScreen> {
-  final ApplicationRepository repository =
-      ApplicationRepository();
+class _BFODashboardScreenState extends State<BFODashboardScreen> {
+  final ApplicationRepository repository = ApplicationRepository();
 
-  final ApplicationTypeRepository
-      applicationTypeRepository =
+  final ApplicationTypeRepository applicationTypeRepository =
       ApplicationTypeRepository();
 
-  final MasterRepository masterRepository =
-      MasterRepository();
+  final MasterRepository masterRepository = MasterRepository();
 
-  final DrfoDocumentService documentService =
-      DrfoDocumentService();
+  final DrfoDocumentService documentService = DrfoDocumentService();
 
   List<ApplicationModel> pendingApplications = [];
 
@@ -65,84 +57,60 @@ class _BFODashboardScreenState
   Future<void> loadApplications() async {
     final userId = SessionService.instance.userId!;
 
-    final allApplications =
-        await repository.getApplications();
+    final allApplications = await repository.getApplications();
 
-    final assignedApplications =
-        allApplications.where((application) {
+    final assignedApplications = allApplications.where((application) {
       return application.assignedBFOId == userId;
     }).toList();
 
-    final completed =
-        await repository.getCompletedInspectionsForBFO(
-      userId,
-    );
+    final completed = await repository.getCompletedInspectionsForBFO(userId);
 
-    final applicationTypes =
-        await applicationTypeRepository.getAll();
+    final applicationTypes = await applicationTypeRepository.getAll();
 
-    final governmentAgencies =
-        await masterRepository.getMasters(
+    final governmentAgencies = await masterRepository.getMasters(
       "Government Agency",
     );
 
-    final urbanRuralItems =
-        await masterRepository.getMasters(
-      "Urban Rural",
-    );
+    final urbanRuralItems = await masterRepository.getMasters("Urban Rural");
 
     applicationTypeNames.clear();
 
     for (final item in applicationTypes) {
-      final shortCode =
-          item["shortCode"]?.toString().trim() ?? "";
+      final shortCode = item["shortCode"]?.toString().trim() ?? "";
 
-      final fullName =
-          item["applicationType"]?.toString().trim() ?? "";
+      final fullName = item["applicationType"]?.toString().trim() ?? "";
 
       if (shortCode.isNotEmpty) {
-        applicationTypeNames[
-            shortCode.toUpperCase()] = fullName;
+        applicationTypeNames[shortCode.toUpperCase()] = fullName;
       }
 
       if (fullName.isNotEmpty) {
-        applicationTypeNames[
-            fullName.toUpperCase()] = fullName;
+        applicationTypeNames[fullName.toUpperCase()] = fullName;
       }
     }
 
     masterNames.clear();
 
-    for (final item in [
-      ...governmentAgencies,
-      ...urbanRuralItems,
-    ]) {
+    for (final item in [...governmentAgencies, ...urbanRuralItems]) {
       final id = item["id"] as int?;
 
-      final value =
-          item["value"]?.toString().trim() ?? "";
+      final value = item["value"]?.toString().trim() ?? "";
 
       if (id != null) {
         masterNames[id] = value;
       }
     }
 
-    pendingApplications =
-        assignedApplications.where((application) {
-      return application.status ==
-          WorkflowStatus.pendingBFOInspection;
+    pendingApplications = assignedApplications.where((application) {
+      return application.status == WorkflowStatus.pendingBFOInspection;
     }).toList();
 
-    returnedByDRFOApplications =
-        assignedApplications.where((application) {
-      return application.status ==
-          WorkflowStatus.returnedToBFO;
+    returnedByDRFOApplications = assignedApplications.where((application) {
+      return application.status == WorkflowStatus.returnedToBFO;
     }).toList();
 
-    returnedByRFOApplications =
-        assignedApplications.where((application) {
-      return application.status ==
-          WorkflowStatus.returnedByRFO;
+    returnedByRFOApplications = assignedApplications.where((application) {
+      return application.status == WorkflowStatus.returnedByRFO;
     }).toList();
 
     completedApplications = completed;
@@ -157,17 +125,13 @@ class _BFODashboardScreenState
   Future<void> _refresh() async {
     await loadApplications();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Refreshed'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Refreshed')));
     }
   }
 
-  String applicationNumber(
-    ApplicationModel application,
-  ) {
+  String applicationNumber(ApplicationModel application) {
     final parts = application.officeNumber.split("/");
 
     if (parts.isEmpty) {
@@ -181,42 +145,29 @@ class _BFODashboardScreenState
     return number?.toString() ?? lastPart;
   }
 
- String applicationTypeDisplay(
-  ApplicationModel application,
-) {
-  final savedType =
-      application.applicationType.trim();
+  String applicationTypeDisplay(ApplicationModel application) {
+    final savedType = application.applicationType.trim();
 
-  final masterName = applicationTypeNames[
-      savedType.toUpperCase()];
+    final masterName = applicationTypeNames[savedType.toUpperCase()];
 
-  if (masterName != null &&
-      masterName.trim().isNotEmpty) {
-    return masterName;
+    if (masterName != null && masterName.trim().isNotEmpty) {
+      return masterName;
+    }
+
+    if (application.verifiedApplicationType.trim().isNotEmpty) {
+      return application.verifiedApplicationType;
+    }
+
+    return savedType;
   }
 
-  if (application.verifiedApplicationType
-      .trim()
-      .isNotEmpty) {
-    return application.verifiedApplicationType;
-  }
-
-  return savedType;
-}
-
-  String agencyOrUrbanRural(
-    ApplicationModel application,
-  ) {
+  String agencyOrUrbanRural(ApplicationModel application) {
     if (application.governmentAgencyId != null) {
-      return masterNames[
-              application.governmentAgencyId!] ??
-          "-";
+      return masterNames[application.governmentAgencyId!] ?? "-";
     }
 
     if (application.urbanRuralId != null) {
-      return masterNames[
-              application.urbanRuralId!] ??
-          "-";
+      return masterNames[application.urbanRuralId!] ?? "-";
     }
 
     return "-";
@@ -247,28 +198,21 @@ class _BFODashboardScreenState
     if (!application.inspectionStarted) {
       application.inspectionStarted = true;
 
-      await repository.updateApplication(
-        application,
-      );
+      await repository.updateApplication(application);
     }
 
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => BFOWizardController(
-          application: application,
-        ),
+        builder: (_) => BFOWizardController(application: application),
       ),
     );
 
     await loadApplications();
   }
 
-  Future<void> openMahazar(
-    ApplicationModel application,
-  ) async {
-    final files =
-        await documentService.getGeneratedDocuments(
+  Future<void> openMahazar(ApplicationModel application) async {
+    final files = await documentService.getGeneratedDocuments(
       application.officeNumber,
     );
 
@@ -285,25 +229,16 @@ class _BFODashboardScreenState
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "No generated Mahazar is available.",
-          ),
-        ),
+        const SnackBar(content: Text("No generated Mahazar is available.")),
       );
 
       return;
     }
 
-    await OpenFilex.open(
-      mahazarFiles.last.path,
-    );
+    await OpenFilex.open(mahazarFiles.last.path);
   }
 
-  Widget tabTitle(
-    String title,
-    int count,
-  ) {
+  Widget tabTitle(String title, int count) {
     return Tab(
       child: RichText(
         textAlign: TextAlign.center,
@@ -314,13 +249,13 @@ class _BFODashboardScreenState
             fontWeight: FontWeight.w600,
           ),
           children: [
-            TextSpan(
-              text: title,
-            ),
+            TextSpan(text: title),
             TextSpan(
               text: " ($count)",
-              style: const TextStyle(
-                color: Colors.red,
+              style: TextStyle(
+                color: count == 0 || title == "Completed Inspection"
+                    ? Colors.green
+                    : Colors.red,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -337,8 +272,7 @@ class _BFODashboardScreenState
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: applications.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1),
+      separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final application = applications[index];
 
@@ -360,30 +294,19 @@ class _BFODashboardScreenState
               rowText,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             trailing: readOnly
                 ? IconButton(
                     tooltip: "View Mahazar",
-                    icon: const Icon(
-                      Icons.picture_as_pdf,
-                      color: Colors.red,
-                    ),
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
                     onPressed: workflowAction(context, () {
                       openMahazar(application);
                     }),
                   )
-                : const Icon(
-                    Icons.chevron_right,
-                  ),
+                : const Icon(Icons.chevron_right),
             onTap: () {
-              openInspection(
-                application,
-                readOnly: readOnly,
-              );
+              openInspection(application, readOnly: readOnly);
             },
           ),
         );
@@ -408,9 +331,7 @@ class _BFODashboardScreenState
             ),
           ],
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
         bottomNavigationBar: const SyncBar(),
       );
     }
@@ -475,10 +396,7 @@ class _BFODashboardScreenState
         body: const Center(
           child: Text(
             "No Applications Assigned",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
         bottomNavigationBar: const SyncBar(),
@@ -504,19 +422,13 @@ class _BFODashboardScreenState
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             tabs: tabs.map((tab) {
-              return tabTitle(
-                tab.title,
-                tab.applications.length,
-              );
+              return tabTitle(tab.title, tab.applications.length);
             }).toList(),
           ),
         ),
         body: TabBarView(
           children: tabs.map((tab) {
-            return applicationList(
-              tab.applications,
-              readOnly: tab.readOnly,
-            );
+            return applicationList(tab.applications, readOnly: tab.readOnly);
           }).toList(),
         ),
         bottomNavigationBar: const SyncBar(),

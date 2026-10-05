@@ -49,10 +49,6 @@ begin
       ('Section','Section-2','S2','',2,''),
       ('Beat','Beat-1','B1','',1,''),
       ('Beat','Beat-2','B2','',2,''),
-      ('Purpose','House Construction','HOUSE','CONVINIENT',1,'ಮನೆ ನಿರ್ಮಾಣ'),
-      ('Purpose','Agriculture','AGRI','FINANCE',2,'ಕೃಷಿ'),
-      ('Purpose','Road Widening','ROADW','WORKS',3,'ರಸ್ತೆ ಅಗಲೀಕರಣ'),
-      ('Purpose','Safety','SAFETY','DANGER',4,'ಸುರಕ್ಷತೆ'),
       ('Problem','Dangerous','','',1,'ಅಪಾಯಕಾರಿ'),
       ('Problem','Dead','','',2,'ಸತ್ತ'),
       ('Problem','Dry','','',3,'ಒಣಗಿದ'),
@@ -118,19 +114,12 @@ begin
       ('Document Template','Mahazar Template','MAHAZAR_V1','MAHAZAR',2,''),
       ('Document Template','Cover Letter Template','COVER_V1','COVER',3,''),
       ('Document Template','Inspection Report Template','REPORT_V1','REPORT',4,''),
-      ('Why Removing','Dangerous tree/branch','Danger','',1,'ಅಪಾಯಕಾರಿ ಮರ/ಕೊಂಬೆ'),
-      ('Why Removing','Self convenience','Convinient','',2,'ಸ್ವಂತ ಅನುಕೂಲಕ್ಕಾಗಿ'),
-      ('Why Removing','Development work','Works','',3,'ಅಭಿವೃದ್ಧಿ ಕಾಮಗಾರಿ'),
-      ('Why Removing','Financial benefit','Finance','',4,'ಆರ್ಥಿಕ ಲಾಭಕ್ಕಾಗಿ'),
       ('Government Agency','Forest Department','FOREST','',1,'ಅರಣ್ಯ ಇಲಾಖೆ'),
       ('Government Agency','Revenue Department','REVENUE','',2,'ಕಂದಾಯ ಇಲಾಖೆ'),
       ('Government Agency','Public Works Department','PWD','',3,'ಲೋಕೋಪಯೋಗಿ ಇಲಾಖೆ'),
       ('Urban Rural','Urban','URBAN','',1,'ನಗರ'),
       ('Urban Rural','Rural','RURAL','',2,'ಗ್ರಾಮಾಂತರ'),
       ('Urban Rural','Semi-Urban','SEMI','',3,'ಅರೆ ನಗರ'),
-      ('Structure Type','Building','BUILDING','',1,'ಕಟ್ಟಡ'),
-      ('Structure Type','Road','ROAD','',2,'ರಸ್ತೆ'),
-      ('Structure Type','Layout','LAYOUT','',3,'ಬಡಾವಣೆ'),
       ('Tree Status','Healthy','HEALTHY','',1,'ಆರೋಗ್ಯಕರ'),
       ('Tree Status','Dead','DEAD','',2,'ಸತ್ತ'),
       ('Tree Status','Dangerous','DANGEROUS','',3,'ಅಪಾಯಕಾರಿ'),
@@ -290,3 +279,30 @@ begin
   end loop;
 end $$;
 commit;
+
+-- Grammar-safe defaults
+-- Preserve historical IDs and custom entries; retire bundled defaults.
+begin;
+lock table public.master_data in share row exclusive mode;
+update public.master_data set "isActive"=0 where (("masterType"='Why Removing' and value in ('Dangerous tree/branch','Self convenience','Development work','Financial benefit')) or ("masterType"='Purpose' and value in ('House Construction','Agriculture','Road Widening','Safety')) or ("masterType"='Structure Type' and value in ('Building','Road','Layout'))) and coalesce(remarks,'') <> 'GRAMMAR_DEFAULT_20261006';
+insert into public.master_data ("masterType",value,code,"parentCode","displayOrder","kannadaName",remarks,"isActive")
+select d.*, 'GRAMMAR_DEFAULT_20261006', 1 from (values
+('Why Removing','Dangerous tree/branch','DANGER','',1,'ಅಪಾಯ ಉಂಟಾಗುತ್ತಿರುವ'),
+('Why Removing','Development work','WORKS','',2,'ಅಡಚಣೆ ಉಂಟಾಗುತ್ತಿರುವ'),
+('Why Removing','Road widening','WIDEN','',3,'ಅಡಚಣೆ ಉಂಟಾಗುತ್ತಿರುವ'),
+('Why Removing','Repair work','REPAIR','',4,'ಅಡಚಣೆ ಉಂಟಾಗುತ್ತಿರುವ'),
+('Why Removing','Damage to property','DAMAGE','',5,'ಹಾನಿ ಉಂಟಾಗುತ್ತಿರುವ'),
+('Purpose','Safety','GRAMMAR_SAFETY','DANGER',1,'ಸುರಕ್ಷತೆಗೆ'),
+('Purpose','Construction','GRAMMAR_CONSTRUCTION','WORKS',2,'ನಿರ್ಮಾಣ ಕಾಮಗಾರಿಗೆ'),
+('Purpose','Widening','GRAMMAR_WIDENING','WIDEN',3,'ಅಗಲೀಕರಣ ಕಾಮಗಾರಿಗೆ'),
+('Purpose','Repair','GRAMMAR_REPAIR','REPAIR',4,'ದುರಸ್ತಿ ಕಾಮಗಾರಿಗೆ'),
+('Purpose','Protection','GRAMMAR_PROTECTION','DAMAGE',5,'ರಕ್ಷಣೆಗೆ'),
+('Structure Type','Building','GRAMMAR_BUILDING','',1,'ಕಟ್ಟಡ'),
+('Structure Type','Road','GRAMMAR_ROAD','',2,'ರಸ್ತೆ'),
+('Structure Type','Drain','GRAMMAR_DRAIN','',3,'ಚರಂಡಿ'),
+('Structure Type','Bridge','GRAMMAR_BRIDGE','',4,'ಸೇತುವೆ'),
+('Structure Type','Compound wall','GRAMMAR_COMPOUND','',5,'ಕಾಂಪೌಂಡ್ ಗೋಡೆ')
+) as d("masterType",value,code,"parentCode","displayOrder","kannadaName")
+where not exists (select 1 from public.master_data m where m."masterType"=d."masterType" and m.code=d.code and m.remarks='GRAMMAR_DEFAULT_20261006');
+commit;
+select "masterType",count(*) as default_entries from public.master_data where remarks='GRAMMAR_DEFAULT_20261006' and "isActive"=1 group by "masterType" order by "masterType";
