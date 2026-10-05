@@ -2857,7 +2857,7 @@ class DrfoDocumentService {
     Future<ui.Paragraph> cellParagraph({
       required String text,
       required double width,
-      double fontSize = 7.2,
+      double fontSize = 8.2,
       ui.TextAlign alignment = ui.TextAlign.center,
       bool bold = false,
     }) {
@@ -3316,7 +3316,7 @@ class DrfoDocumentService {
     Future<ui.Paragraph> cellParagraph({
       required String text,
       required double width,
-      double fontSize = 7.0,
+      double fontSize = 8.0,
       ui.TextAlign alignment = ui.TextAlign.center,
       bool bold = false,
     }) {
@@ -3599,7 +3599,7 @@ class DrfoDocumentService {
     final border = ui.Paint()..color = const ui.Color(0xFF000000)..style = ui.PaintingStyle.stroke..strokeWidth = 0.6 * _scale;
     Future<ui.Paragraph> paragraph(String text, double width, {bool bold = false}) => _buildParagraph(
       text: text.isEmpty ? '—' : text, width: width - 6 * _scale,
-      fontSize: 8 * _scale, alignment: ui.TextAlign.center, bold: bold);
+      fontSize: 9 * _scale, alignment: ui.TextAlign.center, bold: bold);
     void cell(int col, double top, double height, ui.Paragraph text, {double? width}) {
       canvas.drawRect(ui.Rect.fromLTWH(x[col], top, width ?? widths[col], height), border);
       canvas.drawParagraph(text, ui.Offset(x[col] + 3 * _scale, top + (height - text.height) / 2));
@@ -3720,11 +3720,9 @@ class DrfoDocumentService {
 
       // Three-part letterhead:
       // letter number | centered logo | office details
-      final leftColumnWidth = 180 * _scale;
+      final leftColumnWidth = (contentWidth - 92 * _scale) / 2 - 5 * _scale;
       final logoColumnWidth = 92 * _scale;
-      final columnGap = 5 * _scale;
-      final rightColumnWidth =
-          contentWidth - leftColumnWidth - logoColumnWidth - (columnGap * 2);
+      final rightColumnWidth = leftColumnWidth;
 
       final leftHeader =
           "ಪತ್ರ ಸಂಖ್ಯೆ:\n"
@@ -3757,7 +3755,7 @@ class DrfoDocumentService {
         text: "ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿಗಳ ಕಛೇರಿ",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.center,
+        alignment: ui.TextAlign.right,
         bold: true,
       );
 
@@ -3767,7 +3765,7 @@ class DrfoDocumentService {
         text: rightBodyLines.isNotEmpty ? rightBodyLines.first : "",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.center,
+        alignment: ui.TextAlign.right,
         bold: true,
         lineHeight: 1.48,
       );
@@ -3778,7 +3776,7 @@ class DrfoDocumentService {
             : "",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.center,
+        alignment: ui.TextAlign.right,
         bold: false,
         lineHeight: 1.48,
       );
@@ -3787,7 +3785,7 @@ class DrfoDocumentService {
         text: "ದಿನಾಂಕ: ${rfoLetterhead.approvalDate}",
         width: rightColumnWidth,
         fontSize: defaultFontSize * _scale,
-        alignment: ui.TextAlign.center,
+        alignment: ui.TextAlign.right,
         bold: false,
         lineHeight: 1.38,
       );
@@ -3803,9 +3801,9 @@ class DrfoDocumentService {
 
       final leftX = _leftMargin * _scale;
 
-      final logoX = leftX + leftColumnWidth + columnGap;
+      final logoX = (_pageWidth * _scale - logoColumnWidth) / 2;
 
-      final rightX = logoX + logoColumnWidth + columnGap;
+      final rightX = (_pageWidth - _rightMargin) * _scale - rightColumnWidth;
 
       double senderNameHeight = 0;
       if (rfoLetterhead.doSenderName != null) {
@@ -3982,6 +3980,42 @@ class DrfoDocumentService {
 
       // DO closing is one pagination unit: thanks, recipient on the left,
       // and signature on the right. All wording stays in the editable template.
+      if (trimmed == '[RFO_SIGNATURE]') {
+        final textLines = <String>[];
+        while (++i < lines.length && lines[i].trim() != '[/RFO_SIGNATURE]') {
+          final text = lines[i].trim();
+          if (text.isNotEmpty && !text.startsWith('[')) textLines.add(text);
+        }
+        if (textLines.length < 2) throw StateError('Incomplete RFO signature block');
+        final designation = await _buildParagraph(text: textLines[textLines.length - 2],
+          width: signatureBlockWidth, fontSize: defaultFontSize * _scale,
+          alignment: ui.TextAlign.center, bold: true);
+        final rangeName = rfoLetterhead!.rangeName.trim();
+        final rangeText = '${rangeName.endsWith('ವಲಯ') ? rangeName : '$rangeName ವಲಯ'}, ${rfoLetterhead.rangeLocation}';
+        final range = await _buildParagraph(text: rangeText,
+          width: signatureBlockWidth, fontSize: defaultFontSize * _scale,
+          alignment: ui.TextAlign.center, bold: false);
+        final prefix = <ui.Paragraph>[];
+        for (final text in textLines.take(textLines.length - 2)) {
+          prefix.add(await _buildParagraph(text: text, width: signatureBlockWidth,
+            fontSize: defaultFontSize * _scale, alignment: ui.TextAlign.center, bold: false));
+        }
+        final signingGap = 26 * _scale;
+        final rangeOffset = (designation.height + 4 * _scale) * 0.75;
+        final height = prefix.fold<double>(0, (sum, p) => sum + p.height + 4 * _scale)
+          + signingGap + rangeOffset + range.height;
+        y = _pagePosition(y, height);
+        for (final p in prefix) {
+          canvas.drawParagraph(p, ui.Offset(signatureBlockX, y));
+          y += p.height + 4 * _scale;
+        }
+        y += signingGap;
+        canvas.drawParagraph(designation, ui.Offset(signatureBlockX, y));
+        y += rangeOffset;
+        canvas.drawParagraph(range, ui.Offset(signatureBlockX, y));
+        y += range.height + 4 * _scale;
+        continue;
+      }
       if (trimmed == '[COMPACT_RECIPIENT]') {
         compactRecipient = true;
         continue;
@@ -4560,6 +4594,7 @@ class DrfoDocumentService {
         if (closingEnd < i) closingEnd = i;
         for (var j = i; j <= closingEnd; j++) {
           final text = lines[j].trim();
+          if (text == '[RFO_SIGNATURE]') footerHeight += 26 * _scale;
           if (text.startsWith('[')) continue;
           if (text.isEmpty) {
             footerHeight += 9 * _scale;
@@ -4780,6 +4815,18 @@ class DrfoDocumentService {
     List<List<String>> branchTreeRows = const [],
     String mccValuationApplicant = '',
   }) async {
+    if (rfoLetterhead != null && rfoLetterhead.doSenderName == null) {
+      master = master.replaceAllMapped(RegExp(r'\[RIGHT\]([\s\S]*?)\[/RIGHT\]'), (match) {
+        final block = match.group(1)!;
+        if (!block.contains('ವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ')) return match.group(0)!;
+        return '[RIGHT]\n[RFO_SIGNATURE]\n${block.trim()}\n[/RFO_SIGNATURE]\n[/RIGHT]';
+      });
+    }
+    if (rfoLetterhead != null && master.contains('ಪ್ರತಿ:')) {
+      final range = rfoLetterhead.rangeName.trim();
+      final rangeLine = '${range.endsWith('ವಲಯ') ? range : '$range ವಲಯ'}, ${rfoLetterhead.rangeLocation}';
+      master += '\n[RIGHT]\n[RFO_SIGNATURE]\nವಲಯ ಅರಣ್ಯಾಧಿಕಾರಿ\n$rangeLine\n[/RFO_SIGNATURE]\n[/RIGHT]';
+    }
     final lines = master.trimRight().split('\n');
 
     return await _renderLetterPages(
